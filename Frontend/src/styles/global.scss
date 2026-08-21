@@ -1,0 +1,71 @@
+// =============================================================================
+// PARIVAHAN REVAMP - GLOBAL MASTER SCSS STYLESHEET
+// =============================================================================
+
+@import 'variables';
+@import 'mixins';
+
+:root {
+  --primary-color: #{$color-primary};
+  --primary-light: #{$color-primary-light};
+  --primary-dark: #{$color-primary-dark};
+  --accent-color: #{$color-accent};
+
+  --bg-main: #{$color-bg-main};
+  --bg-card: #{$color-bg-card};
+  --border-color: #{$color-border};
+
+  --text-main: #{$color-text-main};
+  --text-muted: #{$color-text-muted};
+
+  --font-base: #{$font-family-base};
+  --font-heading: #{$font-family-heading};
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-base);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--primary-dark);
+  font-weight: $font-weight-bold;
+}
+
+a {
+  color: var(--primary-light);
+  text-decoration: none;
+  transition: $transition-fast;
+
+  &:hover {
+    color: var(--primary-color);
+  }
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+
+.btn-primary {
+  @include btn-primary;
+}
+
+.card {
+  @include card-surface;
+  padding: $spacing-lg;
+}

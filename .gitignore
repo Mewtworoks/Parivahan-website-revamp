@@ -1,0 +1,51 @@
+# ==========================================
+# Global / OS / IDE
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.user
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+secrets.json
+*.pem
+*.key
+
+# ==========================================
+# Frontend (Node / Angular / React / Vue / Next)
+# ==========================================
+node_modules/
+dist/
+build/
+.next/
+.angular/
+.cache/
+coverage/
+npm-debug.log*
+
+# ==========================================
+# Backend (.NET / C# / Node / Python / Java)
+# ==========================================
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+Backend/node_modules/
+Backend/dist/
+__pycache__/
+*.pyc
+venv/
+.venv/
+target/
