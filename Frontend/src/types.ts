@@ -175,11 +175,15 @@ export interface DocumentRequirement {
 
 export interface ApplicationStep {
   t: string;
+  tHi: string;
+  tMr: string;
   ref: string;
 }
 
 export interface StageDefinition {
   n: string;
+  nHi: string;
+  nMr: string;
   k: string;
 }
 
@@ -190,7 +194,11 @@ export interface StageRow extends StageDefinition {
 export interface Category {
   id: string;
   t: string;
+  tHi: string;
+  tMr: string;
   d: string;
+  dHi: string;
+  dMr: string;
 }
 
 export interface TheoryQuestion {
@@ -208,9 +216,13 @@ export interface CaptchaQuestion {
 /** [spriteName, tileX, tileY, bodyColor?, lampColor?] */
 export type SpriteArt = [string, number, number, (string | null)?, string?];
 
+/** Which applicant this scenario is relevant to — 'any' means the rule applies regardless of vehicle class. */
+export type ScenarioVehicle = 'any' | 'car' | 'bike';
+
 export interface PracticeScenario {
   id: string;
   lvl: 'signals' | 'hazards' | 'signs';
+  vehicle: ScenarioVehicle;
   map: string[];
   art: SpriteArt[];
   q: string;
