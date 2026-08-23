@@ -104,7 +104,7 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Speed up and clear the junction before red', 'Stop before the line', 'Sound the horn and continue'], c: 1, axes: ['signal', 'hazard'],
     ex: 'Amber means stop unless you are so close that stopping is unsafe. At 20 metres you can stop, and a pedestrian is already committed to the crossing.',
     cite: 'MV Act s.119 · road signal compliance' },
-  { id: 'S2', lvl: 'signals', vehicle: 'any', map: T_JUNC, art: [['car', 9, 7.5, '#3f7ec9'], ['car', 13, 6, '#d8d2c4', undefined, 'h', 'fwd']],
+  { id: 'S2', lvl: 'signals', vehicle: 'any', map: T_JUNC, art: [['car', 9, 7.5, '#3f7ec9'], ['car', 13, 5, '#d8d2c4', undefined, 'h', 'fwd']],
     q: 'Unmarked crossroad, no signal. A car arrives from your right at the same moment.',
     a: ['You have right of way, proceed', 'Give way to the car on your right', 'Whoever indicates first goes'], c: 1, axes: ['priority'],
     ex: 'At an uncontrolled junction, traffic from the right has priority. This single rule causes a large share of junction collisions.',
@@ -119,7 +119,7 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Green is mine, continue at speed', 'Stop and let the pedestrian cross', 'Swerve into the next lane'], c: 1, axes: ['priority', 'hazard'],
     ex: 'A pedestrian on a zebra crossing has right of way regardless of your signal. Green permits movement, it does not remove the duty of care.',
     cite: 'MV Act s.138 · pedestrian right of way' },
-  { id: 'H1', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['van', 7, 3.5, '#8c8f96'], ['car', 3, 6.5, '#3f7ec9'], ['child', 8, 5, '#c8452f', undefined, undefined, 'cross']],
+  { id: 'H1', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['van', 7, 2.6, '#c9cdd3'], ['car', 3, 6.5, '#3f7ec9'], ['child', 8, 5, '#c8452f', undefined, undefined, 'cross']],
     q: 'A van is parked on your left. You cannot see the footpath behind it. You are doing 45 km/h.',
     a: ['Maintain speed, you have a clear lane', 'Slow to a walking pace and cover the brake', 'Hold the horn down and pass'], c: 1, axes: ['hazard'],
     ex: 'A stationary vehicle blocking your view of a footpath is the classic hidden hazard. The correct response is speed reduction before you can see the danger, not after.',
@@ -129,7 +129,7 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Overtake using the oncoming lane', 'Stop or crawl until it is safe to pass wide', 'Drive close and use the horn to move them'], c: 1, axes: ['hazard', 'priority'],
     ex: 'Animals move unpredictably and towards noise. Crossing into oncoming traffic to avoid them trades one hazard for a worse one.',
     cite: 'State RTO question bank · hazards, item 31' },
-  { id: 'H3', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['van', 13, 3.5, '#c5b46a'], ['car', 5, 6.5, '#3f7ec9'], ['ped', 12, 5, '#2f6b4f', undefined, undefined, 'cross']],
+  { id: 'H3', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['van', 13, 2.6, '#c5b46a'], ['car', 5, 6.5, '#3f7ec9'], ['ped', 12, 5, '#2f6b4f', undefined, undefined, 'cross']],
     q: 'A bus has stopped ahead at a stop. Passengers are getting off on the road side.',
     a: ['Pass on the right without slowing', 'Slow, expect people to step out from in front of the bus', 'Pass on the left, between bus and kerb'], c: 1, axes: ['hazard'],
     ex: 'People crossing in front of a stopped bus cannot see you and you cannot see them. Passing on the left is where they will be walking.',
@@ -199,7 +199,7 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Start moving as soon as the cross-street light turns red', 'Wait for your own signal to turn green before moving', 'Move if no cars are visible on the cross street'], c: 1, axes: ['signal', 'consistency'],
     ex: 'Only your own signal governs when you may move. Junctions usually run an all-red safety gap between phases — moving early risks a vehicle still clearing the far side.',
     cite: 'Signal phase discipline · all-red clearance gap' },
-  { id: 'H7', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['car', 5, 6.5, '#3f7ec9'], ['bike', 8, 6.5, '#c8452f', undefined, 'h', 'fwd']],
+  { id: 'H7', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['car', 8, 6.5, '#3f7ec9'], ['bike', 5, 6.5, '#c8452f', undefined, 'h', 'fwd']],
     q: 'You see a pothole ahead in your lane. A two-wheeler is close behind you.',
     a: ['Swerve suddenly to avoid it', 'Check your mirror, signal, and change line smoothly if it is safe', 'Brake hard right before the pothole'], c: 1, axes: ['hazard', 'consistency'],
     ex: 'A sudden swerve or hard brake with a vehicle close behind risks a rear-end collision. Signal early and move smoothly only if it is safe to do so.',
@@ -234,7 +234,7 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Fine — geared bikes are allowed from 16', 'You need to wait until 18 — MCWG requires the rider to be 18', 'Only allowed with a parent riding pillion'], c: 1, axes: ['sign'],
     ex: 'A gearless scooter or moped up to 50cc (MCWOG) can be ridden from 16. A geared motorcycle (MCWG) requires the rider to be at least 18.',
     cite: "MV Act s.4 · minimum age by vehicle class" },
-  { id: 'H9', lvl: 'hazards', vehicle: 'bike', map: T_ROAD, art: [['bike', 9, 6.5, '#3f7ec9', undefined, 'h', false], ['car', 4, 6.5, '#d8d2c4'], ['van', 13, 3.5, '#8c8f96']],
+  { id: 'H9', lvl: 'hazards', vehicle: 'bike', map: T_ROAD, art: [['bike', 9, 6.5, '#3f7ec9', undefined, 'h', false], ['car', 4, 6.5, '#d8d2c4'], ['van', 13, 3.5, '#c9cdd3']],
     q: "Traffic is stopped bumper-to-bumper at a red light. There's a narrow gap between two lanes of stationary cars.",
     a: ['Squeeze through the gap to jump ahead of the queue', "Wait in your lane like other traffic — a gap isn't a lane", 'Ride on the footpath around the queue'], c: 1, axes: ['hazard', 'consistency'],
     ex: 'Weaving between stationary lanes of traffic is not a right of way — a car door can open or a car can shift lane without warning. Queue like any other vehicle.',
@@ -281,8 +281,8 @@ export const SKILL_AXES: [key: string, label: string][] = [
 ];
 
 /** Decision window per question (ms), and the threshold under which an answer counts as "fast". */
-export const DECISION_LIMIT_MS = 4000;
-export const FAST_ANSWER_MS = 2200;
+export const DECISION_LIMIT_MS = 12000;
+export const FAST_ANSWER_MS = 6000;
 
 /** Scores each of the five skill axes from a played round's answer log, 0-1 (or null if the axis wasn't tested). */
 export function scoreOf(log: GameLogEntry[]): Record<string, number | null> {

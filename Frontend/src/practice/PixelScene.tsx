@@ -17,8 +17,10 @@ function drawTile(ctx: CanvasRenderingContext2D, ch: string, x: number, y: numbe
     ctx.fillStyle = '#7d8189'; ctx.fillRect(x, y, TILE, 2);
     ctx.fillStyle = '#5f636a'; ctx.fillRect(x, y + TILE - 2, TILE, 2);
   }
-  if (ch === '=') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + TILE * 0.44, y + 3, 2, TILE - 6); }
-  if (ch === '-') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 2, y + TILE * 0.44, TILE - 4, 2); }
+  // Fixed integer offsets, not TILE-scaled fractions — a marking one pixel off from tile to tile
+  // (from rounding) reads as a wobble; every '=' and '-' tile has to land on the exact same pixels.
+  if (ch === '=') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 7, y + 3, 2, TILE - 6); }
+  if (ch === '-') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 2, y + 7, TILE - 4, 2); }
   if (ch === 'z') { ctx.fillStyle = '#ece9e1'; ctx.fillRect(x, y + 3, TILE, 4); ctx.fillRect(x, y + TILE - 7, TILE, 4); }
   if (ch === 'b') {
     // roadside bus-stop shelter marker
@@ -91,11 +93,13 @@ const PLAYER_BODY = '#3f7ec9';
 const CREEP_TILES = 1.4;
 const CROSS_TILES = 1.1;
 
-/** Renders a road situation as a top-down pixel-art scene on a canvas, with actors that creep through the scenario as `progress` (0 to 1, matching the decision countdown) advances. */
-export function PixelScene({ map, art, shake, progress = 0 }: { map: string[]; art: SpriteArt[]; shake?: boolean; progress?: number }) {
+/** Renders a road situation as a top-down pixel-art scene on a canvas, with actors that creep through the scenario as `progress` (0 to 1, matching the decision countdown) advances. Everything — the directed creep and the idle sway/pulse alike — freezes solid the instant `revealed` turns true. */
+export function PixelScene({ map, art, shake, progress = 0, revealed = false }: { map: string[]; art: SpriteArt[]; shake?: boolean; progress?: number; revealed?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef(progress);
+  const revealedRef = useRef(revealed);
   useEffect(() => { progressRef.current = progress; }, [progress]);
+  useEffect(() => { revealedRef.current = revealed; }, [revealed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -104,8 +108,12 @@ export function PixelScene({ map, art, shake, progress = 0 }: { map: string[]; a
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
     let frame = 0;
+    // The instant of the freeze — captured once, on the first frame `revealed` is true, then held.
+    let frozenAt: number | null = null;
 
     const render = (t: number) => {
+      if (revealedRef.current) { if (frozenAt === null) frozenAt = t; } else { frozenAt = null; }
+      const effectiveT = frozenAt ?? t;
       const eased = 1 - (1 - Math.min(1, Math.max(0, progressRef.current))) ** 2;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawTile(ctx, (map[r] || '')[c] || '.', c * TILE, r * TILE);
@@ -117,11 +125,11 @@ export function PixelScene({ map, art, shake, progress = 0 }: { map: string[]; a
         const effectiveMove = move !== undefined ? move : (isPlayer ? 'fwd' : false);
 
         // A little idle sway/rock, phase-shifted per sprite so a scene with several actors doesn't move in lockstep.
-        const bob = BOBS.has(name) ? Math.sin(t / 260 + x * 1.7 + y) * 1.3 : 0;
+        const bob = BOBS.has(name) ? Math.sin(effectiveT / 260 + x * 1.7 + y) * 1.3 : 0;
         const rotated = isVehicle && facing !== 'v';
-        const drift = isVehicle ? Math.sin(t / 520 + x * 1.3 + y * 1.7) * 2.2 : 0;
+        const drift = isVehicle ? Math.sin(effectiveT / 520 + x * 1.3 + y * 1.7) * 2.2 : 0;
         // A real traffic signal pulses rather than sitting lit at one flat brightness.
-        const effectiveLamp = name === 'signal' && lamp ? (Math.sin(t / 420) > 0.1 ? lamp : 'rgba(140,116,48,0.4)') : lamp;
+        const effectiveLamp = name === 'signal' && lamp ? (Math.sin(effectiveT / 420) > 0.1 ? lamp : 'rgba(140,116,48,0.4)') : lamp;
 
         let moveDx = 0, moveDy = 0;
         if (effectiveMove === 'cross') {

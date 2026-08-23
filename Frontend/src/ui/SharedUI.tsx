@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import { Fragment, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useT } from '../lib/language';
 import { Icon } from './Icon';
 
@@ -31,14 +31,25 @@ export function Tile({ checked, onClick, title, desc, right }: {
   );
 }
 
-/** The three-part "what am I doing, what does it lead to, why does it help me" briefing shown at the top of every wizard step. */
+/** The three-part "what am I doing, what does it lead to, why does it help me" briefing shown at the top of every wizard step — a short chain of reasoning, numbered like the site's other step sequences. */
 export function Purpose({ what, because, why }: { what: ReactNode; because: ReactNode; why: ReactNode }) {
   const t = useT();
+  const steps: [string, ReactNode][] = [
+    [t('What', 'क्या', 'काय'), what],
+    [t('Because of this', 'इसकी वजह से', 'यामुळे'), because],
+    [t('Why it helps you', 'यह आपकी मदद कैसे करता है', 'याचा तुम्हाला कसा फायदा होतो'), why],
+  ];
   return (
     <div className="purpose">
-      <div><span className="purpose-k">{t('What', 'क्या', 'काय')}</span><span>{what}</span></div>
-      <div><span className="purpose-k">{t('Because of this', 'इसकी वजह से', 'यामुळे')}</span><span>{because}</span></div>
-      <div><span className="purpose-k">{t('Why it helps you', 'यह आपकी मदद कैसे करता है', 'याचा तुम्हाला कसा फायदा होतो')}</span><span>{why}</span></div>
+      {steps.map(([label, body], i) => (
+        <Fragment key={label}>
+          {i > 0 && <span className="purpose-arrow" aria-hidden="true">{Icon.right()}</span>}
+          <div className="purpose-i">
+            <div className="purpose-h"><span className="purpose-n">{i + 1}</span><span className="purpose-k">{label}</span></div>
+            <p className="purpose-b">{body}</p>
+          </div>
+        </Fragment>
+      ))}
     </div>
   );
 }

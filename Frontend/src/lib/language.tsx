@@ -2,11 +2,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 export type Lang = 'en' | 'hi' | 'mr';
 
-/** Every language the site can be switched to, in the order they appear in the picker. */
+/**
+ * Every language the site can be switched to, in the order they appear in the picker.
+ * Marathi ('mr') is disabled here for now, not removed — the translated strings are still written
+ * throughout the app via `t(en, hi, mr)`; they just sit unused until 'mr' is added back below and
+ * to `isLang`. Re-enabling is exactly reverting that.
+ */
 export const LANGUAGES: { code: Lang; nativeLabel: string }[] = [
   { code: 'en', nativeLabel: 'English' },
   { code: 'hi', nativeLabel: 'हिन्दी' },
-  { code: 'mr', nativeLabel: 'मराठी' },
 ];
 
 interface LanguageContextValue {
@@ -17,7 +21,9 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function isLang(v: string | null): v is Lang {
-  return v === 'en' || v === 'hi' || v === 'mr';
+  // Deliberately not 'mr' here too — see the note on LANGUAGES above. Anyone with 'mr' already
+  // saved from before falls back to English rather than landing on a language the picker no longer offers.
+  return v === 'en' || v === 'hi';
 }
 
 function initialLang(): Lang {
