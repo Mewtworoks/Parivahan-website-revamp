@@ -1,0 +1,109 @@
+import { useState, type ComponentType } from 'react';
+import { PRE_BASE, preFor } from '../../data/applicant';
+import { STEPS } from '../../data/applicationFlow';
+import { FORM1 } from '../../data/documents';
+import { feeTotal } from '../../data/fees';
+import { CLASSES } from '../../data/vehicleClasses';
+import { scrollToTop } from '../../lib/scrollToTop';
+import { useT } from '../../lib/language';
+import { isValidEmail, isValidMobile, isValidPin } from '../../lib/validate';
+import type { ApplicationForm, PageProps } from '../../types';
+import { Icon } from '../../ui/Icon';
+import { Bar, Pill, Progress, Stepper } from '../../ui/SharedUI';
+import {
+  AboutYou, AddressDetails, ConfirmEkycDetails, DocumentsPhotoSignature, Form1Declaration,
+  IdentityCheck, ReviewAndSubmit, StateAndRto, VehicleClasses, WhoIsApplying, type StepProps,
+} from './steps';
+
+const STEP_COMPONENTS: ComponentType<StepProps>[] = [
+  StateAndRto, WhoIsApplying, IdentityCheck, ConfirmEkycDetails, AboutYou,
+  AddressDetails, VehicleClasses, Form1Declaration, DocumentsPhotoSignature, ReviewAndSubmit,
+];
+
+/** Whether each step's required fields are filled, indexed the same way as STEPS/STEP_COMPONENTS. */
+function stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1Answers }: {
+  step: number; form: ApplicationForm; isAadhaar: boolean; classIds: string[]; needsMedicalCert: boolean; form1Answers: Record<string, string>;
+}): boolean {
+  const form1Done = FORM1.every(([key]) => form1Answers[key]) && !!form.f1sign;
+  return [
+    true,
+    !!form.cat && !!form.route,
+    isAadhaar ? !!form.kyc : !!form.manualOk,
+    !isAadhaar || !!form.kycOk,
+    !!(form.first ?? PRE_BASE.first) && isValidEmail((form.email ?? PRE_BASE.email) as string) && isValidMobile(form.phone || ''),
+    isValidPin((form.pin ?? preFor(form.state).pin) as string),
+    classIds.length > 0,
+    form1Done && (!needsMedicalCert || !!form.form1a) && form.conv !== undefined && !!form.organ,
+    (isAadhaar ? true : form.photo === 'ok') && form.sign === 'ok' && !!form.docsOk,
+    !!form.esign && !!form.captchaOk,
+  ][step];
+}
+
+/** The nine-stage learner's-licence application wizard. */
+export function Apply({ go, state, update }: PageProps) {
+  const t = useT();
+  const [step, setStep] = useState(0);
+  const form = state.form || {};
+  const updateForm = (patch: Partial<ApplicationForm>) => update({ form: { ...form, ...patch } });
+  const classIds = form.classes || [];
+  const isAadhaar = form.route === 'aadhaar';
+  const needsMedicalCert = classIds.some(id => CLASSES.find(c => c.id === id)?.medical);
+  const totalFee = feeTotal(classIds, form.state || 'Maharashtra');
+  const form1Answers = form.f1 || {};
+
+  const valid = stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1Answers });
+
+  const goNext = () => {
+    if (step === 3 && !isAadhaar) { setStep(4); scrollToTop(); return; }
+    if (step < STEPS.length - 1) { setStep(step + 1); scrollToTop(); }
+    else {
+      update({
+        app: {
+          no: 'SS-2026-004182',
+          name: [form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' '),
+          phone: form.phone || '98•••• ••21',
+          fee: totalFee,
+          route: form.route,
+          clsName: classIds.map(id => CLASSES.find(c => c.id === id)!.code).join(', '),
+        },
+        stage: 'submitted',
+      });
+      go('slip');
+    }
+  };
+
+  const goBack = () => {
+    if (step === 0) go('checklist');
+    else if (step === 4 && !isAadhaar) { setStep(2); scrollToTop(); }
+    else { setStep(step - 1); scrollToTop(); }
+  };
+
+  const visibleSteps = STEPS.filter((_, i) => !(i === 3 && !isAadhaar));
+  const currentLabel = STEPS[step].t;
+  const currentLabelTranslated = t(STEPS[step].t, STEPS[step].tHi, STEPS[step].tMr);
+  const StepComponent = STEP_COMPONENTS[step];
+
+  const stepProps: StepProps = { form, updateForm, classIds, isAadhaar, needsMedicalCert, totalFee, form1Answers, goToStep: setStep };
+
+  return (
+    <div className="wrap fade" style={{ padding: '32px 24px 0' }}>
+      <div className="row between g16 wrapf" style={{ marginBottom: 24 }}>
+        <div className="col g4"><span className="eyebrow">{t("New learner's licence", 'नई लर्नर लाइसेंस', 'नवीन लर्नर लायसन्स')} · {form.state || 'Maharashtra'}</span><h1 style={{ fontSize: '1.9rem' }}>{currentLabelTranslated}</h1></div>
+        <Pill tone="ok">{Icon.check()} {t('Saved a moment ago', 'कुछ समय पहले सेव किया गया', 'काही वेळापूर्वी सेव्ह केले')}</Pill>
+      </div>
+      <div style={{ display: 'grid', gap: 36, gridTemplateColumns: '250px minmax(0,1fr)' }} className="applygrid">
+        <aside className="hide-m"><div style={{ position: 'sticky', top: 88 }}>
+          <Stepper steps={visibleSteps.map(s => t(s.t, s.tHi, s.tMr))} cur={visibleSteps.findIndex(s => s.t === currentLabel)} onJump={i => setStep(STEPS.findIndex(s => s.t === visibleSteps[i].t))} />
+          <hr className="hr" style={{ margin: '16px 0' }} />
+          <p className="tiny mono" style={{ padding: '0 12px', lineHeight: 1.5 }}>{STEPS[step].ref}</p>
+          <p className="tiny" style={{ padding: '10px 12px 0' }}>Same stages as the official portal, in the same order. Saved after every step.</p>
+        </div></aside>
+        <div className="col g20" style={{ maxWidth: 670 }}>
+          <div className="only-m"><Progress cur={visibleSteps.findIndex(s => s.t === currentLabel)} total={visibleSteps.length} label={currentLabelTranslated} /></div>
+          <StepComponent {...stepProps} />
+          <Bar back={t('Back', 'पीछे', 'मागे')} onBack={goBack} next={step === STEPS.length - 1 ? t('Submit application', 'आवेदन जमा करें', 'अर्ज सादर करा') : t('Continue', 'जारी रखें', 'सुरू ठेवा')} onNext={goNext} disabled={!valid} />
+        </div>
+      </div>
+    </div>
+  );
+}

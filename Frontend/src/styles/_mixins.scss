@@ -1,82 +1,93 @@
-// =============================================================================
-// PARIVAHAN REVAMP - REUSABLE SCSS MIXINS
-// Shared mixins and utilities accessible across all component styles
-// =============================================================================
+@use 'variables' as *;
 
-@import 'variables';
-
-@mixin flex-center($direction: row, $gap: 0px) {
-  display: flex;
-  flex-direction: $direction;
-  align-items: center;
-  justify-content: center;
-  gap: $gap;
-}
-
-@mixin flex-between($direction: row, $gap: 0px) {
-  display: flex;
-  flex-direction: $direction;
-  align-items: center;
-  justify-content: space-between;
-  gap: $gap;
-}
-
+// Responsive Mixins
 @mixin mobile {
-  @media (max-width: 640px) {
+  @media (max-width: 576px) {
     @content;
   }
 }
 
 @mixin tablet {
-  @media (max-width: 1024px) {
+  @media (max-width: 768px) {
     @content;
   }
 }
 
-@mixin desktop {
-  @media (min-width: 1025px) {
-    @content;
-  }
+// Flexbox Mixins
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@mixin card-surface {
-  background: $color-bg-card;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  box-shadow: $shadow-sm;
-  transition: $transition-normal;
-
-  &:hover {
-    box-shadow: $shadow-md;
-  }
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-@mixin glassmorphism {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-@mixin btn-primary {
-  background-color: $color-primary;
-  color: $color-text-white;
-  font-weight: $font-weight-medium;
-  padding: $spacing-sm $spacing-lg;
-  border-radius: $radius-sm;
-  border: none;
-  cursor: pointer;
-  transition: $transition-fast;
+// Button Mixins
+@mixin btn-base {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: $spacing-sm;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: $radius-md;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.25;
 
-  &:hover {
-    background-color: $color-primary-light;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
+}
 
-  &:active {
-    transform: translateY(1px);
+@mixin btn-cobalt {
+  @include btn-base;
+  background-color: $color-cobalt;
+  color: $color-text-white;
+
+  &:hover:not(:disabled) {
+    background-color: $color-cobalt-dark;
+    box-shadow: 0 4px 12px rgba(29, 63, 190, 0.25);
+  }
+}
+
+@mixin btn-white-outline {
+  @include btn-base;
+  background-color: transparent;
+  color: $color-text-white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  &:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+@mixin card-base {
+  background-color: $color-bg-surface;
+  border: 1px solid $color-border-light;
+  border-radius: $radius-lg;
+  padding: $sp-6;
+  box-shadow: $shadow-sm;
+}
+
+@mixin container {
+  width: 100%;
+  max-width: $container-max-width;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: $sp-6;
+  padding-right: $sp-6;
+
+  @media (max-width: 768px) {
+    padding-left: $sp-4;
+    padding-right: $sp-4;
   }
 }

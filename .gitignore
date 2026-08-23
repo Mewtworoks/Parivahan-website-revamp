@@ -33,6 +33,8 @@ build/
 .cache/
 coverage/
 npm-debug.log*
+*.tsbuildinfo
+Frontend/Parivahan-Sewa.html
 
 # ==========================================
 # Backend (.NET / C# / Node / Python / Java)
