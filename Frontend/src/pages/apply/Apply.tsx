@@ -1,4 +1,5 @@
-import { useState, type ComponentType } from 'react';
+import { useRef, useState, type ComponentType } from 'react';
+import * as api from '../../api';
 import { PRE_BASE, preFor } from '../../data/applicant';
 import { STEPS } from '../../data/applicationFlow';
 import { FORM1 } from '../../data/documents';
@@ -6,10 +7,11 @@ import { feeTotal } from '../../data/fees';
 import { CLASSES } from '../../data/vehicleClasses';
 import { scrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/language';
+import { useAction } from '../../lib/useApi';
 import { isValidEmail, isValidMobile, isValidPin } from '../../lib/validate';
 import type { ApplicationForm, PageProps } from '../../types';
 import { Icon } from '../../ui/Icon';
-import { Bar, Pill, Progress, Stepper } from '../../ui/SharedUI';
+import { Bar, Note, Pill, Progress, Stepper } from '../../ui/SharedUI';
 import {
   AboutYou, AddressDetails, ConfirmEkycDetails, DocumentsPhotoSignature, Form1Declaration,
   IdentityCheck, ReviewAndSubmit, StateAndRto, VehicleClasses, WhoIsApplying, type StepProps,
@@ -43,6 +45,12 @@ function stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1
 export function Apply({ go, state, update }: PageProps) {
   const t = useT();
   const [step, setStep] = useState(0);
+  const { pending, error, run } = useAction();
+  // One key for this attempt at submitting. A dropped connection and a second
+  // press reuse it, so the server returns the first application instead of
+  // creating a duplicate — the failure that produces two live applications on
+  // the real portal. Starting the wizard again mints a new one.
+  const idempotencyKey = useRef(`ll-web-${Date.now().toString(36)}`).current;
   const form = state.form || {};
   const updateForm = (patch: Partial<ApplicationForm>) => update({ form: { ...form, ...patch } });
   const classIds = form.classes || [];
@@ -53,23 +61,40 @@ export function Apply({ go, state, update }: PageProps) {
 
   const valid = stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1Answers });
 
+  const submit = async () => {
+    const name = [form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' ');
+    const classCodes = classIds.map(id => CLASSES.find(c => c.id === id)!.code);
+    const submitted = await run('submit', () => api.apply({
+      citizenRef: form.phone || form.uid || name,
+      licenceKind: 'learner',
+      rtoId: form.rto || api.DEFAULT_RTO,
+      idempotencyKey,
+      dob: form.dob ?? PRE_BASE.dob,
+      applicantName: name,
+      licenceClasses: classCodes,
+    }));
+    if (!submitted) return;   // the error is rendered below; the form is intact
+
+    update({
+      applicationId: submitted.application_id,
+      app: {
+        no: submitted.application_no,
+        name,
+        phone: form.phone || '98•••• ••21',
+        fee: totalFee,
+        route: form.route,
+        clsName: classCodes.join(', '),
+        submittedAt: submitted.created_at,
+      },
+      stage: 'submitted',
+    });
+    go('slip');
+  };
+
   const goNext = () => {
     if (step === 3 && !isAadhaar) { setStep(4); scrollToTop(); return; }
     if (step < STEPS.length - 1) { setStep(step + 1); scrollToTop(); }
-    else {
-      update({
-        app: {
-          no: 'SS-2026-004182',
-          name: [form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' '),
-          phone: form.phone || '98•••• ••21',
-          fee: totalFee,
-          route: form.route,
-          clsName: classIds.map(id => CLASSES.find(c => c.id === id)!.code).join(', '),
-        },
-        stage: 'submitted',
-      });
-      go('slip');
-    }
+    else void submit();
   };
 
   const goBack = () => {
@@ -101,7 +126,16 @@ export function Apply({ go, state, update }: PageProps) {
         <div className="col g20" style={{ maxWidth: 670 }}>
           <div className="only-m"><Progress cur={visibleSteps.findIndex(s => s.t === currentLabel)} total={visibleSteps.length} label={currentLabelTranslated} /></div>
           <StepComponent {...stepProps} />
-          <Bar back={t('Back', 'पीछे', 'मागे')} onBack={goBack} next={step === STEPS.length - 1 ? t('Submit application', 'आवेदन जमा करें', 'अर्ज सादर करा') : t('Continue', 'जारी रखें', 'सुरू ठेवा')} onNext={goNext} disabled={!valid} />
+          {error && (
+            <Note tone="warn">
+              <b>{t('Not submitted yet.', 'अभी जमा नहीं हुआ।')}</b>{' '}
+              {api.isOffline(error)
+                ? t('The licence service is not responding. Nothing you filled in has been lost — press Submit again when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही। आपका भरा हुआ कुछ भी नहीं खोया — सेवा वापस आने पर फिर से जमा करें।')
+                : error.message}{' '}
+              {t('Pressing Submit again is safe: it cannot create a second application.', 'फिर से जमा करना सुरक्षित है: इससे दूसरा आवेदन नहीं बनेगा।')}
+            </Note>
+          )}
+          <Bar back={t('Back', 'पीछे', 'मागे')} onBack={goBack} next={step === STEPS.length - 1 ? (pending === 'submit' ? t('Submitting…', 'जमा हो रहा है…') : t('Submit application', 'आवेदन जमा करें', 'अर्ज सादर करा')) : t('Continue', 'जारी रखें', 'सुरू ठेवा')} onNext={goNext} disabled={!valid || pending === 'submit'} />
         </div>
       </div>
     </div>

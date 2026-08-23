@@ -12,6 +12,28 @@ function asCardDate(iso: string): string {
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
+/** DD/MM/YYYY for a Date, plus the six-month validity the LL carries. */
+function cardDates(submittedAt?: string): { issue: string; validTill: string } {
+  const issued = submittedAt ? new Date(submittedAt) : new Date();
+  const expiry = new Date(issued);
+  expiry.setMonth(expiry.getMonth() + 6);
+  expiry.setDate(expiry.getDate() - 1);
+  const fmt = (d: Date) => [String(d.getDate()).padStart(2, '0'),
+    String(d.getMonth() + 1).padStart(2, '0'), d.getFullYear()].join('/');
+  return { issue: fmt(issued), validTill: fmt(expiry) };
+}
+
+/**
+ * The licence number, derived from the application the service issued so the
+ * card matches the record behind it. The real format is RTO code, year, then
+ * the serial — SS-2026-004182 at MH-01 becomes "MH01 2026/004182".
+ */
+function licenceNumber(rtoCode: string, applicationNo?: string): string {
+  const serial = applicationNo?.split('-').pop();
+  const year = applicationNo?.split('-')[1] || String(new Date().getFullYear());
+  return serial ? `${rtoCode.replace(/-/g, '')} ${year}/${serial}` : `${rtoCode.replace(/-/g, '')} —`;
+}
+
 /** The issued Form 3 licence, plus a preview of what happens over the next six months. */
 export function Issued({ go, state }: PageProps) {
   const form = state.form || {};
@@ -22,19 +44,22 @@ export function Issued({ go, state }: PageProps) {
   const relation = `${form.relType ?? PRE_BASE.relType} ${form.relFirst ?? PRE_BASE.relFirst} ${form.relLast ?? PRE_BASE.relLast}`;
   const office = rtosFor(stateName).find(r => r.id === form.rto) || rtosFor(stateName)[0];
   const rtoCode = office.name.match(/\(([^)]+)\)/)?.[1] || office.name;
+  // The score and its total both come from the service that marked the test —
+  // the UI must not divide by a question count of its own.
+  const { issue, validTill } = cardDates(state.app?.submittedAt);
 
   return (
     <div className="narrow fade" style={{ padding: '48px 24px 0' }}>
       <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26 }}>
-        <Pill tone="ok">{Icon.check()} Passed · {state.score ?? 4} of 5</Pill>
+        <Pill tone="ok">{Icon.check()} Passed · {state.score ?? 0} of {state.scoreTotal ?? 10}</Pill>
         <h1>Your learner's licence is issued.</h1>
         <p className="lede">Form 3, valid for six months. Practise with an L plate on the vehicle and a licensed holder of the same class beside you — that is a legal condition, not advice.</p>
       </div>
-      <LicenceCard documentTitle="Learner's Licence" stateName={stateName} licenceNo="MH02 20260/0041"
+      <LicenceCard documentTitle="Learner's Licence" stateName={stateName} licenceNo={licenceNumber(rtoCode, state.app?.no)}
         name={applicantName} relation={relation} dob={asCardDate(form.dob || PRE_BASE.dob)} blood={form.blood || PRE_BASE.blood}
         addressLine1={`${form.line ?? prefill.line}, ${form.street ?? prefill.street}`} addressLine2={`${form.city ?? prefill.city} ${form.pin ?? prefill.pin}`}
         classCodes={classIds.map(id => CLASSES.find(c => c.id === id)!.code).join(', ')}
-        issueDate="21/08/2026" validTill="20/02/2027" rtoCode={rtoCode} />
+        issueDate={issue} validTill={validTill} rtoCode={rtoCode} />
       <div className="row g10 wrapf" style={{ marginTop: 16 }}>
         <button className="btn btn-s btn-sm">{Icon.doc()} Download Form 3</button>
         <button className="btn btn-s btn-sm">{Icon.card({ width: 16, height: 16 })} Add to phone wallet</button>

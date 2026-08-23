@@ -109,8 +109,9 @@ class ScenarioPublic(BaseModel):
 # ---------------------------------------------------------------------------
 
 # Legal shell — do not change without a rule change.
-QUESTIONS_PER_TEST = 15
-PASS_THRESHOLD = 9  # 60%
+# Ten questions, six correct to pass, as the LL theory test is actually set.
+QUESTIONS_PER_TEST = 10
+PASS_THRESHOLD = 6  # 60%
 
 
 class AttemptStatus(str, Enum):

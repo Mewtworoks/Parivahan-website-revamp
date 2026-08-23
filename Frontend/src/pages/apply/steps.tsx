@@ -6,6 +6,7 @@ import { FORM1 } from '../../data/documents';
 import { RTO_BY_STATE, RTOS, rtosFor } from '../../data/rtoOffices';
 import { CLASSES } from '../../data/vehicleClasses';
 import { useT } from '../../lib/language';
+import { useOffices } from '../../lib/useOffices';
 import { scrollToTop } from '../../lib/scrollToTop';
 import { digitsOnly, isValidAadhaar, isValidEmail, isValidMobile, isValidOtp, isValidPin, isValidVid, TODAY_ISO } from '../../lib/validate';
 import type { ApplicationForm } from '../../types';
@@ -39,7 +40,8 @@ function ageFrom(dob: string): number {
 export function StateAndRto({ form, updateForm }: StepProps) {
   const t = useT();
   const stateName = form.state || 'Maharashtra';
-  const offices = rtosFor(stateName);
+  // Load and wait come from the offices' live queues where the service is up.
+  const { offices, live } = useOffices(stateName);
   const selectedRtoId = offices.find(o => o.id === form.rto) ? form.rto : offices[0].id;
   return (
     <div className="col g20">
@@ -60,6 +62,9 @@ export function StateAndRto({ form, updateForm }: StepProps) {
             <Tile key={office.id} checked={selectedRtoId === office.id} onClick={() => updateForm({ rto: office.id })} title={office.name} desc={`${office.area} · ${office.km} km away`}
               right={<Pill tone={office.load === 'light' ? 'ok' : 'warn'}>{office.load === 'light' ? t('Light', 'हल्का', 'कमी') : t('Busy', 'व्यस्त', 'व्यग्र')}</Pill>} />
           ))}
+          <span className="tiny">{live
+            ? t('Load and waiting time above are read from each office live, not averaged from a leaflet.', 'ऊपर दिया लोड और प्रतीक्षा समय हर कार्यालय से लाइव पढ़ा जाता है, किसी पर्चे से औसत निकाला नहीं गया।')
+            : t('Showing indicative load — the licence service is not reachable right now.', 'संकेतात्मक लोड दिखाया जा रहा है — लाइसेंस सेवा अभी उपलब्ध नहीं है।')}</span>
         </div>
       </div>
       <div className="card card-p col g14">

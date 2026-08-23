@@ -98,12 +98,15 @@ export interface ApplicationForm {
 }
 
 export interface SubmittedApplication {
+  /** The application number the backend issued, e.g. SS-2026-004182. */
   no: string;
   name: string;
   phone: string;
   fee: number;
   route?: string;
   clsName: string;
+  /** When the server recorded the submission, for the slip and the tracker. */
+  submittedAt?: string;
 }
 
 export interface GameLogEntry {
@@ -117,7 +120,12 @@ export interface GameLogEntry {
 
 export type ApplicationStage = 'submitted' | 'esign' | 'paid' | 'booked' | 'issued';
 
-/** The whole app's in-memory state, held by the shell and passed down to every page. */
+/**
+ * The whole app's in-memory state, held by the shell and passed down to every
+ * page. The form being filled in lives here; anything the citizen must be able
+ * to quote later — the application number, the booking, the queue token, the
+ * test attempt — is created by the backend and only referenced here by id.
+ */
 export interface AppState {
   module?: 'll' | 'dl';
   elig?: EligibilityAnswers;
@@ -125,10 +133,18 @@ export interface AppState {
   app?: SubmittedApplication;
   stage?: ApplicationStage;
   paym?: 'upi' | 'card' | 'net';
-  slot?: { day: string; time: string; rto: string };
+  slot?: { day: string; time: string; rto: string; bookingId?: string; tester?: string };
   gameLog?: GameLogEntry[] | null;
   focus?: string | null;
   score?: number;
+  /** How many questions that score was out of — the service decides, not the UI. */
+  scoreTotal?: number;
+  /** Server-side application id (uuid). Everything after submission needs it. */
+  applicationId?: string;
+  /** Live queue token, once the applicant has checked in at the office. */
+  tokenId?: string;
+  /** Current theory-test attempt on the server. */
+  attemptId?: string;
 }
 
 /** Props every top-level page receives from the shell. */

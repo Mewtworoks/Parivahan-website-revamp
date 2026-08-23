@@ -55,9 +55,14 @@ Backend/
 │   ├── engine.py              # test build / scoring / proctoring
 │   └── agent_tools.py         # OpenAI Realtime function tools + dispatcher
 └── tests/
-    ├── test_concurrency.py    # the two concurrency guarantees
-    └── test_journey.py        # end-to-end HTTP journey, test engine, agent tools
+    ├── test_concurrency.py       # the two concurrency guarantees
+    ├── test_journey.py           # end-to-end HTTP journey, test engine, agent tools
+    └── test_frontend_contract.py # the shape each React screen depends on
 ```
+
+The offices in `booking_engine.RTO_CATALOGUE` are the same six the UI offers
+(three in Maharashtra, three in Bihar) with the same ids, so `form.rto` from the
+application wizard is already a valid `rto_id` here — no mapping layer.
 
 ---
 
@@ -68,8 +73,12 @@ Backend/
 | `POST` | `/apply` | Idempotent apply. Same `idempotency_key` → same application, always. |
 | `GET` | `/application/{id}` | Transparency ledger. Always readable, never a blank screen. |
 | `GET` | `/application/{id}/receipt` | Tamper-evident proof-of-journey (`chain_valid`). |
+| `GET` | `/application/by-number/{no}?dob=` | Tracker lookup. The number alone is never enough — a wrong DOB is a 404, not a partial reveal. |
 | `GET` | `/citizen/{ref}/application` | Resume without remembering an application id. |
-| `GET` | `/slots` | Free fixed time-slots (`?rto_id=…&on=YYYY-MM-DD`), earliest first. |
+| `GET` | `/rtos?state=` | The offices the UI offers, nearest first. `load` and `wait` are computed from live queue depth. |
+| `GET` | `/slots/days?rto_id=` | The bookable date strip, with a real count left per day. |
+| `GET` | `/slots/times?rto_id=&on=` | The time strip for one day, grouped across inspectors. |
+| `GET` | `/slots` | Raw free slots (`?rto_id=…&on=YYYY-MM-DD`), earliest first. |
 | `POST` | `/book` | Atomic hold. `409` if the slot was just taken, or if you already hold one. |
 | `POST` | `/checkin/{app_id}` | Issue a live queue token. Safe to call twice. |
 | `GET` | `/queue/{token_id}` | Position, assigned inspector, live ETA. |
@@ -80,8 +89,8 @@ Backend/
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| `POST` | `/test/start` | Begin a 15-scenario test, balanced across competencies. |
-| `GET` | `/test/{id}/next` | Next scenario, **answer stripped**. |
+| `POST` | `/test/start` | Begin a 10-question test, balanced across competencies. Six correct to pass. |
+| `GET` | `/test/{id}/next` | Next scenario, **answer stripped** and **options permuted** for this attempt. |
 | `POST` | `/test/{id}/answer` | Score it, and return the explanation + MV Act reference. |
 | `GET` | `/test/{id}/result` | Pass/fail, plus a per-competency breakdown of what to practise. |
 | `POST` | `/test/{id}/proctor` | Proctoring subsystem posts events; disqualifying flags void the attempt. |
@@ -112,6 +121,11 @@ back to the model. The backend never holds the socket; the client owns the key.
 - **State is in-memory** (`_APPS`, `_SLOTS`, `_TOKENS`, `_ATTEMPTS`). Restarting
   clears it. The shapes are already Pydantic models, so persistence is a thin
   layer, not a rewrite.
+- **Option order carries no information.** Every scenario in the bank is
+  authored with its correct option first, so the served order is permuted per
+  attempt (seeded on attempt + scenario, so a refresh does not rearrange the
+  answers). Without this, always tapping the top answer passes the test —
+  `tests/test_frontend_contract.py` asserts it no longer does.
 - **Mock/synthetic data only.** No real Aadhaar, PAN, OTP, or payment anywhere.
 
 ## ⚙️ Configuration (`.env`)

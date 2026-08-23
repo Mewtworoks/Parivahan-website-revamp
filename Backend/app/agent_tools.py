@@ -27,7 +27,7 @@ from .booking_engine import AlreadyBooked, SlotTaken
 from .booking_models import AppStatus, LicenceKind
 from .seed_scenarios import SCENARIOS, scenario_by_id
 
-DEFAULT_RTO = "rto_ggn_01"
+DEFAULT_RTO = "mh01"
 
 # --- The JSON schema you hand to the Realtime session --------------------
 
@@ -254,7 +254,8 @@ def dispatch_tool(tool: str, args: dict) -> dict:
         return {
             "attempt_id": attempt.id,
             "total_questions": len(attempt.scenario_ids),
-            "first_scenario": scenario_by_id(first_id).public_view().model_dump(),
+            "first_scenario": engine.serve_scenario(
+                attempt.id, scenario_by_id(first_id)).model_dump(),
         }
 
     if tool == "list_competencies":

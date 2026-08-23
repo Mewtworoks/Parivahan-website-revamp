@@ -94,6 +94,24 @@ def next_scenario_id(attempt: Attempt) -> str | None:
     return attempt.scenario_ids[attempt.current_index]
 
 
+def serve_scenario(attempt_id: str, scenario):
+    """
+    The candidate's view of a question, with the options shuffled.
+
+    Every scenario in the bank is authored with its correct option first, which
+    would let someone pass by always choosing the top answer. Position must
+    carry no information, so the order is permuted per attempt. Seeding the
+    shuffle on attempt + scenario keeps it stable: re-fetching the same question
+    (a refresh, a flaky connection) shows the same order rather than silently
+    rearranging the answers under the candidate.
+    """
+    view = scenario.public_view()
+    options = list(view.options)
+    random.Random(f"{attempt_id}:{scenario.id}").shuffle(options)
+    view.options = options
+    return view
+
+
 def submit_answer(
     attempt: Attempt, scenario_id: str, chosen_option_id: str, time_taken_s: float
 ) -> AnswerRecord:

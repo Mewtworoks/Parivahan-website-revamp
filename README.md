@@ -1,8 +1,12 @@
 # 🚗 Parivahan-website-revamp
 
-A full-stack repository for the Parivahan Website Revamp project, pre-configured for pair development:
-- **Frontend**: React + SCSS (Vite)
+A redesign of the Learner/Driving Licence journey on Parivahan Sewa.
+- **Frontend**: React + TypeScript + SCSS (Vite)
 - **Backend**: Python (FastAPI / Uvicorn)
+
+The two halves are wired together: the UI holds the form you are filling in,
+the service holds the journey. Nothing on a screen is a fixture pretending to
+be live.
 
 ---
 
@@ -10,18 +14,30 @@ A full-stack repository for the Parivahan Website Revamp project, pre-configured
 
 ```text
 parivahaan-website-revamp/
-├── Frontend/                 # React App (Vite + SCSS)
+├── Frontend/                 # React + TypeScript App (Vite + SCSS)
 │   ├── src/
+│   │   ├── api.ts            # Every backend call the UI makes, typed
+│   │   ├── lib/
+│   │   │   ├── useApi.ts     # useApi / usePolling / useAction
+│   │   │   ├── useOffices.ts # Live offices, with static fallback
+│   │   │   ├── format.ts     # Date, time and wait formatting
+│   │   │   ├── language.tsx  # t(en, hi?, mr?) + language picker
+│   │   │   └── validate.ts   # Field validators
+│   │   ├── pages/            # One file per route (see App.tsx PAGES)
+│   │   ├── practice/         # Pixel-art practice game (self-contained)
+│   │   ├── data/             # Static reference data: fees, classes, documents
+│   │   ├── ui/               # Shared components: Note, Pill, Tile, Bar, …
 │   │   ├── styles/           # Global SCSS Design System
-│   │   │   ├── _variables.scss # Shared colors, typography, spacing, shadows
-│   │   │   ├── _mixins.scss    # Flexbox, responsive mixins, button styles
-│   │   │   └── global.scss     # Master global stylesheet
-│   │   ├── App.jsx           # Main React Portal component
-│   │   ├── App.module.scss   # Component styling importing global design tokens
-│   │   └── main.jsx          # React DOM entry point
+│   │   │   ├── _variables.scss # Brand colors, spacing scale, radii, shadows
+│   │   │   ├── _mixins.scss    # container, buttons, flex, breakpoints
+│   │   │   └── global.scss     # Reset and base styles
+│   │   ├── App.tsx           # Shell: top bar, active page, footer, sheets
+│   │   └── main.tsx          # React DOM entry point
 │   ├── index.html            # Vite HTML template with Google Fonts
+│   ├── .env.example          # VITE_API_BASE — where the backend lives
 │   ├── package.json          # React dependencies & scripts
-│   └── vite.config.js        # Vite build & dev server config
+│   ├── tsconfig.json         # TypeScript config
+│   └── vite.config.ts        # Vite build & dev server config
 ├── Backend/                  # Python Backend API (FastAPI)
 │   ├── main.py               # Dev entry point (runs app.main:app)
 │   ├── conftest.py           # Makes `app` importable from any cwd
@@ -31,11 +47,12 @@ parivahaan-website-revamp/
 │   │   ├── booking_engine.py # Idempotent apply, atomic booking, live queue + ETA
 │   │   ├── models.py         # Scenario schema + attempt/scoring (the legal shell)
 │   │   ├── seed_scenarios.py # Scenario bank (19 scenarios, all competencies)
-│   │   ├── engine.py         # Test build / scoring / proctoring
+│   │   ├── engine.py         # Test build / scoring / proctoring / option shuffle
 │   │   └── agent_tools.py    # OpenAI Realtime function tools + dispatcher
 │   ├── tests/
-│   │   ├── test_concurrency.py # Proof: 50 retries -> 1 app; 40 threads -> 1 slot winner
-│   │   └── test_journey.py     # End-to-end HTTP journey, test engine, agent tools
+│   │   ├── test_concurrency.py       # Proof: 50 retries -> 1 app; 40 threads -> 1 winner
+│   │   ├── test_journey.py           # End-to-end HTTP journey, test engine, agent tools
+│   │   └── test_frontend_contract.py # The shape each React screen depends on
 │   ├── requirements.txt      # Python dependencies (fastapi, uvicorn, etc.)
 │   ├── .env.example          # Environment variables template
 │   └── README.md             # Backend setup guide + full API reference
@@ -49,25 +66,25 @@ parivahaan-website-revamp/
 ## 🎨 SCSS Design System Rules
 
 1. **Centralized Variables (`Frontend/src/styles/_variables.scss`)**:
-   - Primary colors, background neutrals, font sizes, radii, and shadows are defined centrally.
-   - Component styles MUST import `@import './styles/variables';` and avoid arbitrary hardcoded colors.
+   - Brand colors, spacing scale, radii and shadows are defined centrally.
+   - Component styles pull them in with `@use '…/variables' as *;` and avoid arbitrary hardcoded colors.
 
 2. **Shared Mixins (`Frontend/src/styles/_mixins.scss`)**:
-   - Reusable layouts, flex helpers, glassmorphism, responsive breakpoints (`@include mobile`, `@include tablet`, `@include desktop`) are centralized to maintain visual consistency across all pages.
+   - Reusable layouts, `container`, button styles and responsive breakpoints (`@include mobile`, `@include tablet`) are centralized to maintain visual consistency across all pages.
+
+3. **Keep the three files in step.** `_mixins.scss` and `global.scss` consume
+   tokens from `_variables.scss` (`$color-bg-page`, `$sp-6`, `$container-max-width`).
+   A token that goes missing fails the build rather than degrading quietly.
 
 ---
 
 ## 🚀 How to Run the Project Locally
 
-### 1️⃣ Run Frontend (React)
-```bash
-cd Frontend
-npm install
-npm run dev
-```
-*Frontend dev server will launch at `http://localhost:3000`.*
+**Start the backend first.** The UI reads live state, so without it the office
+picker falls back to an indicative list and submitting tells you so rather than
+pretending to succeed.
 
-### 2️⃣ Run Backend (Python)
+### 1️⃣ Run Backend (Python)
 ```bash
 cd Backend
 python -m venv venv
@@ -76,6 +93,15 @@ pip install -r requirements.txt
 python main.py
 ```
 *Backend API will run at `http://127.0.0.1:8000` with interactive docs at `http://127.0.0.1:8000/docs`.*
+
+### 2️⃣ Run Frontend (React)
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+*Frontend dev server will launch at `http://localhost:3000`.*
+Override the API location with `VITE_API_BASE` in `Frontend/.env` if the backend is elsewhere.
 
 ### 3️⃣ Verify the backend guarantees
 ```bash
@@ -99,8 +125,28 @@ for the full API reference.
 | Pile-ups with no information | Live queue token: number, inspector, recomputed ETA | `/queue/{token}` + `/rto/{id}/board` |
 | No proof a pass was recorded honestly | Hash-chained journey ledger | tampering flips `chain_valid` false |
 
-Plus an animated **scenario** test replacing the static MCQ, and a voice
+Plus a scenario-based theory test replacing the static MCQ, and a voice
 copilot (OpenAI Realtime) wired to the same state through function tools.
+
+---
+
+## 🔗 Where the two halves meet
+
+| Screen | What became real |
+| --- | --- |
+| **Apply · office picker** | "Light day / Busy" and the waiting time are read from each office's live queues. |
+| **Apply · submit** | Issues the real application number. One idempotency key per attempt, so a dropped connection and a second press cannot create two applications. |
+| **Slip / Receipt** | The number, date and sealed journey record the service returned — including whether that record still verifies. |
+| **Slot** | Real remaining capacity per day and per time. Confirming holds the slot; losing a race says so and reloads what is free. |
+| **Status** | Lookup needs the number **and** the date of birth. Shows the service's own ledger, and on the day a token, a named inspector and a wait that repolls. |
+| **Theory test** | Ten questions, six to pass, scored server-side. The answer never reaches the browser, and options are permuted per attempt. |
+
+Deliberately left as UI-only, because they hold no server state: eligibility,
+checklist, fees, Form 1, e-sign, payment, and the practice game.
+
+The six RTO offices are defined once, in `Backend/app/booking_engine.py`, with
+the same ids the application wizard uses — so `form.rto` is already a valid
+`rto_id` and there is no mapping layer to drift.
 
 ---
 

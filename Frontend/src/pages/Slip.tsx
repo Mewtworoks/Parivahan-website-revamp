@@ -1,6 +1,7 @@
 import { PRE_BASE, preFor } from '../data/applicant';
 import { rtosFor } from '../data/rtoOffices';
 import { CLASSES } from '../data/vehicleClasses';
+import { formatDay } from '../lib/format';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { DocLinks } from '../ui/DocLinks';
@@ -29,12 +30,12 @@ export function Slip({ go, state, update }: PageProps) {
       <div className="card card-p col g16">
         <div className="row between g12 wrapf"><h3>{t('Application reference slip', 'आवेदन संदर्भ पर्ची', 'अर्ज संदर्भ चिठ्ठी')}</h3><Pill tone="ok">{t('Submitted', 'जमा किया गया', 'सादर केले')}</Pill></div>
         <div className="flat col g10" style={{ padding: '16px 18px' }}>
-          <div className="row between g12 wrapf"><span className="sub">{t('Application number', 'आवेदन नंबर', 'अर्ज क्रमांक')}</span><b className="mono" style={{ fontSize: '1.15rem' }}>SS-2026-004182</b></div>
+          <div className="row between g12 wrapf"><span className="sub">{t('Application number', 'आवेदन नंबर', 'अर्ज क्रमांक')}</span><b className="mono" style={{ fontSize: '1.15rem' }}>{state.app?.no || '—'}</b></div>
           <hr className="hr" />
           <dl className="kv">
             <dt>{t('Name', 'नाम', 'नाव')}</dt><dd>{applicantName}</dd>
             <dt>{t('Date of birth', 'जन्म तिथि', 'जन्मतारीख')}</dt><dd>{form.dob || PRE_BASE.dob}</dd>
-            <dt>{t('Application date', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>21 Aug 2026</dd>
+            <dt>{t('Application date', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(state.app?.submittedAt)}</dd>
             <dt>{t('Service requested', 'मांगी गई सेवा', 'विनंती केलेली सेवा')}</dt><dd>{t("Issue of new learner's licence", 'नई लर्नर लाइसेंस जारी करना', 'नवीन लर्नर लायसन्स जारी करणे')}</dd>
             <dt>{t('Classes', 'श्रेणियां', 'वर्ग')}</dt><dd>{classCodes}</dd>
             <dt>{t('RTO', 'आरटीओ', 'आरटीओ')}</dt><dd>{office.name}</dd>

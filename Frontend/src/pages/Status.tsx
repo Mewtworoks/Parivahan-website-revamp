@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import * as api from '../api';
 import { SEED_STATUS } from '../data/applicant';
-import { rtosFor } from '../data/rtoOffices';
 import { CLASSES } from '../data/vehicleClasses';
+import { formatDay, formatTime, formatWait } from '../lib/format';
 import { useT } from '../lib/language';
+import { useAction, useApi, usePolling } from '../lib/useApi';
 import { TODAY_ISO } from '../lib/validate';
 import type { PageProps } from '../types';
 import { DocLinks } from '../ui/DocLinks';
@@ -10,18 +12,71 @@ import { Icon } from '../ui/Icon';
 import { Field, Input, Note, Pill } from '../ui/SharedUI';
 import { StageTable } from '../ui/StageTable';
 
+/** Plain-language meaning of each state the service can record. */
+const STATUS_COPY: Record<api.AppStatusValue, [en: string, hi: string]> = {
+  submitted: ['Received', 'प्राप्त हुआ'],
+  verified: ['Documents verified', 'दस्तावेज़ सत्यापित'],
+  slot_booked: ['Appointment held', 'अपॉइंटमेंट तय'],
+  checked_in: ['At the office, in the queue', 'कार्यालय में, कतार में'],
+  completed: ['Test done', 'टेस्ट पूरा'],
+  rejected: ['Returned for correction', 'सुधार के लिए वापस'],
+};
+
 /** Application tracker — look up an application number + DOB, see every stage and what's next. */
-export function Status({ go, state }: PageProps) {
+export function Status({ go, state, update }: PageProps) {
   const t = useT();
   const form = state.form || {};
-  const hasLiveApplication = !!state.app || !!state.stage;
-  const [applicationNo, setApplicationNo] = useState(hasLiveApplication ? 'SS-2026-004182' : '');
-  const [dob, setDob] = useState(hasLiveApplication ? (form.dob || '2005-04-12') : '');
-  const [found, setFound] = useState(hasLiveApplication);
+  const ownApplication = Boolean(state.applicationId);
+
+  const [applicationNo, setApplicationNo] = useState(state.app?.no || '');
+  const [dob, setDob] = useState(ownApplication ? (form.dob || '') : '');
+  const [lookupId, setLookupId] = useState<string | null>(state.applicationId || null);
+  const [notFound, setNotFound] = useState(false);
+  const { pending, run } = useAction();
+
+  useEffect(() => {
+    if (state.applicationId) setLookupId(state.applicationId);
+  }, [state.applicationId]);
+
+  // The application as the service holds it. Repolled so a colleague advancing
+  // the queue at the office shows up here without a reload.
+  const { data: application, error, refresh } = usePolling(
+    signal => api.getApplication(lookupId!, signal),
+    { intervalMs: 4000, enabled: Boolean(lookupId), deps: [lookupId] },
+  );
+
+  const { data: receipt } = useApi(
+    signal => api.getReceipt(lookupId!, signal),
+    [lookupId, application?.status],
+    Boolean(lookupId),
+  );
+
+  // Show the date of birth the application was filed with, so the two lookup
+  // fields are not left half-filled when arriving from the journey itself.
+  useEffect(() => {
+    if (!dob && application?.dob) setDob(application.dob);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [application?.dob]);
+
+  const find = async () => {
+    setNotFound(false);
+    const found = await run('find', () => api.findApplication(applicationNo.trim(), dob));
+    if (!found) { setNotFound(true); return; }
+    setLookupId(found.application_id);
+    update({ applicationId: found.application_id });
+  };
+
+  const checkIn = async () => {
+    const token = await run('checkin', () => api.checkIn(lookupId!));
+    if (token) { update({ tokenId: token.token_id }); refresh(); }
+  };
+
+  const queue = application?.queue;
+  const found = Boolean(application);
   const isAadhaar = form.route === 'aadhaar';
-  const applicantName = [form.first, form.last].filter(Boolean).join(' ') || SEED_STATUS.name;
-  const classCodes = (form.classes || []).map(id => CLASSES.find(c => c.id === id)?.code).filter(Boolean).join(', ') || SEED_STATUS.cls;
-  const rtoName = (rtosFor(form.state || 'Maharashtra').find(r => r.id === form.rto) || rtosFor(form.state || 'Maharashtra')[0]).name;
+  const applicantName = application?.applicant_name || [form.first, form.last].filter(Boolean).join(' ') || SEED_STATUS.name;
+  const classCodes = (application?.licence_classes?.length ? application.licence_classes : (form.classes || []).map(id => CLASSES.find(c => c.id === id)?.code).filter(Boolean) as string[]).join(', ') || SEED_STATUS.cls;
+  const rtoName = application?.rto?.name || '—';
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
@@ -37,32 +92,92 @@ export function Status({ go, state }: PageProps) {
           <Field label={t('Date of birth', 'जन्म तिथि', 'जन्मतारीख')}><Input type="date" max={TODAY_ISO} value={dob} onChange={e => setDob(e.target.value)} /></Field>
         </div>
         <div className="row g10 wrapf">
-          <button className="btn btn-s" disabled={!applicationNo || !dob} onClick={() => setFound(true)}>{Icon.search()} {t('Find my application', 'मेरा आवेदन खोजें', 'माझा अर्ज शोधा')}</button>
-          {!hasLiveApplication && <span className="tiny" style={{ alignSelf: 'center' }}>{t('Try SS-2026-004182 with any date.', 'किसी भी तारीख के साथ SS-2026-004182 आज़माएं।', 'कोणत्याही तारखेसह SS-2026-004182 वापरून पहा.')}</span>}
+          <button className="btn btn-s" disabled={!applicationNo || !dob || pending === 'find'} onClick={() => void find()}>{Icon.search()} {pending === 'find' ? t('Looking…', 'खोज रहे हैं…') : t('Find my application', 'मेरा आवेदन खोजें', 'माझा अर्ज शोधा')}</button>
+          {!ownApplication && <span className="tiny" style={{ alignSelf: 'center' }}>{t('Use the number from your slip, with the date of birth on the application.', 'अपनी पर्ची का नंबर और आवेदन में दी जन्म तिथि इस्तेमाल करें।')}</span>}
         </div>
+        {notFound && <Note tone="warn">{t('Nothing matches that number and date of birth together. The number alone is never enough — that is deliberate, so an application cannot be read by anyone who happens to know it.', 'उस नंबर और जन्म तिथि का कोई मेल नहीं। केवल नंबर कभी पर्याप्त नहीं है — यह जानबूझकर है, ताकि कोई भी जिसे नंबर पता हो, आवेदन न देख सके।')}</Note>}
+        {error && api.isOffline(error) && <Note tone="warn">{t('The licence service is not responding, so live status cannot be shown.', 'लाइसेंस सेवा जवाब नहीं दे रही, इसलिए लाइव स्थिति नहीं दिखाई जा सकती।')}</Note>}
       </div>
-      {found && (
+
+      {found && application && (
         <div className="col g16 fade" style={{ marginTop: 16 }}>
           <div className="card card-p col g16">
             <div className="row between g16 wrapf" style={{ alignItems: 'flex-start' }}>
               <dl className="kv grow" style={{ minWidth: 230 }}>
-                <dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">SS-2026-004182</dd>
-                <dt>{t('Applied on', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>21 Aug 2026</dd>
+                <dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{application.application_no}</dd>
+                <dt>{t('Applied on', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(application.created_at)}</dd>
                 <dt>{t('Applicant', 'आवेदक', 'अर्जदार')}</dt><dd>{applicantName}</dd><dt>{t('Service', 'सेवा', 'सेवा')}</dt><dd>{t("Issue of learner's licence", 'लर्नर लाइसेंस जारी करना', 'लर्नर लायसन्स जारी करणे')}</dd>
                 <dt>{t('Classes', 'श्रेणियां', 'वर्ग')}</dt><dd>{classCodes}</dd><dt>{t('RTO', 'आरटीओ', 'आरटीओ')}</dt><dd>{rtoName}</dd>
                 <dt>{t('Route', 'रास्ता', 'मार्ग')}</dt><dd>{isAadhaar ? t('Aadhaar e-KYC · faceless', 'आधार e-KYC · फेसलेस', 'आधार e-KYC · फेसलेस') : t('Without Aadhaar', 'आधार के बिना', 'आधारशिवाय')}</dd>
               </dl>
               <div className="col g8" style={{ flex: 'none', alignItems: 'center' }}>
                 <div className="stripe" style={{ width: 88, height: 106, borderRadius: 8, border: '1px solid var(--line)' }} />
-                <Pill tone={state.stage === 'issued' ? 'ok' : 'brand'}>{state.stage === 'issued' ? t('Licence issued', 'लाइसेंस जारी', 'लायसन्स जारी') : t('In progress', 'प्रगति में', 'प्रगतीत')}</Pill>
+                <Pill tone={application.status === 'completed' ? 'ok' : 'brand'}>{t(...STATUS_COPY[application.status])}</Pill>
               </div>
             </div>
+            {application.booking && (
+              <Note tone="brand" icon={Icon.pin()}><b>{t('Appointment held', 'अपॉइंटमेंट तय')}:</b> {application.booking.label}, {application.booking.time} · {rtoName}</Note>
+            )}
             {isAadhaar && <Note tone="ok" icon={Icon.check()}><b>{t('Submitted for contactless service.', 'संपर्क रहित सेवा के लिए जमा किया गया।', 'संपर्करहित सेवेसाठी सादर केले.')}</b> {t('No visit to the RTO office is needed for this application.', 'इस आवेदन के लिए आरटीओ कार्यालय जाने की ज़रूरत नहीं है।', 'या अर्जासाठी आरटीओ कार्यालयात जाण्याची गरज नाही.')}</Note>}
             <hr className="hr" />
             <DocLinks />
           </div>
+
+          {/* On the day: the token, the named inspector, and a wait that moves. */}
+          {application.booking && !isAadhaar && (
+            <div className="card card-p col g14">
+              <div className="row between g12 wrapf">
+                <h3>{t('On the day', 'टेस्ट के दिन', 'टेस्टच्या दिवशी')}</h3>
+                {queue && <Pill tone={queue.status === 'in_test' ? 'warn' : 'brand'}>{queue.status === 'in_test' ? t('Your turn now', 'अब आपकी बारी') : t('Waiting', 'प्रतीक्षा में')}</Pill>}
+              </div>
+              {!queue ? (
+                <>
+                  <p className="sub">{t('When you reach the office, check in here. You get a token number and a named inspector, and the wait stops being a guess — you can sit down instead of standing in a line.', 'कार्यालय पहुंचने पर यहीं चेक-इन करें। आपको टोकन नंबर और नामित निरीक्षक मिलता है, और प्रतीक्षा अनुमान नहीं रहती — आप कतार में खड़े होने के बजाय बैठ सकते हैं।')}</p>
+                  <div><button className="btn btn-p" disabled={pending === 'checkin'} onClick={() => void checkIn()}>{pending === 'checkin' ? t('Checking in…', 'चेक-इन हो रहा है…') : t('I have reached the office', 'मैं कार्यालय पहुंच गया हूं')} {Icon.right()}</button></div>
+                </>
+              ) : (
+                <>
+                  <div className="grid2" style={{ gap: 16 }}>
+                    <div className="col g4"><span className="tiny" style={{ fontWeight: 600 }}>{t('Your token', 'आपका टोकन')}</span><b className="mono" style={{ fontSize: '1.6rem' }}>{queue.token_number}</b></div>
+                    <div className="col g4"><span className="tiny" style={{ fontWeight: 600 }}>{t('Your inspector', 'आपके निरीक्षक')}</span><b style={{ fontWeight: 600 }}>{queue.tester}</b></div>
+                  </div>
+                  <hr className="hr" />
+                  <div className="row between g12 wrapf">
+                    <span className="sub">{queue.people_ahead === 0
+                      ? t('Nobody is ahead of you.', 'आपसे आगे कोई नहीं है।')
+                      : t(`${queue.people_ahead} ahead of you.`, `आपसे आगे ${queue.people_ahead} लोग।`)}</span>
+                    <b style={{ fontWeight: 600 }}>{formatWait(queue.eta_minutes)}</b>
+                  </div>
+                  <span className="tiny">{t('Recalculated from your inspector\'s own pace every few seconds, and it is the same number shown on the hall display. The official portal shows you nothing at all here.', 'आपके निरीक्षक की गति से हर कुछ सेकंड में फिर से गणना की जाती है, और यही नंबर हॉल डिस्प्ले पर दिखता है। आधिकारिक पोर्टल यहां कुछ भी नहीं दिखाता।')}</span>
+                </>
+              )}
+            </div>
+          )}
+
           <StageTable state={state} go={go} />
-          {state.stage === 'issued' && <Note tone="ok" icon={Icon.check()}>{t('Learner\'s licence MH02 20260/0041 issued and valid to 20 Feb 2027. The driving licence window opens 20 Sep 2026 — we will remind you.', 'लर्नर लाइसेंस MH02 20260/0041 जारी हुआ और 20 फरवरी 2027 तक वैध है। ड्राइविंग लाइसेंस विंडो 20 सितंबर 2026 को खुलती है — हम आपको याद दिलाएंगे।', 'लर्नर लायसन्स MH02 20260/0041 जारी झाले आणि 20 फेब्रुवारी 2027 पर्यंत वैध आहे. ड्रायव्हिंग लायसन्स विंडो 20 सप्टेंबर 2026 रोजी उघडते — आम्ही तुम्हाला आठवण करून देऊ.')}</Note>}
+
+          {/* What the service itself recorded, in order, sealed. */}
+          {receipt && (
+            <div className="card card-p col g12">
+              <div className="row between g12 wrapf">
+                <h3>{t('Recorded by the service', 'सेवा द्वारा दर्ज')}</h3>
+                <Pill tone={receipt.chain_valid ? 'ok' : 'warn'}>{receipt.chain_valid ? t('Record intact', 'रिकॉर्ड सुरक्षित') : t('Record altered', 'रिकॉर्ड बदला गया')}</Pill>
+              </div>
+              <div className="col g8">
+                {application.ledger.map(ev => (
+                  <div key={ev.seq} className="row g12" style={{ alignItems: 'flex-start' }}>
+                    <span className="rail-n" style={{ flex: 'none' }}>{ev.seq + 1}</span>
+                    <span className="col g4 grow" style={{ minWidth: 0 }}>
+                      <b style={{ fontWeight: 600, fontSize: '.93rem' }}>{t(...STATUS_COPY[ev.status])}</b>
+                      <span className="tiny">{ev.note} · {formatTime(ev.at)}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <span className="tiny">{t('Each line is sealed with the fingerprint of the line above it, so this history cannot be edited after the fact without the seal breaking.', 'हर पंक्ति अपने ऊपर वाली पंक्ति की पहचान से सील है, इसलिए बाद में इस इतिहास को बदला नहीं जा सकता बिना सील टूटे।')}</span>
+            </div>
+          )}
+
           <div className="card card-p col g12">
             <h3>{t('Test result and allotment', 'टेस्ट परिणाम और आवंटन', 'टेस्ट निकाल आणि वाटप')}</h3>
             {state.stage === 'issued'

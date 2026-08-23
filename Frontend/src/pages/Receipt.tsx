@@ -1,6 +1,9 @@
+import * as api from '../api';
 import { feeRows, feeTotal, inWords } from '../data/fees';
 import { rtosFor } from '../data/rtoOffices';
+import { formatDayTime } from '../lib/format';
 import { useT } from '../lib/language';
+import { useApi } from '../lib/useApi';
 import type { PageProps } from '../types';
 import { DocLinks } from '../ui/DocLinks';
 import { Icon } from '../ui/Icon';
@@ -16,6 +19,15 @@ export function Receipt({ go, state, update }: PageProps) {
   const rows = feeRows(classIds, stateName);
   const total = feeTotal(classIds, stateName);
   const office = rtosFor(stateName).find(r => r.id === form.rto) || rtosFor(stateName)[0];
+  const applicationNo = state.app?.no || '—';
+
+  // The sealed journey record behind this receipt. Each entry carries the
+  // fingerprint of the one before it, so a rewritten history stops verifying.
+  const { data: receipt } = useApi(
+    signal => api.getReceipt(state.applicationId!, signal),
+    [state.applicationId],
+    Boolean(state.applicationId),
+  );
 
   return (
     <div className="narrow fade" style={{ padding: '56px 24px 0' }}>
@@ -26,8 +38,8 @@ export function Receipt({ go, state, update }: PageProps) {
       </div>
       <div className="card card-p col g14" style={{ marginTop: 26 }}>
         <div className="row between g12 wrapf"><h3>{t('e-Receipt', 'ई-रसीद', 'ई-पावती')}</h3><Pill tone="ok">{t('Confirmed by the bank', 'बैंक द्वारा पुष्टि की गई', 'बँकेने पुष्टी केली')}</Pill></div>
-        <dl className="kv"><dt>{t('Receipt number', 'रसीद नंबर', 'पावती क्रमांक')}</dt><dd className="mono">SS-RCPT-77401</dd><dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">SS-2026-004182</dd>
-          <dt>{t('Paid on', 'भुगतान तिथि', 'पैसे भरल्याची तारीख')}</dt><dd>21 Aug 2026, 4:52 pm</dd><dt>{t('Gateway', 'गेटवे', 'गेटवे')}</dt><dd>{t('Multi-bank · mock', 'मल्टी-बैंक · नकली', 'मल्टी-बँक · नकली')}</dd>
+        <dl className="kv"><dt>{t('Receipt number', 'रसीद नंबर', 'पावती क्रमांक')}</dt><dd className="mono">{applicationNo.replace(/^SS-\d{4}-/, 'SS-RCPT-')}</dd><dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{applicationNo}</dd>
+          <dt>{t('Paid on', 'भुगतान तिथि', 'पैसे भरल्याची तारीख')}</dt><dd>{formatDayTime(state.app?.submittedAt)}</dd><dt>{t('Gateway', 'गेटवे', 'गेटवे')}</dt><dd>{t('Multi-bank · mock', 'मल्टी-बैंक · नकली', 'मल्टी-बँक · नकली')}</dd>
           <dt>{t('Office', 'कार्यालय', 'कार्यालय')}</dt><dd>{office.name}</dd></dl>
         <hr className="hr" />
         {rows.map((row, i) => <div key={i} className="row between g16"><span className="sub">{row.k}</span><b className="mono" style={{ fontWeight: 600 }}>₹{row.v}</b></div>)}
@@ -36,6 +48,18 @@ export function Receipt({ go, state, update }: PageProps) {
         <span className="tiny">{inWords(total)}</span>
         <hr className="hr" />
         <div className="row g10 wrapf"><button className="btn btn-s btn-sm">{Icon.doc()} {t('Download e-receipt', 'ई-रसीद डाउनलोड करें', 'ई-पावती डाउनलोड करा')}</button><button className="btn btn-s btn-sm">{t('Email to me', 'मुझे ईमेल करें', 'मला ईमेल करा')}</button></div>
+        <hr className="hr" />
+        {receipt && (
+          <div className="flat col g10" style={{ padding: '14px 16px' }}>
+            <div className="row between g12 wrapf">
+              <span className="tiny" style={{ fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{t('Proof of journey', 'यात्रा का प्रमाण')}</span>
+              <Pill tone={receipt.chain_valid ? 'ok' : 'warn'}>{receipt.chain_valid ? t('Record intact', 'रिकॉर्ड सुरक्षित') : t('Record altered', 'रिकॉर्ड बदला गया')}</Pill>
+            </div>
+            <span className="sub">{t(`All ${receipt.events.length} steps of this application are sealed in order, each one carrying the fingerprint of the step before it.`, `इस आवेदन के सभी ${receipt.events.length} चरण क्रम में सील किए गए हैं, हर एक अपने पिछले चरण की पहचान लिए हुए।`)}</span>
+            <span className="sub">{t('If anyone edits, inserts or removes a step later, this check stops matching and you can prove it. Nobody can quietly rewrite what happened — not a clerk, not an agent.', 'यदि कोई बाद में कोई चरण बदलता, जोड़ता या हटाता है, तो यह जांच मेल नहीं खाएगी और आप साबित कर सकते हैं। कोई चुपचाप इतिहास नहीं बदल सकता — न क्लर्क, न एजेंट।')}</span>
+            <span className="mono tiny" style={{ overflowWrap: 'anywhere' }}>{receipt.chain_head.slice(0, 32)}…</span>
+          </div>
+        )}
         <hr className="hr" />
         <DocLinks />
         <Note>{isAadhaar

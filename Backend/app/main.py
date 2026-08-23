@@ -91,6 +91,11 @@ class ApplyBody(BaseModel):
     licence_kind: LicenceKind
     rto_id: str = DEFAULT_RTO
     idempotency_key: str      # client-generated; makes retries safe
+    # Carried so the tracker can authenticate a lookup by number + DOB, and
+    # so the slip and receipt can be rendered from server state.
+    dob: str | None = None
+    applicant_name: str | None = None
+    licence_classes: list[str] = Field(default_factory=list)
 
 
 class BookBody(BaseModel):
@@ -98,19 +103,55 @@ class BookBody(BaseModel):
     slot_id: str
 
 
-# Seed the demo RTO (testers + fixed slot grid) at import time.
-be.seed_demo(DEFAULT_RTO)
+# Seed every office the UI can offer, with grids for the days ahead.
+be.seed_catalogue()
 
 
 # --------------------- Journey: apply -> book -> queue ---------------------
+
+def _application_view(a) -> dict:
+    """One shape for an application, wherever it is looked up from."""
+    out = {
+        "application_id": a.id,
+        "application_no": a.display_no,
+        "status": a.status.value,
+        "licence_kind": a.licence_kind.value,
+        "rto_id": a.rto_id,
+        "applicant_name": a.applicant_name,
+        "dob": a.dob,
+        "licence_classes": a.licence_classes,
+        "created_at": a.created_at.isoformat(),
+        "booking_id": a.booking_id,
+        "token_id": a.token_id,
+        "ledger": [e.model_dump() for e in a.ledger],
+    }
+    rto = next((r for r in be.list_rtos() if r.id == a.rto_id), None)
+    if rto:
+        out["rto"] = {"id": rto.id, "name": rto.name, "area": rto.area,
+                      "state": rto.state}
+    if a.booking_id:
+        b = be.get_booking(a.booking_id)
+        if b:
+            out["booking"] = {
+                "booking_id": b.id,
+                "date": str(b.slot_date),
+                "label": b.slot_date.strftime("%a %d %b"),
+                "time": b.start.strftime("%I:%M %p").lstrip("0").lower(),
+                "tester_id": b.tester_id,
+            }
+    if a.token_id:
+        out["queue"] = be.queue_status(a.token_id)
+    return out
+
 
 @app.post("/apply", tags=["journey"])
 def apply(body: ApplyBody):
     """Resilient, idempotent application. Retry-safe by design."""
     app_obj = be.apply(body.citizen_ref, body.licence_kind, body.rto_id,
-                       body.idempotency_key)
-    return {"application_id": app_obj.id, "status": app_obj.status.value,
-            "ledger": [e.model_dump() for e in app_obj.ledger]}
+                       body.idempotency_key, dob=body.dob,
+                       applicant_name=body.applicant_name,
+                       licence_classes=body.licence_classes)
+    return _application_view(app_obj)
 
 
 @app.get("/application/{app_id}", tags=["journey"])
@@ -119,10 +160,19 @@ def application_status(app_id: str):
     a = be.get_application(app_id)
     if not a:
         raise HTTPException(404, "Application not found")
-    return {"application_id": a.id, "status": a.status.value,
-            "licence_kind": a.licence_kind.value, "rto_id": a.rto_id,
-            "booking_id": a.booking_id, "token_id": a.token_id,
-            "ledger": [e.model_dump() for e in a.ledger]}
+    return _application_view(a)
+
+
+@app.get("/application/by-number/{application_no}", tags=["journey"])
+def application_by_number(application_no: str, dob: str | None = None):
+    """
+    Tracker lookup — application number plus date of birth, the two things the
+    citizen is given on the slip. A wrong DOB is a 404, never a partial reveal.
+    """
+    a = be.find_by_number(application_no, dob)
+    if not a:
+        raise HTTPException(404, "No application matches that number and date of birth")
+    return _application_view(a)
 
 
 @app.get("/application/{app_id}/receipt", tags=["journey"])
@@ -147,6 +197,43 @@ def latest_application(citizen_ref: str):
     return application_status(a.id)
 
 
+@app.get("/rtos", tags=["journey"])
+def rtos(state: str | None = None):
+    """
+    The offices an applicant can choose, nearest first. `wait` and `load` are
+    computed from the live queues, so "Light day" means the lanes are actually
+    short right now rather than a fixture saying so.
+    """
+    out = []
+    for r in be.list_rtos(state):
+        p = be.office_pressure(r.id)
+        out.append({
+            "id": r.id, "name": r.name, "area": r.area, "state": r.state,
+            "km": r.km, "load": p["load"],
+            "wait": f"Avg wait once you arrive: {p['wait_minutes']} min",
+            "wait_minutes": p["wait_minutes"], "waiting_now": p["waiting"],
+            "lanes": p["lanes"],
+        })
+    return {"state": state, "count": len(out), "rtos": out}
+
+
+@app.get("/slots/days", tags=["journey"])
+def slot_days(rto_id: str = DEFAULT_RTO):
+    """The bookable date strip, with a real count of what is left per day."""
+    return {"rto_id": rto_id, "days": be.slot_days(rto_id)}
+
+
+@app.get("/slots/times", tags=["journey"])
+def slot_times(rto_id: str = DEFAULT_RTO, on: date | None = None):
+    """
+    The time strip for one day. Times are grouped across inspectors: the
+    applicant picks when, the system picks the lane.
+    """
+    when = on or date.today()
+    return {"rto_id": rto_id, "date": str(when),
+            "times": be.slot_times(rto_id, when)}
+
+
 @app.get("/slots", tags=["journey"])
 def free_slots(rto_id: str = DEFAULT_RTO, on: date | None = None):
     """Free fixed time-slots, earliest first."""
@@ -168,8 +255,11 @@ def book(body: BookBody):
         raise HTTPException(409, "This application already holds an appointment.")
     except KeyError as e:
         raise HTTPException(404, str(e))
+    tester = be.get_tester(b.tester_id)
     return {"booking_id": b.id, "start": b.start.strftime("%H:%M"),
-            "tester_id": b.tester_id, "date": str(b.slot_date)}
+            "time": b.start.strftime("%I:%M %p").lstrip("0").lower(),
+            "tester_id": b.tester_id, "tester": tester.name if tester else None,
+            "date": str(b.slot_date), "label": b.slot_date.strftime("%a %d %b")}
 
 
 @app.post("/checkin/{application_id}", tags=["journey"])
@@ -234,7 +324,9 @@ def next_question(attempt_id: str):
         "done": False,
         "index": attempt.current_index,
         "total": len(attempt.scenario_ids),
-        "scenario": scenario.public_view().model_dump(),
+        # Options are permuted per attempt so the answer's position tells the
+        # candidate nothing — see engine.serve_scenario.
+        "scenario": engine.serve_scenario(attempt_id, scenario).model_dump(),
     }
 
 

@@ -59,12 +59,21 @@ class JourneyEvent(BaseModel):
 
 class Application(BaseModel):
     id: str
+    # The number the citizen is told to quote for everything after submission
+    # ("SS-2026-004182"). The uuid `id` stays the internal key; this is the one
+    # a human reads off an SMS, so the tracker looks up by it.
+    display_no: str
     citizen_ref: str                      # mock id; real identity handled upstream
     licence_kind: LicenceKind
     rto_id: str
     status: AppStatus = AppStatus.SUBMITTED
     idempotency_key: str                  # dedupes retries from flaky networks
     created_at: datetime
+    # Captured at apply time so the tracker can authenticate a lookup the way
+    # the real portal does: application number + date of birth.
+    dob: Optional[str] = None
+    applicant_name: Optional[str] = None
+    licence_classes: list[str] = Field(default_factory=list)
     ledger: list[JourneyEvent] = Field(default_factory=list)
     booking_id: Optional[str] = None
     token_id: Optional[str] = None
@@ -92,6 +101,7 @@ class Application(BaseModel):
         """The citizen's tamper-evident proof-of-journey."""
         return {
             "application_id": self.id,
+            "application_no": self.display_no,
             "licence_kind": self.licence_kind.value,
             "final_status": self.status.value,
             "chain_valid": self.verify_ledger(),
@@ -119,9 +129,15 @@ class RTO(BaseModel):
     id: str
     name: str
     city: str
-    open_time: time = time(9, 0)
+    state: str = "Maharashtra"
+    area: str = ""                       # "Andheri West, Mumbai"
+    km: float = 0.0                      # distance shown to the applicant
+    open_time: time = time(9, 30)
     close_time: time = time(16, 0)
-    slot_minutes: int = 15               # fixed grid: 9:00, 9:15, ...
+    slot_minutes: int = 45               # fixed grid: 9:30, 10:15, 11:00, ...
+    # The office shuts the counter over lunch, so no slot starts in this window.
+    lunch_from: time = time(12, 30)
+    lunch_to: time = time(14, 30)
 
 
 class Slot(BaseModel):
