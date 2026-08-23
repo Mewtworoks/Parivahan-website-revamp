@@ -1,71 +1,39 @@
-// =============================================================================
-// PARIVAHAN REVAMP - GLOBAL MASTER SCSS STYLESHEET
-// =============================================================================
+@use 'variables' as *;
+@use 'mixins' as *;
 
-@import 'variables';
-@import 'mixins';
-
-:root {
-  --primary-color: #{$color-primary};
-  --primary-light: #{$color-primary-light};
-  --primary-dark: #{$color-primary-dark};
-  --accent-color: #{$color-accent};
-
-  --bg-main: #{$color-bg-main};
-  --bg-card: #{$color-bg-card};
-  --border-color: #{$color-border};
-
-  --text-main: #{$color-text-main};
-  --text-muted: #{$color-text-muted};
-
-  --font-base: #{$font-family-base};
-  --font-heading: #{$font-family-heading};
-}
-
+// CSS Reset & Base Styles
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
-  height: 100%;
-  font-family: var(--font-base);
-  background-color: var(--bg-main);
-  color: var(--text-main);
+html {
   font-size: 16px;
-  line-height: 1.5;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  color: var(--primary-dark);
-  font-weight: $font-weight-bold;
+body {
+  font-family: $font-family-base;
+  background-color: $color-bg-page;
+  color: $color-text-main;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a {
-  color: var(--primary-light);
+  color: inherit;
   text-decoration: none;
-  transition: $transition-fast;
-
-  &:hover {
-    color: var(--primary-color);
-  }
 }
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+// Utility classes for global reuse
 .container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 $spacing-md;
-}
-
-.btn-primary {
-  @include btn-primary;
-}
-
-.card {
-  @include card-surface;
-  padding: $spacing-lg;
+  @include container;
 }
