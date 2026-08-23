@@ -1,0 +1,182 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $spacing-md;
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-bg-subtle;
+}
+
+.laneHead {
+  @include flex-between;
+  align-items: flex-start;
+  gap: $spacing-sm;
+}
+
+.laneName {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: $color-primary-dark;
+}
+
+.laneMeta {
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+}
+
+.serving {
+  display: flex;
+  flex-direction: column;
+  padding: $spacing-sm $spacing-md;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+}
+
+.servingLabel {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: $color-text-muted;
+}
+
+.servingNumber {
+  font-family: $font-family-heading;
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  line-height: 1.1;
+}
+
+.upNext {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.upNextLabel {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: $color-text-muted;
+}
+
+.upNextEmpty {
+  font-size: $font-size-sm;
+  color: $color-text-light;
+  font-style: italic;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.chip {
+  padding: 2px $spacing-sm;
+  border-radius: $radius-full;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-text-muted;
+}
+
+.chipNext {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #92400e;
+}
+
+.laneNote {
+  font-size: $font-size-xs;
+  color: $color-text-light;
+}
+
+// -------------------------------------------------------- hall display
+
+.hall {
+  padding: $spacing-lg;
+  border-radius: $radius-lg;
+  background: linear-gradient(150deg, #0f172a, #1e293b);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.hallTitle {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: #64748b;
+}
+
+.hallGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: $spacing-md;
+}
+
+.hallLane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-md;
+  border-radius: $radius-md;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.hallTester {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: #94a3b8;
+}
+
+.hallNumber {
+  font-family: $font-family-heading;
+  font-size: 3.25rem;
+  font-weight: $font-weight-bold;
+  line-height: 1;
+  color: $color-accent;
+  font-variant-numeric: tabular-nums;
+}
+
+.hallWaiting {
+  font-size: $font-size-xs;
+  color: #64748b;
+}
+
+.hallIdle {
+  font-size: $font-size-sm;
+  color: #64748b;
+  font-style: italic;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $spacing-sm;
+}

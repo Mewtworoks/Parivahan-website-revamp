@@ -1,0 +1,327 @@
+"""
+FastAPI backend for the reimagined Parivahan LL/DL journey.
+
+Three real failures of the current portal, three fixed flows:
+  * silent/buggy apply      -> POST /apply is idempotent, status always readable
+  * "come in the morning"   -> fixed slot grid, atomically booked
+  * pile-ups and no info    -> live queue token with a recomputed ETA
+
+Endpoints:
+  POST /apply                          idempotent apply (retry-safe)
+  GET  /application/{id}               transparency ledger
+  GET  /application/{id}/receipt       tamper-evident proof-of-journey
+  GET  /citizen/{ref}/application      latest application for a citizen
+  GET  /slots                          free fixed time-slots
+  POST /book                           atomic hold; 409 if just taken
+  POST /checkin/{app_id}               issue live queue token
+  GET  /queue/{token_id}               position + tester + live ETA
+  POST /tester/{id}/call-next          advance the queue
+  GET  /rto/{id}/board                 waiting-hall / tester dashboard
+  POST /test/start                     begin a 15-scenario test
+  GET  /test/{attempt_id}/next         next scenario (answer stripped)
+  POST /test/{attempt_id}/answer       submit an answer, get feedback
+  GET  /test/{attempt_id}/result       final result + competency breakdown
+  POST /test/{attempt_id}/proctor      proctoring subsystem posts events
+  GET  /agent/tools                    OpenAI Realtime function-tool schema
+  POST /agent/dispatch                 execute an agent tool call
+
+Run:  python main.py      (or: uvicorn app.main:app --reload)
+"""
+
+from __future__ import annotations
+
+import os
+from datetime import date
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+from . import booking_engine as be
+from . import engine
+from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
+from .booking_engine import AlreadyBooked, SlotTaken
+from .booking_models import LicenceKind
+from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
+from .seed_scenarios import SCENARIOS, scenario_by_id
+
+app = FastAPI(
+    title="Parivahan LL/DL Journey — Reimagined",
+    description="Idempotent apply, atomic slot booking, live queue, scenario test.",
+    version="1.0.0",
+)
+
+# Explicit origins keep credentialed requests working; "*" is the hackathon
+# default so a teammate's dev server on any port can call in.
+_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    # A wildcard origin with credentials is rejected by browsers, so only
+    # allow credentials when the origins are named.
+    allow_credentials="*" not in _origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------- request bodies -------------------------------
+
+class StartBody(BaseModel):
+    citizen_id: str  # Aadhaar-linked ref; real auth handled upstream
+
+
+class AnswerBody(BaseModel):
+    scenario_id: str
+    chosen_option_id: str
+    time_taken_s: float = Field(0.0, ge=0)
+
+
+class ProctorBody(BaseModel):
+    flag: str
+
+
+class DispatchBody(BaseModel):
+    tool: str
+    arguments: dict = Field(default_factory=dict)
+
+
+class ApplyBody(BaseModel):
+    citizen_ref: str
+    licence_kind: LicenceKind
+    rto_id: str = DEFAULT_RTO
+    idempotency_key: str      # client-generated; makes retries safe
+
+
+class BookBody(BaseModel):
+    application_id: str
+    slot_id: str
+
+
+# Seed the demo RTO (testers + fixed slot grid) at import time.
+be.seed_demo(DEFAULT_RTO)
+
+
+# --------------------- Journey: apply -> book -> queue ---------------------
+
+@app.post("/apply", tags=["journey"])
+def apply(body: ApplyBody):
+    """Resilient, idempotent application. Retry-safe by design."""
+    app_obj = be.apply(body.citizen_ref, body.licence_kind, body.rto_id,
+                       body.idempotency_key)
+    return {"application_id": app_obj.id, "status": app_obj.status.value,
+            "ledger": [e.model_dump() for e in app_obj.ledger]}
+
+
+@app.get("/application/{app_id}", tags=["journey"])
+def application_status(app_id: str):
+    """Transparency: the full journey ledger, always readable."""
+    a = be.get_application(app_id)
+    if not a:
+        raise HTTPException(404, "Application not found")
+    return {"application_id": a.id, "status": a.status.value,
+            "licence_kind": a.licence_kind.value, "rto_id": a.rto_id,
+            "booking_id": a.booking_id, "token_id": a.token_id,
+            "ledger": [e.model_dump() for e in a.ledger]}
+
+
+@app.get("/application/{app_id}/receipt", tags=["journey"])
+def receipt(app_id: str):
+    """
+    Tamper-evident proof-of-journey. The hash chain means no one — no clerk,
+    no middleman — can alter, insert, or drop a step without chain_valid
+    flipping to false. This is the citizen's proof they earned their pass.
+    """
+    a = be.get_application(app_id)
+    if not a:
+        raise HTTPException(404, "Application not found")
+    return a.receipt()
+
+
+@app.get("/citizen/{citizen_ref}/application", tags=["journey"])
+def latest_application(citizen_ref: str):
+    """Resume where you left off — no need to remember an application id."""
+    a = be.latest_application_for(citizen_ref)
+    if not a:
+        raise HTTPException(404, "No application for this citizen")
+    return application_status(a.id)
+
+
+@app.get("/slots", tags=["journey"])
+def free_slots(rto_id: str = DEFAULT_RTO, on: date | None = None):
+    """Free fixed time-slots, earliest first."""
+    when = on or date.today()
+    slots = be.list_free_slots(rto_id, when)
+    return {"rto_id": rto_id, "date": str(when), "count": len(slots),
+            "slots": [{"slot_id": s.id, "start": s.start.strftime("%H:%M"),
+                       "tester_id": s.tester_id} for s in slots[:50]]}
+
+
+@app.post("/book", tags=["journey"])
+def book(body: BookBody):
+    """Atomically hold a fixed time-slot. One winner per slot, guaranteed."""
+    try:
+        b = be.book_slot(body.application_id, body.slot_id)
+    except SlotTaken:
+        raise HTTPException(409, "That slot was just taken — pick another.")
+    except AlreadyBooked:
+        raise HTTPException(409, "This application already holds an appointment.")
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    return {"booking_id": b.id, "start": b.start.strftime("%H:%M"),
+            "tester_id": b.tester_id, "date": str(b.slot_date)}
+
+
+@app.post("/checkin/{application_id}", tags=["journey"])
+def checkin(application_id: str):
+    """On arrival: issue a live queue token. Safe to call twice."""
+    try:
+        t = be.check_in(application_id)
+    except KeyError as e:
+        raise HTTPException(400, str(e))
+    return {"token_id": t.id, "token_number": t.number, "tester_id": t.tester_id}
+
+
+@app.get("/queue/{token_id}", tags=["journey"])
+def queue(token_id: str):
+    """What the citizen watches on their phone: position + live ETA."""
+    try:
+        return be.queue_status(token_id)
+    except KeyError:
+        raise HTTPException(404, "Token not found")
+
+
+@app.post("/tester/{tester_id}/call-next", tags=["journey"])
+def call_next(tester_id: str):
+    """Tester-side: finish current, call next. Advances everyone's ETA."""
+    if be.get_tester(tester_id) is None:
+        raise HTTPException(404, "Tester not found")
+    nxt = be.call_next(tester_id)
+    return {"now_serving": nxt.number if nxt else None}
+
+
+@app.get("/rto/{rto_id}/board", tags=["journey"])
+def board(rto_id: str):
+    """Waiting-hall display: every lane, who is being served, how deep."""
+    return be.rto_board(rto_id)
+
+
+# ----------------------------- Scenario test -------------------------------
+
+@app.post("/test/start", tags=["test"])
+def start_test(body: StartBody):
+    try:
+        attempt = engine.build_test(body.citizen_id)
+    except engine.BankTooSmall as e:
+        raise HTTPException(503, f"Scenario bank not ready: {e}")
+    return {
+        "attempt_id": attempt.id,
+        "total_questions": len(attempt.scenario_ids),
+        "pass_threshold": PASS_THRESHOLD,
+    }
+
+
+@app.get("/test/{attempt_id}/next", tags=["test"])
+def next_question(attempt_id: str):
+    attempt = engine.get_attempt(attempt_id)
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    sid = engine.next_scenario_id(attempt)
+    if sid is None:
+        return {"done": True, "index": attempt.current_index}
+    scenario = scenario_by_id(sid)
+    return {
+        "done": False,
+        "index": attempt.current_index,
+        "total": len(attempt.scenario_ids),
+        "scenario": scenario.public_view().model_dump(),
+    }
+
+
+@app.post("/test/{attempt_id}/answer", tags=["test"])
+def answer_question(attempt_id: str, body: AnswerBody):
+    attempt = engine.get_attempt(attempt_id)
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    try:
+        rec = engine.submit_answer(
+            attempt, body.scenario_id, body.chosen_option_id, body.time_taken_s
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    scenario = scenario_by_id(body.scenario_id)
+    return {
+        "correct": rec.correct,
+        # feedback teaches, per the "learning not just pass/fail" goal
+        "correct_option_id": scenario.correct_option_id,
+        "explanation": scenario.explanation,
+        "mv_act_ref": scenario.mv_act_ref,
+        "score_so_far": attempt.score,
+        "answered": attempt.current_index,
+        "total": len(attempt.scenario_ids),
+        "status": attempt.status.value,
+    }
+
+
+@app.get("/test/{attempt_id}/result", tags=["test"])
+def result(attempt_id: str):
+    attempt = engine.get_attempt(attempt_id)
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    return {
+        "status": attempt.status.value,
+        "score": attempt.score,
+        "total": len(attempt.scenario_ids),
+        "pass_threshold": PASS_THRESHOLD,
+        "proctor_flags": attempt.proctor_flags,
+        # what to go practise, instead of a bare fail
+        "by_competency": attempt.competency_breakdown(),
+    }
+
+
+@app.post("/test/{attempt_id}/proctor", tags=["test"])
+def proctor(attempt_id: str, body: ProctorBody):
+    attempt = engine.get_attempt(attempt_id)
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    engine.record_proctor_event(attempt, body.flag)
+    return {"status": attempt.status.value, "flags": attempt.proctor_flags}
+
+
+# ------------------------- AI voice agent wiring ---------------------------
+
+@app.get("/agent/tools", tags=["agent"])
+def agent_tools():
+    """Function-tool schema to register with the OpenAI Realtime session."""
+    return {"tools": AGENT_TOOL_SCHEMA}
+
+
+@app.post("/agent/dispatch", tags=["agent"])
+def agent_dispatch(body: DispatchBody):
+    """The Realtime agent calls a tool -> your client forwards it here."""
+    try:
+        return dispatch_tool(body.tool, body.arguments)
+    except KeyError as e:
+        raise HTTPException(400, f"Unknown tool or missing argument: {e}")
+
+
+# ------------------------------- meta --------------------------------------
+
+@app.get("/", tags=["meta"])
+def root():
+    return {
+        "status": "online",
+        "service": "Parivahan LL/DL journey — reimagined",
+        "docs": "/docs",
+        "questions_per_test": QUESTIONS_PER_TEST,
+        "pass_threshold": PASS_THRESHOLD,
+        "scenario_bank": len(SCENARIOS),
+    }
+
+
+@app.get("/api/health", tags=["meta"])
+def health_check():
+    """Kept at the path the frontend scaffold already probes."""
+    return {"status": "healthy", "service": "Parivahan Backend",
+            "rtos": [r.id for r in be.list_rtos()]}

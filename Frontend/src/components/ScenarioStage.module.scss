@@ -1,0 +1,115 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: $radius-md;
+  background: #64748b;
+  border: 1px solid $color-border;
+}
+
+.svgNight {
+  background: #0f172a;
+}
+
+// -------------------------------------------------------------- the ego car
+
+.egoHalo {
+  fill: rgba(59, 130, 246, 0.28);
+  stroke: $color-primary-light;
+  stroke-width: 2;
+}
+
+.egoGlyph {
+  font-size: 20px;
+}
+
+.egoLabel {
+  font-family: $font-family-base;
+  font-size: 9px;
+  font-weight: $font-weight-bold;
+  fill: #fff;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+// ----------------------------------------------------------- other actors
+
+.glyph {
+  font-size: 19px;
+}
+
+.actorLabel {
+  font-family: $font-family-base;
+  font-size: 8px;
+  font-weight: $font-weight-semibold;
+  fill: rgba(248, 250, 252, 0.75);
+  letter-spacing: 0.3px;
+}
+
+.limitText {
+  font-family: $font-family-heading;
+  font-size: 13px;
+  font-weight: $font-weight-bold;
+  fill: #0f172a;
+}
+
+.moving {
+  // no transition: the position is driven per frame, easing would lag the clock
+  will-change: transform;
+}
+
+.siren {
+  fill: rgba(239, 68, 68, 0.3);
+  animation: pulse 0.7s ease-in-out infinite;
+}
+
+.beam {
+  fill: rgba(250, 204, 21, 0.35);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50%      { opacity: 0.8;  transform: scale(1.15); }
+}
+
+// ---------------------------------------------------------------- caption
+
+.caption {
+  @include flex-between;
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+}
+
+.env {
+  font-weight: $font-weight-semibold;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  color: $color-text-light;
+}
+
+.progress {
+  height: 3px;
+  background: $color-bg-subtle;
+  border-radius: $radius-full;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: $color-primary-light;
+  border-radius: $radius-full;
+}

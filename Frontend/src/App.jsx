@@ -1,39 +1,56 @@
 import React, { useState } from 'react';
+
+import * as api from './api';
+import { usePolling } from './hooks';
+import AgentConsole from './components/AgentConsole';
+import JourneyFlow from './components/JourneyFlow';
+import ProofPanel from './components/ProofPanel';
+import RtoBoard from './components/RtoBoard';
+import ScenarioTest from './components/ScenarioTest';
 import styles from './App.module.scss';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('all');
+const TABS = [
+  {
+    id: 'journey',
+    label: 'My journey',
+    blurb: 'Apply, book a real time slot, check in, watch the queue move, walk away with proof.',
+  },
+  {
+    id: 'desk',
+    label: 'RTO desk',
+    blurb: 'The inspector’s side and the waiting-hall screen — the same numbers the citizen sees.',
+  },
+  {
+    id: 'test',
+    label: 'Theory test',
+    blurb: 'Fifteen driving situations to read, in Hindi or English, that teach as you go.',
+  },
+  {
+    id: 'proof',
+    label: 'Proof',
+    blurb: 'Run the retry storm and the slot race yourself, against the live backend.',
+  },
+  {
+    id: 'agent',
+    label: 'Voice copilot',
+    blurb: 'The function tools the Realtime model drives — replayed live against real state.',
+  },
+];
 
-  const services = [
-    {
-      id: 'dl',
-      title: 'Driving License Services',
-      description: 'Apply for learner license, DL renewal, duplicate DL, and address update online.',
-      icon: '🆔'
-    },
-    {
-      id: 'rc',
-      title: 'Vehicle Registration (RC)',
-      description: 'Register new vehicle, transfer ownership, renewal of RC, and fitness certificate.',
-      icon: '🚘'
-    },
-    {
-      id: 'challan',
-      title: 'E-Challan Payment',
-      description: 'Check traffic violation status, pay online challans instantly across all states.',
-      icon: '📄'
-    },
-    {
-      id: 'permit',
-      title: 'National Permit & Taxation',
-      description: 'Pay road taxes online, apply for goods permit, and commercial vehicle authorizations.',
-      icon: '🚚'
-    }
-  ];
+export default function App() {
+  const [tab, setTab] = useState('journey');
+  const rtoId = api.DEFAULT_RTO;
+
+  const { data: health, error: healthError } = usePolling(
+    (signal) => api.health(signal),
+    { intervalMs: 6000 },
+  );
+
+  const online = Boolean(health) && !healthError;
+  const active = TABS.find((t) => t.id === tab);
 
   return (
-    <div className="app">
-      {/* Top Navbar */}
+    <div className={styles.app}>
       <header className={styles.appHeader}>
         <div className="container">
           <div className={styles.navContainer}>
@@ -43,51 +60,76 @@ export default function App() {
                 Parivahan <span>Revamp</span>
               </div>
             </div>
-            <ul className={styles.navLinks}>
-              <li><a href="#services">Services</a></li>
-              <li><a href="#challan">E-Challan</a></li>
-              <li><a href="#status">Application Status</a></li>
-              <li><a href="#backend">Backend (Python API)</a></li>
-            </ul>
+
+            <div className={styles.apiStatus}>
+              <span className={`${styles.dot} ${online ? styles.dotOn : styles.dotOff}`} />
+              <span className={styles.apiText}>
+                {online ? 'backend online' : 'backend unreachable'}
+              </span>
+              <code className={styles.apiBase}>{api.API_BASE}</code>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container">
         <section className={styles.heroSection}>
           <div className={styles.heroBadge}>
-            ✨ Modernized Ministry of Road Transport & Highways Portal
+            Build What Moves India · Learner &amp; Driving Licence journey
           </div>
           <h1 className={styles.heroTitle}>
-            Next-Gen Transport Services <span>Simplified</span>
+            The licence journey, <span>rebuilt to not break</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            Seamless access to driving licenses, vehicle registrations, e-challans, and national permits all powered by a modern React Frontend and Python Backend architecture.
+            Three things go wrong today: submit silently fails and you end up with duplicates,
+            you are told to come in the morning and lose a day&apos;s wages, and the only record
+            that you passed is whatever a clerk typed. Each one is fixed here — and every fix on
+            this page is checkable against the live API.
           </p>
         </section>
 
-        {/* Services Grid */}
-        <section id="services" className={styles.servicesGrid}>
-          {services.map((service) => (
-            <div key={service.id} className={styles.serviceCard}>
-              <div className={styles.cardIcon}>{service.icon}</div>
-              <h3 className={styles.cardTitle}>{service.title}</h3>
-              <p className={styles.cardDesc}>{service.description}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Python Backend Collaboration Panel */}
-        <section id="backend" className={styles.backendStatusCard}>
-          <div className={styles.statusHeader}>
-            <span className={styles.statusTitle}>⚡ Backend Integration Status</span>
-            <span className={styles.badgePython}>Python FastAPI / Flask Ready</span>
+        {!online && (
+          <div className={styles.offlineBar}>
+            <strong>The API is not answering.</strong> Start it with{' '}
+            <code>cd Backend</code> then <code>python main.py</code>, then this bar disappears on
+            its own. Expecting it at <code>{api.API_BASE}</code>.
           </div>
-          <p className={styles.statusText}>
-            The frontend is pre-configured to communicate with your friend's Python API endpoint at <code>http://localhost:8000/api</code>.
-          </p>
+        )}
+
+        <nav className={styles.tabs}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`${styles.tab} ${tab === t.id ? styles.tabActive : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <p className={styles.tabBlurb}>{active?.blurb}</p>
+
+        <section className={styles.tabPanel}>
+          {tab === 'journey' && <JourneyFlow rtoId={rtoId} />}
+          {tab === 'desk' && <RtoBoard rtoId={rtoId} />}
+          {tab === 'test' && <ScenarioTest />}
+          {tab === 'proof' && <ProofPanel rtoId={rtoId} />}
+          {tab === 'agent' && <AgentConsole />}
         </section>
+
+        <footer className={styles.footer}>
+          <span>
+            All data here is synthetic — no real Aadhaar, PAN, OTP or payment anywhere in this
+            build.
+          </span>
+          <span>
+            {health?.rtos?.length ? `RTO ${health.rtos.join(', ')}` : 'no RTO reported'} ·{' '}
+            <a href={`${api.API_BASE}/docs`} target="_blank" rel="noreferrer">
+              API docs
+            </a>
+          </span>
+        </footer>
       </main>
     </div>
   );

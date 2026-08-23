@@ -1,0 +1,221 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.startRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.langToggle {
+  background: $color-bg-subtle;
+  border: 1px solid $color-border;
+  border-radius: $radius-full;
+  padding: 2px $spacing-sm;
+  font-family: $font-family-base;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  cursor: pointer;
+
+  &:hover { background: rgba(59, 130, 246, 0.1); }
+}
+
+// --------------------------------------------------------------- progress
+
+.progressDots {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dot {
+  width: 100%;
+  max-width: 26px;
+  flex: 1 1 12px;
+  height: 4px;
+  border-radius: $radius-full;
+  background: $color-bg-subtle;
+}
+
+.dotDone { background: $color-success; }
+.dotNow  { background: $color-primary-light; }
+
+// ----------------------------------------------------------------- prompt
+
+.prompt {
+  font-family: $font-family-heading;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-primary-dark;
+  line-height: 1.4;
+}
+
+// ---------------------------------------------------------------- options
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  text-align: left;
+  padding: $spacing-md;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  cursor: pointer;
+  font-family: $font-family-base;
+  transition: $transition-fast;
+
+  &:hover:not(:disabled) {
+    border-color: $color-primary-light;
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  &:disabled { cursor: default; }
+}
+
+.optionKey {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  @include flex-center;
+  background: $color-bg-subtle;
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  text-transform: uppercase;
+}
+
+.optionLabel {
+  flex: 1;
+  font-size: $font-size-base;
+  color: $color-text-main;
+  line-height: 1.45;
+}
+
+.optionMark {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+}
+
+.optionRight {
+  border-color: $color-success;
+  background: rgba(16, 185, 129, 0.08);
+  .optionKey { background: $color-success; color: #fff; }
+  .optionMark { color: #047857; }
+}
+
+.optionWrong {
+  border-color: $color-danger;
+  background: rgba(239, 68, 68, 0.07);
+  .optionKey { background: $color-danger; color: #fff; }
+  .optionMark { color: #b91c1c; }
+}
+
+.optionMuted {
+  opacity: 0.55;
+}
+
+// --------------------------------------------------------------- feedback
+
+.lawRef {
+  margin-top: $spacing-xs;
+  font-size: $font-size-xs;
+}
+
+.footRow {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.score {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-muted;
+}
+
+.proctorRow {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  padding-top: $spacing-sm;
+  border-top: 1px dashed $color-border;
+}
+
+.proctorNote {
+  font-size: $font-size-xs;
+  color: $color-text-light;
+  max-width: 46ch;
+}
+
+// ----------------------------------------------------------------- result
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: $spacing-sm;
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.compRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) 3fr auto;
+  align-items: center;
+  gap: $spacing-md;
+
+  @include mobile {
+    grid-template-columns: 1fr auto;
+    .compBar { grid-column: 1 / -1; }
+  }
+}
+
+.compName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-main;
+}
+
+.compBar {
+  height: 8px;
+  background: $color-bg-subtle;
+  border-radius: $radius-full;
+  overflow: hidden;
+}
+
+.compFill {
+  height: 100%;
+  border-radius: $radius-full;
+  transition: width 0.4s ease-out;
+}
+
+.compScore {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  color: $color-text-muted;
+  font-variant-numeric: tabular-nums;
+}

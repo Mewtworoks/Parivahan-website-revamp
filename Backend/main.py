@@ -1,33 +1,19 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""
+Dev entry point. Keeps `python main.py` working from the Backend directory,
+while the app itself lives in the `app` package (app.main:app) so uvicorn,
+pytest and Docker can all import it the same way.
+"""
+
+import os
+
 import uvicorn
 
-app = FastAPI(
-    title="Parivahan Revamp API",
-    description="Python Backend API for Parivahan Website Revamp",
-    version="1.0.0"
-)
-
-# Enable CORS for React Frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-def read_root():
-    return {
-        "status": "online",
-        "message": "Welcome to Parivahan Revamp Python API",
-        "version": "1.0.0"
-    }
-
-@app.get("/api/health")
-def health_check():
-    return {"status": "healthy", "service": "Parivahan Backend"}
+from app.main import app  # re-exported so `uvicorn main:app` also works
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host=os.getenv("HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "8000")),
+        reload=True,
+    )
