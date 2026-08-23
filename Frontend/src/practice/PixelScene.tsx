@@ -5,12 +5,38 @@ import type { SpriteArt } from '../types';
 function drawTile(ctx: CanvasRenderingContext2D, ch: string, x: number, y: number) {
   ctx.fillStyle = TILE_COLORS[ch] || '#7ba250';
   ctx.fillRect(x, y, TILE, TILE);
-  if (ch === '#' || ch === '=' || ch === '-' || ch === 'z') { ctx.fillStyle = '#767a81'; ctx.fillRect(x, y, TILE, 1); }
-  if (ch === '=') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 7, y + 1, 1, 4); }
-  if (ch === '-') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 1, y + 7, 4, 1); }
-  if (ch === 'z') { ctx.fillStyle = '#ece9e1'; ctx.fillRect(x, y + 1, TILE, 3); ctx.fillRect(x, y + 6, TILE, 2); }
-  if (ch === 'b') { ctx.fillStyle = '#6f6355'; ctx.fillRect(x, y, TILE, 1); ctx.fillStyle = '#c9c07f'; ctx.fillRect(x + 2, y + 3, 2, 2); ctx.fillRect(x + 5, y + 3, 2, 2); }
-  if (ch === 'k') { ctx.fillStyle = '#cdc7b8'; ctx.fillRect(x, y, TILE, 2); }
+  if (ch === '.') {
+    // grass — a few fixed darker tufts so it isn't one flat colour
+    ctx.fillStyle = '#6f9a45';
+    ctx.fillRect(x + TILE * 0.19, y + TILE * 0.31, 2, 2);
+    ctx.fillRect(x + TILE * 0.63, y + TILE * 0.63, 2, 2);
+    ctx.fillRect(x + TILE * 0.44, y + TILE * 0.13, 2, 2);
+  }
+  if (ch === '#' || ch === '=' || ch === '-' || ch === 'z') {
+    // asphalt — a soft top highlight and bottom shade for a little depth
+    ctx.fillStyle = '#7d8189'; ctx.fillRect(x, y, TILE, 2);
+    ctx.fillStyle = '#5f636a'; ctx.fillRect(x, y + TILE - 2, TILE, 2);
+  }
+  if (ch === '=') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + TILE * 0.44, y + 3, 2, TILE - 6); }
+  if (ch === '-') { ctx.fillStyle = '#e3c74a'; ctx.fillRect(x + 2, y + TILE * 0.44, TILE - 4, 2); }
+  if (ch === 'z') { ctx.fillStyle = '#ece9e1'; ctx.fillRect(x, y + 3, TILE, 4); ctx.fillRect(x, y + TILE - 7, TILE, 4); }
+  if (ch === 'b') {
+    // roadside bus-stop shelter marker
+    ctx.fillStyle = '#6f6355'; ctx.fillRect(x, y, TILE, 3);
+    ctx.fillStyle = '#c9c07f'; ctx.fillRect(x + 4, y + 6, 3, 5); ctx.fillRect(x + TILE - 7, y + 6, 3, 5);
+  }
+  if (ch === 'k') {
+    // kerb — a two-tone paved strip instead of a flat block
+    ctx.fillStyle = '#cdc7b8'; ctx.fillRect(x, y, TILE, TILE * 0.4);
+    ctx.fillStyle = '#b4ad9c'; ctx.fillRect(x, y + TILE * 0.4, TILE, 2);
+  }
+  if (ch === 't') {
+    // roadside tree, drawn on top of the grass base already filled above
+    ctx.fillStyle = '#5c8a3c';
+    ctx.beginPath(); ctx.arc(x + TILE / 2, y + TILE / 2, TILE * 0.38, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6f9a45';
+    ctx.beginPath(); ctx.arc(x + TILE * 0.4, y + TILE * 0.4, TILE * 0.14, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 function drawSprite(ctx: CanvasRenderingContext2D, name: string, px: number, py: number, body?: string | null, lamp?: string) {
@@ -26,7 +52,7 @@ function drawSprite(ctx: CanvasRenderingContext2D, name: string, px: number, py:
   }
 }
 
-/** Renders a road situation as an 8px top-down pixel-art scene on a canvas. */
+/** Renders a road situation as a top-down pixel-art scene on a canvas. */
 export function PixelScene({ map, art, shake }: { map: string[]; art: SpriteArt[]; shake?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
