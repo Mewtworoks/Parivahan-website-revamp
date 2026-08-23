@@ -469,9 +469,17 @@ def queue_status(token_id: str) -> dict:
 
     return {
         "token_id": token.id,
+        # Issued per office, in arrival order: the number called across the hall.
         "token_number": token.number,
         "tester": tester.name,
         "status": token.status.value,
+        # Position is per inspector, because that is the line you actually stand
+        # in. Reporting the office-wide number next to a lane-scoped count reads
+        # as a contradiction — "you are number 3, nobody is ahead of you" — so
+        # say the place in the lane outright rather than leaving it to be
+        # inferred from the token number.
+        "position_in_lane": len(before) + 1,
+        "lane_size": len(q),
         "people_ahead": people_ahead,
         "eta_minutes": eta_min,
         "someone_in_test": bool(in_test_ahead),

@@ -25,6 +25,7 @@ from . import booking_engine as be
 from . import engine
 from .booking_engine import AlreadyBooked, SlotTaken
 from .booking_models import AppStatus, LicenceKind
+from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
 from .seed_scenarios import SCENARIOS, scenario_by_id
 
 DEFAULT_RTO = "mh01"
@@ -162,25 +163,55 @@ _LL_STEPS = {
         "hi": "आयु प्रमाण, पता प्रमाण, फ़ॉर्म 1 फ़िटनेस घोषणा, और पासपोर्ट फ़ोटो। "
               "आधार से पूरी प्रक्रिया बिना दफ़्तर जाए हो जाती है।",
     },
+    # Real numbers, read off an actual e-receipt: Rs.150 grant per class plus a
+    # Rs.50 test fee charged once, so two classes come to Rs.350 rather than
+    # Rs.400. Stated here because an agent with no figure to quote invents one —
+    # it told a citizen a learner licence costs "about Rs.2,000".
+    # This is a prototype and payment is out of scope, so there is no figure to
+    # quote. Say that plainly: given nothing at all, the model filled the gap
+    # and told a citizen a learner licence costs "about Rs.2,000".
     "fee": {
-        "en": "The LL fee is paid online on the portal during application.",
-        "hi": "आवेदन के दौरान पोर्टल पर एलएल शुल्क ऑनलाइन भुगतान किया जाता है।",
+        "en": "The fee is worked out and charged after all your details are "
+              "filled in. This is a prototype, so no real payment is taken and "
+              "no amount is quoted up front.",
+        "hi": "आपके सारे विवरण भरने के बाद शुल्क की गणना होती है और तभी लिया जाता "
+              "है। यह एक प्रोटोटाइप है, इसलिए कोई वास्तविक भुगतान नहीं होता और "
+              "पहले से कोई रकम नहीं बताई जाती।",
     },
+    # Interpolated from the constants the test actually runs on. These read "15
+    # questions, 9 to pass" while the service served 10 and passed at 6, so the
+    # agent was telling citizens the wrong format with total confidence.
+    # Carries the pass mark as well as the count. Asked "how many questions and
+    # how many to pass", the agent read this step alone and then guessed the
+    # threshold — it told a citizen they needed all ten right.
     "test_format": {
-        "en": "15 questions. In our reimagined test each is a short driving "
-              "scenario — you watch it, then choose the safest action.",
-        "hi": "15 प्रश्न। हमारे नए टेस्ट में हर प्रश्न एक छोटा ड्राइविंग "
-              "दृश्य है — उसे देखें, फिर सबसे सुरक्षित कार्य चुनें।",
+        "en": f"{QUESTIONS_PER_TEST} questions, and {PASS_THRESHOLD} correct is a "
+              "pass. In our reimagined test each is a short driving scenario — you "
+              "watch it, then choose the safest action.",
+        "hi": f"{QUESTIONS_PER_TEST} प्रश्न, और {PASS_THRESHOLD} सही होने पर आप पास "
+              "हैं। हमारे नए टेस्ट में हर प्रश्न एक छोटा ड्राइविंग दृश्य है — उसे "
+              "देखें, फिर सबसे सुरक्षित कार्य चुनें।",
     },
     "pass_criteria": {
-        "en": "You must answer at least 9 of 15 correctly (60%) to pass.",
-        "hi": "पास होने के लिए 15 में से कम से कम 9 सही (60%) चाहिए।",
+        "en": f"You must answer at least {PASS_THRESHOLD} of {QUESTIONS_PER_TEST} "
+              "correctly (60%) to pass.",
+        "hi": f"पास होने के लिए {QUESTIONS_PER_TEST} में से कम से कम "
+              f"{PASS_THRESHOLD} सही (60%) चाहिए।",
     },
+    # The conditions are stated because they are law, not advice. Asked to
+    # explain the process, the agent finished with "you can drive immediately" —
+    # a learner may not drive alone at all, and this is the one thing it must
+    # never get wrong.
     "after_pass": {
-        "en": "You download your Learner Licence, then complete the learner "
-              "period before applying for the permanent driving licence.",
-        "hi": "आप अपना लर्नर लाइसेंस डाउनलोड करें, फिर स्थायी ड्राइविंग लाइसेंस "
-              "के लिए आवेदन से पहले लर्नर अवधि पूरी करें।",
+        "en": "You download your Learner Licence, valid six months. You may not "
+              "drive alone on it: the vehicle needs an L plate and a licensed "
+              "holder of the same class must be beside you. After at least 30 "
+              "days as a learner, and within 180, you apply for the permanent "
+              "driving licence.",
+        "hi": "आप अपना लर्नर लाइसेंस डाउनलोड करें, जो छह महीने वैध है। इस पर अकेले "
+              "गाड़ी चलाना मना है: वाहन पर L प्लेट और आपके साथ उसी श्रेणी का "
+              "लाइसेंसधारी होना ज़रूरी है। कम से कम 30 दिन और 180 दिन के भीतर "
+              "स्थायी ड्राइविंग लाइसेंस के लिए आवेदन करें।",
     },
 }
 
@@ -204,6 +235,19 @@ def _stable_idempotency_key(citizen_ref: str, kind: LicenceKind, rto_id: str) ->
     """
     payload = f"{citizen_ref}|{kind.value}|{rto_id}"
     return "agent:" + hashlib.sha256(payload.encode()).hexdigest()[:32]
+
+
+def _inspector(tester_id: str) -> str:
+    """
+    The inspector's name, for anything the agent may read out loud.
+
+    Tool results are spoken to the citizen, so they must not carry internal
+    identifiers: "mh01_t1" is a database key, not something a person can act on.
+    Falls back to the id only if the catalogue has no such tester, which would
+    itself be a bug worth seeing rather than hiding.
+    """
+    tester = be.get_tester(tester_id)
+    return tester.name if tester else tester_id
 
 
 def dispatch_tool(tool: str, args: dict) -> dict:
@@ -233,7 +277,7 @@ def dispatch_tool(tool: str, args: dict) -> dict:
             if b:
                 out["appointment"] = {"date": str(b.slot_date),
                                       "time": b.start.strftime("%H:%M"),
-                                      "tester_id": b.tester_id}
+                                      "tester": _inspector(b.tester_id)}
         if app_obj.token_id:
             out["queue"] = be.queue_status(app_obj.token_id)
         return out
@@ -268,14 +312,15 @@ def dispatch_tool(tool: str, args: dict) -> dict:
         citizen_ref = args["citizen_ref"]
         key = _stable_idempotency_key(citizen_ref, kind, rto)
         app_obj = be.apply(citizen_ref, kind, rto, key)
-        return {"application_id": app_obj.id, "status": app_obj.status.value,
+        return {"application_id": app_obj.id, "application_no": app_obj.display_no,
+                "status": app_obj.status.value,
                 "next_action": _NEXT_ACTION.get(app_obj.status, "")}
 
     if tool == "find_slots":
         rto = args.get("rto_id") or DEFAULT_RTO
         slots = be.list_free_slots(rto, date.today())[:6]
         return {"slots": [{"slot_id": s.id, "time": s.start.strftime("%H:%M"),
-                           "tester_id": s.tester_id} for s in slots]}
+                           "tester": _inspector(s.tester_id)} for s in slots]}
 
     if tool == "book_slot":
         try:
@@ -287,7 +332,7 @@ def dispatch_tool(tool: str, args: dict) -> dict:
         except KeyError as e:
             return {"ok": False, "reason": str(e)}
         return {"ok": True, "date": str(b.slot_date),
-                "time": b.start.strftime("%H:%M"), "tester_id": b.tester_id}
+                "time": b.start.strftime("%H:%M"), "tester": _inspector(b.tester_id)}
 
     if tool == "check_in":
         try:
@@ -295,7 +340,7 @@ def dispatch_tool(tool: str, args: dict) -> dict:
         except KeyError:
             return {"ok": False, "reason": "No appointment found to check in against."}
         return {"ok": True, "token_id": t.id, "token_number": t.number,
-                "tester_id": t.tester_id}
+                "tester": _inspector(t.tester_id)}
 
     if tool == "check_queue":
         try:

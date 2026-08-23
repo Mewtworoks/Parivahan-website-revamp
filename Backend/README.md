@@ -101,6 +101,11 @@ application wizard is already a valid `rto_id` here — no mapping layer.
 | --- | --- | --- |
 | `GET` | `/agent/tools` | Function-tool schema to register on `session.update`. |
 | `POST` | `/agent/dispatch` | Execute a tool call the Realtime model emitted. |
+| `POST` | `/agent/voice/start` | Start a 30-minute server-side Saarthi conversation. |
+| `POST` | `/agent/voice/turn` | Send browser-recognised speech to NVIDIA and receive a reply. |
+| `POST` | `/agent/voice/confirm` | Execute a pending apply, booking, or check-in only after the citizen confirms. |
+| `POST` | `/agent/voice/cancel` | Discard the pending state-changing request. |
+| `DELETE` | `/agent/voice/{session_id}` | End the voice conversation. |
 
 Wiring: `GET /agent/tools` → add to the Realtime session's `tools` → on a
 `function_call`, `POST /agent/dispatch {tool, arguments}` and hand the result
@@ -134,4 +139,6 @@ back to the model. The backend never holds the socket; the client owns the key.
 | --- | --- | --- |
 | `HOST` / `PORT` | `127.0.0.1` / `8000` | Bind address. |
 | `CORS_ORIGINS` | `*` | Comma-separated origins. Named origins enable credentialed requests; `*` disables them. |
-| `OPENAI_API_KEY` | — | Used by the client that opens the Realtime session. |
+| `NVIDIA_API_KEY` | - | Server-only key for Saarthi. Never expose it to the browser or commit it. |
+| `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | NVIDIA OpenAI-compatible API base URL. |
+| `NVIDIA_MODEL` | `openai/gpt-oss-20b` | Model used for Saarthi conversations and tool selection. |

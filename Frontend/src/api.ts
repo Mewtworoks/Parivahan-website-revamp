@@ -64,6 +64,10 @@ export interface QueueStatus {
   tester: string;
   status: 'waiting' | 'in_test' | 'done' | 'no_show';
   people_ahead: number;
+  /** Place in this inspector's line. The token number is office-wide, so it is
+   *  not a position — showing one as the other reads as a contradiction. */
+  position_in_lane: number;
+  lane_size: number;
   eta_minutes: number;
   someone_in_test: boolean;
 }
@@ -171,6 +175,21 @@ export interface TestResultView {
   by_competency: Record<string, { correct: number; wrong: number }>;
 }
 
+export interface VoiceToolEvent {
+  tool: string;
+  // 'deferred' is a tool the agent asked for in the same breath as one that
+  // needs confirming — answered so the transcript stays valid, but not run.
+  status: 'complete' | 'error' | 'awaiting_confirmation' | 'deferred';
+  result?: Record<string, unknown>;
+}
+
+export interface VoiceReply {
+  session_id: string;
+  reply: string;
+  tool_events: VoiceToolEvent[];
+  pending_confirmation?: { label: string };
+}
+
 // ---------------------------------------------------------------- calls
 
 export const health = (signal?: AbortSignal) =>
@@ -246,3 +265,24 @@ export const submitAnswer = (attemptId: string, scenarioId: string, optionId: st
 
 export const testResult = (attemptId: string, signal?: AbortSignal) =>
   request<TestResultView>(`/test/${attemptId}/result`, { signal });
+
+// ---------------------------------------------------------------- voice agent
+
+export const startVoice = (citizenRef: string) =>
+  request<{ session_id: string; expires_in_minutes: number }>('/agent/voice/start', {
+    method: 'POST', body: { citizen_ref: citizenRef },
+  });
+
+export const voiceTurn = (sessionId: string, transcript: string) =>
+  request<VoiceReply>('/agent/voice/turn', {
+    method: 'POST', body: { session_id: sessionId, transcript },
+  });
+
+export const confirmVoiceAction = (sessionId: string) =>
+  request<VoiceReply>('/agent/voice/confirm', { method: 'POST', body: { session_id: sessionId } });
+
+export const cancelVoiceAction = (sessionId: string) =>
+  request<{ session_id: string; cancelled: boolean }>('/agent/voice/cancel', { method: 'POST', body: { session_id: sessionId } });
+
+export const endVoice = (sessionId: string) =>
+  request<void>(`/agent/voice/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });

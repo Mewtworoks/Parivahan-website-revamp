@@ -138,14 +138,17 @@ export function Status({ go, state, update }: PageProps) {
               ) : (
                 <>
                   <div className="grid2" style={{ gap: 16 }}>
-                    <div className="col g4"><span className="tiny" style={{ fontWeight: 600 }}>{t('Your token', 'आपका टोकन')}</span><b className="mono" style={{ fontSize: '1.6rem' }}>{queue.token_number}</b></div>
+                    {/* The token is issued across the whole office; the line is per
+                        inspector. Labelling it plainly stops "token 3" reading as a
+                        position and contradicting "nobody is ahead of you". */}
+                    <div className="col g4"><span className="tiny" style={{ fontWeight: 600 }}>{t('Your token · called across the hall', 'आपका टोकन · पूरे हॉल में बुलाया जाता है')}</span><b className="mono" style={{ fontSize: '1.6rem' }}>{queue.token_number}</b></div>
                     <div className="col g4"><span className="tiny" style={{ fontWeight: 600 }}>{t('Your inspector', 'आपके निरीक्षक')}</span><b style={{ fontWeight: 600 }}>{queue.tester}</b></div>
                   </div>
                   <hr className="hr" />
                   <div className="row between g12 wrapf">
                     <span className="sub">{queue.people_ahead === 0
-                      ? t('Nobody is ahead of you.', 'आपसे आगे कोई नहीं है।')
-                      : t(`${queue.people_ahead} ahead of you.`, `आपसे आगे ${queue.people_ahead} लोग।`)}</span>
+                      ? t(`You are next with ${queue.tester}.`, `आप ${queue.tester} के साथ अगले हैं।`)
+                      : t(`${queue.people_ahead} ahead of you in ${queue.tester}'s line.`, `${queue.tester} की कतार में आपसे आगे ${queue.people_ahead} लोग।`)}</span>
                     <b style={{ fontWeight: 600 }}>{formatWait(queue.eta_minutes)}</b>
                   </div>
                   <span className="tiny">{t('Recalculated from your inspector\'s own pace every few seconds, and it is the same number shown on the hall display. The official portal shows you nothing at all here.', 'आपके निरीक्षक की गति से हर कुछ सेकंड में फिर से गणना की जाती है, और यही नंबर हॉल डिस्प्ले पर दिखता है। आधिकारिक पोर्टल यहां कुछ भी नहीं दिखाता।')}</span>

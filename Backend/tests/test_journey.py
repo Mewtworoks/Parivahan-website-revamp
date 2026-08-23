@@ -230,7 +230,10 @@ def test_agent_walks_the_journey_and_reports_real_status():
 def test_agent_explains_steps_in_both_languages():
     en = _dispatch("explain_ll_step", step="pass_criteria", language="en")
     hi = _dispatch("explain_ll_step", step="pass_criteria", language="hi")
-    assert "9" in en["text"] and en["language"] == "en"
+    # Read off the shell the test actually runs on rather than hardcoded: this
+    # line asserted "9 of 15" long after the test became 10 questions passing
+    # at 6, so it was pinning the wrong answer in place.
+    assert str(PASS_THRESHOLD) in en["text"] and en["language"] == "en"
     assert hi["text"] != en["text"] and hi["language"] == "hi"
     assert "error" in _dispatch("explain_ll_step", step="not_a_step")
 

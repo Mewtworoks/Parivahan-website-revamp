@@ -25,6 +25,7 @@ import { GrievanceSheet } from './ui/GrievanceSheet';
 import { Icon } from './ui/Icon';
 import { InfoSheet } from './ui/InfoSheet';
 import { Note, Sheet } from './ui/SharedUI';
+import { VoiceAgent } from './components/VoiceAgent';
 
 // Translations for the footer's data-driven labels (FOOTER_COLUMNS lives in data/siteContent.ts as
 // plain English strings) — kept as a lookup here rather than restructuring that data shape.
@@ -78,6 +79,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [grievanceOpen, setGrievanceOpen] = useState(false);
   const [infoPanelId, setInfoPanelId] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [textSize, setTextSize] = useState(16);
   // The inline script in index.html already set this attribute before first paint, so read it back
   // rather than recomputing — that keeps the toggle in sync with whatever it decided.
@@ -133,6 +135,7 @@ export default function App() {
           <button className="btn btn-s btn-sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? Icon.sun() : Icon.moon()}
           </button>
+          <button className="btn btn-p btn-sm" onClick={() => setVoiceOpen(true)}>{Icon.speaker()} {t('Talk to Saarthi', 'सारथी से बात करें')}</button>
           <button className="btn btn-s btn-sm" onClick={() => setHelpOpen(true)}>{Icon.phone()} {t('Help', 'सहायता', 'मदत')}</button>
         </div>
       </header>
@@ -153,6 +156,7 @@ export default function App() {
         </div>
       </footer>
       <BackToTop />
+      {voiceOpen && <VoiceAgent state={state} update={update} onClose={() => setVoiceOpen(false)} />}
       {infoPanelId && <InfoSheet id={infoPanelId} onClose={() => setInfoPanelId(null)} />}
       {grievanceOpen && <GrievanceSheet state={state} onClose={() => setGrievanceOpen(false)} />}
       {helpOpen && (

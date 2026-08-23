@@ -32,14 +32,22 @@ from __future__ import annotations
 
 import os
 from datetime import date
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# .env.example tells you to copy it to .env, so .env has to be read — and read
+# before any module below it calls os.getenv at import time. A real environment
+# variable already set in the shell wins, which is what a deployment expects.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from . import booking_engine as be
 from . import engine
 from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
+from . import voice_agent
 from .booking_engine import AlreadyBooked, SlotTaken
 from .booking_models import LicenceKind
 from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
@@ -84,6 +92,19 @@ class ProctorBody(BaseModel):
 class DispatchBody(BaseModel):
     tool: str
     arguments: dict = Field(default_factory=dict)
+
+
+class VoiceStartBody(BaseModel):
+    citizen_ref: str = Field(..., min_length=1, max_length=120)
+
+
+class VoiceTurnBody(BaseModel):
+    session_id: str
+    transcript: str = Field(..., min_length=1, max_length=1000)
+
+
+class VoiceConfirmBody(BaseModel):
+    session_id: str
 
 
 class ApplyBody(BaseModel):
@@ -396,6 +417,51 @@ def agent_dispatch(body: DispatchBody):
         return dispatch_tool(body.tool, body.arguments)
     except KeyError as e:
         raise HTTPException(400, f"Unknown tool or missing argument: {e}")
+
+
+def _caller(request: Request) -> str | None:
+    """
+    Who to bill a voice turn to, for rate limiting only.
+
+    Behind a proxy the socket address is the proxy, so the forwarded chain's
+    first hop is preferred when one is present. This is not identity and is
+    never stored on the conversation — it is spoofable, and only decides who
+    gets throttled.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:64]
+    return request.client.host if request.client else None
+
+
+@app.post("/agent/voice/start", tags=["agent"])
+def agent_voice_start(body: VoiceStartBody):
+    """Create a short-lived, server-side Saarthi conversation."""
+    session = voice_agent.start_session(body.citizen_ref)
+    return {"session_id": session.id, "expires_in_minutes": voice_agent.SESSION_TTL_MINUTES}
+
+
+@app.post("/agent/voice/turn", tags=["agent"])
+def agent_voice_turn(body: VoiceTurnBody, request: Request):
+    """Send recognised speech to NVIDIA and return Saarthi's spoken reply."""
+    return voice_agent.turn(body.session_id, body.transcript, _caller(request))
+
+
+@app.post("/agent/voice/confirm", tags=["agent"])
+def agent_voice_confirm(body: VoiceConfirmBody, request: Request):
+    """Execute Saarthi's pending state-changing action after a citizen confirms."""
+    return voice_agent.confirm(body.session_id, _caller(request))
+
+
+@app.post("/agent/voice/cancel", tags=["agent"])
+def agent_voice_cancel(body: VoiceConfirmBody):
+    """Discard the voice action the citizen chose not to confirm."""
+    return voice_agent.cancel_pending(body.session_id)
+
+
+@app.delete("/agent/voice/{session_id}", status_code=204, tags=["agent"])
+def agent_voice_end(session_id: str):
+    voice_agent.end_session(session_id)
 
 
 # ------------------------------- meta --------------------------------------
