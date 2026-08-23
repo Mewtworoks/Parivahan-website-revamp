@@ -15,6 +15,7 @@ import { Tutorial } from './pages/Tutorial';
 import { Apply } from './pages/apply/Apply';
 import { Game } from './practice/Game';
 import { GameIntro } from './practice/GameIntro';
+import { Learn } from './practice/Learn';
 import { Report } from './practice/Report';
 import { FOOTER_COLUMNS, type FooterTarget } from './data/siteContent';
 import { LANGUAGES, useLanguage, useT, type Lang } from './lib/language';
@@ -56,7 +57,7 @@ function footerT(t: ReturnType<typeof useT>, label: string): string {
 
 const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
-  receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, game: Game, report: Report,
+  receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
   test: Test, issued: Issued, dl: DrivingLicence, status: Status,
 };
 

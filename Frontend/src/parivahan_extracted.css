@@ -227,11 +227,11 @@ h1{font-size:1.68rem}h2{font-size:1.3rem}
 .hearts{display:flex;gap:5px}
 .hearts i{width:11px;height:11px;background:oklch(1 0 0/.18);display:block;clip-path:polygon(50% 100%,0 40%,10% 15%,30% 10%,50% 28%,70% 10%,90% 15%,100% 40%)}
 .hearts i[data-on]{background:var(--accent)}
-.gamebody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.gamebody{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,9fr)}
 .gamescreen{display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}
 @media(max-width:760px){.gamebody{grid-template-columns:minmax(0,1fr)}.gamescreen{border-right:0;border-bottom:1px solid var(--line)}}
 .pixwrap{background:oklch(0.30 0.115 264);padding:10px;position:relative;display:flex;justify-content:center}
-.pixcanvas{display:block;width:100%;height:auto;aspect-ratio:20/13;max-height:min(42vh,360px);image-rendering:pixelated;border-radius:4px}
+.pixcanvas{display:block;width:100%;height:auto;aspect-ratio:20/13;max-height:min(48vh,440px);image-rendering:pixelated;border-radius:4px}
 .pixwrap[data-shake="1"]{animation:sh .4s}
 @keyframes sh{25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
 .cdbar{height:6px;background:oklch(0.30 0.115 264)}

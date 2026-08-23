@@ -6,7 +6,7 @@
 export type Route =
   | 'home' | 'elig' | 'checklist' | 'status'
   | 'apply' | 'slip' | 'pay' | 'receipt' | 'slot' | 'tutorial'
-  | 'learn' | 'game' | 'report' | 'test' | 'issued' | 'dl';
+  | 'learn' | 'lesson' | 'game' | 'report' | 'test' | 'issued' | 'dl';
 
 export interface EligibilityAnswers {
   dob?: string;
@@ -229,8 +229,22 @@ export interface CaptchaQuestion {
   a: string[];
 }
 
-/** [spriteName, tileX, tileY, bodyColor?, lampColor?] */
-export type SpriteArt = [string, number, number, (string | null)?, string?];
+/**
+ * [spriteName, tileX, tileY, bodyColor?, lampColor?, facing?, move?]
+ * - facing: only matters for car/van/bike — the art is drawn nose-up for vertical travel, so 'h'
+ *   (the default when omitted) rotates it 90° to face along a horizontal road; pass 'v' for the
+ *   minority of scenes where the vehicle is actually travelling up/down a side street.
+ * - move: how this sprite creeps across the scene as the 4-second decision window elapses, so the
+ *   scenario visibly plays out rather than sitting frozen. 'fwd'/'back' creep along the sprite's
+ *   own facing axis (back = closing from the opposite direction, e.g. oncoming traffic); 'cross'
+ *   is a pedestrian/animal-style crossing of the road, perpendicular to it; `false` pins the sprite
+ *   still even if it would otherwise default to moving (used for the driver's own vehicle in the
+ *   couple of scenarios where you're already stopped, not approaching). Every displacement is
+ *   capped small enough that nothing ever visually reaches, let alone overlaps, anything else —
+ *   the animation always freezes (at whatever point the countdown was at) before a decision is
+ *   made, never a moment after.
+ */
+export type SpriteArt = [string, number, number, (string | null)?, string?, ('h' | 'v')?, ('fwd' | 'back' | 'cross' | false)?];
 
 /** Which applicant this scenario is relevant to — 'any' means the rule applies regardless of vehicle class. */
 export type ScenarioVehicle = 'any' | 'car' | 'bike';
