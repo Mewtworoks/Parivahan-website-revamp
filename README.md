@@ -12,24 +12,14 @@ A full-stack repository for the Parivahan Website Revamp project, pre-configured
 parivahaan-website-revamp/
 ├── Frontend/                 # React App (Vite + SCSS)
 │   ├── src/
-│   │   ├── api.js            # Every backend call the UI makes, in one file
-│   │   ├── hooks.js          # usePolling (live queue/board), useElapsed
-│   │   ├── App.jsx           # Shell: header, API health indicator, tabs
-│   │   ├── components/
-│   │   │   ├── JourneyFlow.jsx   # Apply → book → check in → queue → receipt
-│   │   │   ├── RtoBoard.jsx      # Inspector desk + waiting-hall display
-│   │   │   ├── ScenarioTest.jsx  # The 15-scenario theory test
-│   │   │   ├── ScenarioStage.jsx # Renders a scenario as an animated diagram
-│   │   │   ├── ProofPanel.jsx    # Runs both guarantees as live experiments
-│   │   │   ├── AgentConsole.jsx  # Voice-copilot tools, replayed live
-│   │   │   └── ui.jsx            # Badge, Panel, Button, Stat, JsonPeek
 │   │   ├── styles/           # Global SCSS Design System
 │   │   │   ├── _variables.scss # Shared colors, typography, spacing, shadows
 │   │   │   ├── _mixins.scss    # Flexbox, responsive mixins, button styles
 │   │   │   └── global.scss     # Master global stylesheet
+│   │   ├── App.jsx           # Main React Portal component
+│   │   ├── App.module.scss   # Component styling importing global design tokens
 │   │   └── main.jsx          # React DOM entry point
 │   ├── index.html            # Vite HTML template with Google Fonts
-│   ├── .env.example          # VITE_API_BASE — where the backend lives
 │   ├── package.json          # React dependencies & scripts
 │   └── vite.config.js        # Vite build & dev server config
 ├── Backend/                  # Python Backend API (FastAPI)
@@ -69,10 +59,15 @@ parivahaan-website-revamp/
 
 ## 🚀 How to Run the Project Locally
 
-**Start the backend first** — the frontend has no mock data, so every panel
-reads live from the API and will show an "unreachable" bar without it.
+### 1️⃣ Run Frontend (React)
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+*Frontend dev server will launch at `http://localhost:3000`.*
 
-### 1️⃣ Run Backend (Python)
+### 2️⃣ Run Backend (Python)
 ```bash
 cd Backend
 python -m venv venv
@@ -81,15 +76,6 @@ pip install -r requirements.txt
 python main.py
 ```
 *Backend API will run at `http://127.0.0.1:8000` with interactive docs at `http://127.0.0.1:8000/docs`.*
-
-### 2️⃣ Run Frontend (React)
-```bash
-cd Frontend
-npm install
-npm run dev
-```
-*Frontend dev server will launch at `http://localhost:3000`.*
-Override the API location with `VITE_API_BASE` in `Frontend/.env` if the backend is elsewhere.
 
 ### 3️⃣ Verify the backend guarantees
 ```bash
@@ -115,24 +101,6 @@ for the full API reference.
 
 Plus an animated **scenario** test replacing the static MCQ, and a voice
 copilot (OpenAI Realtime) wired to the same state through function tools.
-
----
-
-## 🖥️ What the UI shows
-
-Five tabs at `http://localhost:3000`, all reading live from the API — no mock
-data anywhere. See [Frontend/README.md](Frontend/README.md) for detail.
-
-| Tab | What to try |
-| --- | --- |
-| **My journey** | Submit, then hit *Submit again* — same application id. Book a slot, then try booking it twice. Watch the ETA repoll. |
-| **RTO desk** | Press *Call next* here, then switch to **My journey** — the ETA moved without a reload. |
-| **Theory test** | 15 animated scenarios, Hindi/English toggle, explanations with MV Act references, per-competency result. |
-| **Proof** | Fires 50 identical submits and 40 racing applicants at the live backend and counts what came back. |
-| **Voice copilot** | The 9 function tools, plus a Hindi conversation replayed against real state. |
-
-Every panel has a collapsible **raw API response**, so every number on screen
-is checkable against the JSON the backend actually returned.
 
 ---
 
