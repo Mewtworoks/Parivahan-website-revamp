@@ -109,7 +109,7 @@ export function Game({ go, state, update }: PageProps) {
         </div>
         <div className="gamebody fade" key={scenario.id}>
           <div className="gamescreen">
-            <PixelScene map={scenario.map} art={scenario.art} shake={shake} />
+            <PixelScene map={scenario.map} art={scenario.art} shake={shake} progress={1 - timeLeft / DECISION_LIMIT_MS} />
             <div className="cdbar" aria-hidden="true"><i style={{ width: (revealed ? 0 : timeLeft / DECISION_LIMIT_MS * 100) + '%', background: timeLeft < 1400 ? 'var(--bad)' : 'var(--accent)' }} /></div>
           </div>
           <div className="col g20" style={{ padding: '22px 24px 24px' }}>

@@ -40,7 +40,7 @@ export function GameIntro({ go, state, update }: PageProps) {
           <hr className="hr" />
           <div className="row between g12 wrapf">
             <span className="tiny" style={{ maxWidth: 420 }}>Drawn as pixel-art tiles on purpose: the whole scene set is a few kilobytes, renders on a 2015 Android and works with no connection. A 3D driving sim would not.</span>
-            <button className="btn btn-p" onClick={() => { update({ focus: null, gameLog: null }); go('game'); }}>Start · {total} situations {Icon.right()}</button>
+            <button className="btn btn-p" onClick={() => { update({ focus: null, gameLog: null }); go('lesson'); }}>Start · {total} situations {Icon.right()}</button>
           </div>
         </div>
       </div>
