@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react';
+import { useLanguage, useT } from '../lib/language';
 import { PixelScene } from '../practice/PixelScene';
-import { SCENARIOS } from '../practice/scenarios';
+import { SCENARIOS, spelledOut } from '../practice/scenarios';
 import type { PageProps, Route } from '../types';
 import { Icon } from '../ui/Icon';
+import { LicenceCard } from '../ui/LicenceCard';
 import { Note, Pill } from '../ui/SharedUI';
 
 interface ServiceCard {
@@ -16,31 +18,33 @@ interface ServiceCard {
   targetRoute: Route;
 }
 
-const JOURNEY_STEPS: [heading: string, body: string][] = [
-  ['Check', 'Three questions tell you if you qualify, before any fee is paid.'],
-  ['Apply', 'Details arrive from documents you already hold. Photos are checked as you take them.'],
-  ['Book', 'Pick an office by distance and remaining capacity, not by luck.'],
-  ['Test', 'Ten questions, each answer explained. Pass and the licence is issued at once.'],
+const JOURNEY_STEPS: [heading: string, headingHi: string, headingMr: string, body: string][] = [
+  ['Check', 'जांचें', 'तपासा', 'Three questions tell you if you qualify, before any fee is paid.'],
+  ['Apply', 'आवेदन करें', 'अर्ज करा', 'Details arrive from documents you already hold. Photos are checked as you take them.'],
+  ['Book', 'बुक करें', 'बुक करा', 'Pick an office by distance and remaining capacity, not by luck.'],
+  ['Test', 'परीक्षा', 'परीक्षा', 'Ten questions, each answer explained. Pass and the licence is issued at once.'],
 ];
 
-const DIFFERENTIATORS: [heading: string, body: string][] = [
-  ['The price is on the first screen', 'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.'],
-  ['You can stop halfway', 'The application saves after every step. Come back on any device with the same mobile number and continue from where you left.'],
-  ['A slot means a slot', 'Each RTO publishes remaining capacity and the average wait after you arrive, so a booking is a real appointment rather than a token.'],
+const DIFFERENTIATORS: [heading: string, headingHi: string, headingMr: string, body: string][] = [
+  ['The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे', 'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.'],
+  ['You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves after every step. Come back on any device with the same mobile number and continue from where you left.'],
+  ['A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes remaining capacity and the average wait after you arrive, so a booking is a real appointment rather than a token.'],
 ];
 
 export function Home({ go, update }: PageProps) {
   const [applicationLookup, setApplicationLookup] = useState('');
+  const t = useT();
+  const { lang } = useLanguage();
 
   const services: ServiceCard[] = [
-    { id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: 'Start here', title: "Learner's Licence",
+    { id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
       desc: 'Your first licence. Apply online, then visit the RTO once for the test.',
       meta: ['Eight stages, about 14 minutes', '₹150 per class plus one ₹50 test fee', 'With Aadhaar: no RTO visit at all', '10 questions, 6 to pass'],
-      cta: "Start learner's licence", targetRoute: 'elig' },
-    { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: 'You already have an LL', title: 'Driving Licence',
+      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'elig' },
+    { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),
       desc: 'Convert a valid learner\'s licence into a permanent driving licence.',
       meta: ['Starts from your LL number', '₹500 — ₹200 grant + ₹300 test', 'LL must be 30 to 180 days old', 'You bring the vehicle to the test'],
-      cta: 'Start driving licence', targetRoute: 'dl' },
+      cta: t('Start driving licence', 'ड्राइविंग लाइसेंस शुरू करें', 'ड्रायव्हिंग लायसन्स सुरू करा'), targetRoute: 'dl' },
   ];
 
   return (
@@ -48,12 +52,16 @@ export function Home({ go, update }: PageProps) {
       <section className="hero">
         <div className="wrap in">
           <div className="col g20">
-            <span className="kicker">{Icon.dot()} Learner's &amp; driving licence · prototype</span>
-            <h1>Apply for your<br />learner's or driving<br />licence <span className="uline">online.</span></h1>
+            <span className="kicker">{Icon.dot()} {t("Learner's & driving licence · prototype", 'लर्नर और ड्राइविंग लाइसेंस · प्रोटोटाइप', 'लर्नर आणि ड्रायव्हिंग लायसन्स · प्रोटोटाइप')}</span>
+            <h1>{lang === 'hi'
+              ? <>अपने लर्नर या ड्राइविंग लाइसेंस के लिए <span className="uline">ऑनलाइन आवेदन करें।</span></>
+              : lang === 'mr'
+                ? <>तुमच्या लर्नर किंवा ड्रायव्हिंग लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
+                : <>Apply for your<br />learner's or driving<br />licence <span className="uline">online.</span></>}</h1>
             <p className="lede" style={{ maxWidth: 520 }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
             <div className="row g12 wrapf" style={{ marginTop: 4 }}>
-              <button className="btn btn-p" onClick={() => go('elig')}>Check if I qualify {Icon.right()}</button>
-              <button className="btn btn-s" onClick={() => go('status')}>Track an application</button>
+              <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
+              <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>
             </div>
             <div className="hero-stats">
               <span><b>14 min</b><span>to apply, start to end</span></span>
@@ -62,18 +70,10 @@ export function Home({ go, update }: PageProps) {
             </div>
           </div>
           <div className="hero-art hide-m">
-            <div className="lic col g20">
-              <div className="row between g12"><span className="eyebrow" style={{ color: 'oklch(0.85 0.045 262)' }}>Learner's Licence · Maharashtra</span><span className="mono" style={{ fontSize: '.78rem', opacity: 0.75 }}>MH02 20260/0041</span></div>
-              <div className="row g16" style={{ alignItems: 'flex-end' }}>
-                <div className="stripe" style={{ width: 70, height: 86, borderRadius: 8, flex: 'none', opacity: 0.5 }} />
-                <div className="col g6"><h2 style={{ fontSize: '1.4rem' }}>Rehan Q. Mirza</h2><span className="sub">LMV-NT, MCWG</span></div>
-              </div>
-              <div className="row between g16 wrapf" style={{ fontSize: '.82rem' }}>
-                <span className="col"><span className="sub">Issued</span><b>20 Aug 2026</b></span>
-                <span className="col"><span className="sub">Valid till</span><b>19 Feb 2027</b></span>
-                <span className="col"><span className="sub">Blood group</span><b>B+</b></span>
-              </div>
-            </div>
+            <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 20260/0041"
+              name="Rehan Q. Mirza" relation="Son of Qais Mirza" dob="12/04/2005" blood="B+"
+              addressLine1="402, Sundar Niwas, Gokhale Road North" addressLine2="Dadar West, Mumbai 400028"
+              classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
             <div className="float float-a"><span style={{ color: 'var(--ok)' }}>{Icon.check()}</span> Documents verified in 4 seconds</div>
             <div className="float float-b"><span style={{ color: 'var(--brand)' }}>{Icon.pin()}</span> Slot held · Thu 27 Aug, 11:00 am</div>
           </div>
@@ -107,10 +107,10 @@ export function Home({ go, update }: PageProps) {
       </section>
       <section className="wrap" style={{ marginTop: 44 }}>
         <div className="col g16">
-          <div className="row between g16 wrapf"><h2>The whole journey, in four moves</h2><span className="sub">Learner's licence · about 14 minutes plus one RTO visit</span></div>
+          <div className="row between g16 wrapf"><h2>{t('The whole journey, in four moves', 'पूरी यात्रा, चार चरणों में', 'संपूर्ण प्रवास, चार टप्प्यांत')}</h2><span className="sub">Learner's licence · about 14 minutes plus one RTO visit</span></div>
           <div className="strip">
-            {JOURNEY_STEPS.map(([heading, body], n) => (
-              <div key={heading}><span className="strip-n">{n + 1}</span><div className="col g6"><h3>{heading}</h3><p className="sub" style={{ lineHeight: 1.55 }}>{body}</p></div></div>
+            {JOURNEY_STEPS.map(([heading, headingHi, headingMr, body], n) => (
+              <div key={heading}><span className="strip-n">{n + 1}</span><div className="col g6"><h3>{t(heading, headingHi, headingMr)}</h3><p className="sub" style={{ lineHeight: 1.55 }}>{body}</p></div></div>
             ))}
           </div>
         </div>
@@ -119,11 +119,11 @@ export function Home({ go, update }: PageProps) {
         <div className="card col" style={{ overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.1fr)', alignItems: 'stretch' }} className="learnband">
             <div className="col g16" style={{ padding: '32px 30px', justifyContent: 'center' }}>
-              <span className="eyebrow">Practice module</span>
-              <h2>Nobody tells you what is in the theory test. So play it instead.</h2>
-              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>Twelve road situations, four seconds each. You are scored on the decision and on how long it took — the same thing the test measures. The report card names the two habits to fix.</p>
+              <span className="eyebrow">{t('Practice module', 'अभ्यास मॉड्यूल', 'सराव मॉड्यूल')}</span>
+              <h2>{t('Nobody tells you what is in the theory test. So play it instead.', 'थ्योरी टेस्ट में क्या है, यह कोई नहीं बताता। तो इसे खेलकर जानें।', 'थिअरी टेस्टमध्ये काय आहे, हे कोणी सांगत नाही. मग ते खेळूनच जाणून घ्या.')}</h2>
+              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations, four seconds each. You are scored on the decision and on how long it took — the same thing the test measures. The report card names the two habits to fix.</p>
               <div className="row g10 wrapf">
-                <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} Play the road</button>
+                <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} {t('Play the road', 'सड़क खेलें', 'रस्ता खेळा')}</button>
                 <span className="tiny" style={{ alignSelf: 'center' }}>No download · works offline</span>
               </div>
             </div>
@@ -133,19 +133,19 @@ export function Home({ go, update }: PageProps) {
       </section>
       <section className="wrap" style={{ marginTop: 20 }}>
         <div className="card card-p row between g16 wrapf">
-          <div className="col g4"><h3>Already applied?</h3><span className="sub">Enter your application number to see where it is stuck and what to do about it.</span></div>
+          <div className="col g4"><h3>{t('Already applied?', 'पहले से आवेदन किया है?', 'आधीच अर्ज केला आहे का?')}</h3><span className="sub">Enter your application number to see where it is stuck and what to do about it.</span></div>
           <div className="row g10 wrapf">
             <input className="input mono" style={{ width: 210 }} placeholder="SS-2026-004182" value={applicationLookup} onChange={e => setApplicationLookup(e.target.value)} />
-            <button className="btn btn-s" onClick={() => go('status')}>{Icon.search()} Find</button>
+            <button className="btn btn-s" onClick={() => go('status')}>{Icon.search()} {t('Find', 'खोजें', 'शोधा')}</button>
           </div>
         </div>
       </section>
       <section className="wrap" style={{ marginTop: 44 }}>
         <div className="panel" style={{ padding: '36px 32px' }}>
-          <span className="eyebrow" style={{ color: 'oklch(0.85 0.025 196)' }}>What is different here</span>
+          <span className="eyebrow" style={{ color: 'oklch(0.85 0.025 196)' }}>{t('What is different here', 'यहां क्या अलग है', 'इथे काय वेगळे आहे')}</span>
           <div className="grid3" style={{ marginTop: 22, gap: 32 }}>
-            {DIFFERENTIATORS.map(([heading, body]) => (
-              <div key={heading} className="col g8"><h3 style={{ color: '#fff' }}>{heading}</h3><p className="sub" style={{ lineHeight: 1.6 }}>{body}</p></div>
+            {DIFFERENTIATORS.map(([heading, headingHi, headingMr, body]) => (
+              <div key={heading} className="col g8"><h3 style={{ color: '#fff' }}>{t(heading, headingHi, headingMr)}</h3><p className="sub" style={{ lineHeight: 1.6 }}>{body}</p></div>
             ))}
           </div>
         </div>
