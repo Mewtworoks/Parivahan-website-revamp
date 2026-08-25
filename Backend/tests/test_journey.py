@@ -187,8 +187,8 @@ def test_agent_tool_schema_matches_the_dispatcher():
     # A tool the model could call but the backend cannot run is a live failure.
     assert names == {
         "get_journey_status", "explain_ll_step", "start_practice_test",
-        "list_competencies", "apply_for_licence", "find_slots", "book_slot",
-        "check_in", "check_queue",
+        "list_competencies", "list_offices", "apply_for_licence",
+        "find_slot_days", "find_slots", "book_slot", "check_in", "check_queue",
     }
 
 

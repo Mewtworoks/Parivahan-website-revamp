@@ -94,6 +94,19 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
             : {}),
         });
       }
+      // An appointment made by talking has to reach the screens the wizard's
+      // one reaches. Without this the citizen books through Saarthi and every
+      // other page still reads "no slot booked".
+      if (typeof result.booking_id === 'string') {
+        update({
+          slot: {
+            day: String(result.day ?? ''), time: String(result.time ?? ''),
+            rto: String(result.office ?? ''), bookingId: result.booking_id,
+            tester: typeof result.tester === 'string' ? result.tester : undefined,
+          },
+          stage: 'booked',
+        });
+      }
       if (typeof result.token_id === 'string') update({ tokenId: result.token_id });
     }
   };

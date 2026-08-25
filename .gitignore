@@ -22,6 +22,10 @@ secrets.json
 *.pem
 *.key
 
+# The engine's snapshot of applications, bookings and queue tokens. Machine-local
+# demo state, and it holds synthetic applicant records — not source.
+Backend/state.json
+
 # ==========================================
 # Frontend (Node / Angular / React / Vue / Next)
 # ==========================================

@@ -72,6 +72,64 @@ export interface QueueStatus {
   someone_in_test: boolean;
 }
 
+/** One inspector's lane on the waiting-hall board. */
+export interface BoardLane {
+  tester_id: string;
+  tester: string;
+  now_serving: number | null;
+  waiting: number;
+  next_numbers: number[];
+  avg_test_minutes: number;
+}
+
+export interface RtoBoard {
+  rto_id: string;
+  lanes: BoardLane[];
+}
+
+// ---- the demo panel: each proof runs the real engine and reports what happened
+
+export interface LedgerRow {
+  seq: number;
+  status: string;
+  note: string;
+  hash: string;
+  prev_hash: string;
+  intact: boolean;
+}
+
+export interface IdempotencyProof {
+  guarantee: string;
+  attempts: { label: string; idempotency_key: string; application_no: string }[];
+  retry_was_deduplicated: boolean;
+  new_intent_still_created: boolean;
+  applications_created: number;
+  verdict: string;
+}
+
+export interface SlotRaceProof {
+  guarantee: string;
+  contenders: number;
+  results: { applicant: number; outcome: 'won' | 'rejected'; detail: string }[];
+  winners: number;
+  double_booked: boolean;
+  slot_now_held_by_one: boolean;
+  verdict: string;
+  error?: string;
+}
+
+export interface TamperProof {
+  guarantee: string;
+  application_no: string;
+  edited_row: number;
+  edited_to: string;
+  before: { chain_valid: boolean; events: LedgerRow[] };
+  after: { chain_valid: boolean; events: LedgerRow[] };
+  restored: boolean;
+  verdict: string;
+  caveat: string;
+}
+
 export interface BookingView {
   booking_id: string;
   date: string;
@@ -265,6 +323,27 @@ export const submitAnswer = (attemptId: string, scenarioId: string, optionId: st
 
 export const testResult = (attemptId: string, signal?: AbortSignal) =>
   request<TestResultView>(`/test/${attemptId}/result`, { signal });
+
+// ------------------------------------------------------ inspector desk / board
+
+// callNext already lives with the queue calls above — this view only needed the
+// board, which nothing had reached for yet.
+export const rtoBoard = (rtoId: string, signal?: AbortSignal) =>
+  request<RtoBoard>(`/rto/${encodeURIComponent(rtoId)}/board`, { signal });
+
+// ----------------------------------------------------------------- demo proofs
+
+export const proveIdempotentApply = () =>
+  request<IdempotencyProof>('/proof/idempotent-apply', { method: 'POST' });
+
+export const proveSlotRace = (contenders = 8) =>
+  request<SlotRaceProof>(`/proof/slot-race?contenders=${contenders}`, { method: 'POST' });
+
+export const proveLedgerTamper = () =>
+  request<TamperProof>('/proof/ledger-tamper', { method: 'POST' });
+
+export const resetDemo = () =>
+  request<{ reset: boolean; offices: number }>('/demo/reset', { method: 'POST' });
 
 // ---------------------------------------------------------------- voice agent
 

@@ -20,20 +20,29 @@ import os
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 from fastapi import HTTPException
 
-from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
+from .agent_tools import (
+    AGENT_TOOL_SCHEMA,
+    DEFAULT_RTO,
+    dispatch_tool,
+    existing_journey,
+    pending_details,
+)
 
 log = logging.getLogger("saarthi")
 
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1").rstrip("/")
 NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "openai/gpt-oss-20b")
 SESSION_TTL_MINUTES = 30
-MAX_TOOL_ROUNDS = 4
+# Booking honestly costs three lookups before the action — which office, which
+# day, which time — and at four the agent ran out mid-journey and fell back on
+# an apology. The rate limit, not this, is what caps the bill.
+MAX_TOOL_ROUNDS = 6
 
 # Every turn is a paid upstream call on an endpoint with no login in front of
 # it, so both a single conversation and a single caller are capped. The limits
@@ -85,16 +94,40 @@ explain_ll_step and quote what it returns. If you do not have it, say so and
 offer to look it up. Never guess what the law permits: a learner may not drive
 alone, and telling someone otherwise puts them on the road illegally.
 
-The order of the journey is apply, then book a slot, then check in on the day,
-then read the live queue. To book, call find_slots first and pass one of the
-slot_id values it returns. When a tool gives an error, explain it plainly and
-offer the next useful step.
+The journey is short and always in this order. Apply. Book a test slot. Check in
+on the day. Read the live queue. Nothing later works until the step before it is
+done, so drive it forward one step at a time and say which step they are on.
+
+Applying fixes the office. If the citizen names a city or a state, call
+list_offices and apply at the one they meant; otherwise apply and say which
+office it is. Do not ask them to choose from six offices unprompted — that is
+the slowest possible way to start.
+
+Booking is: which day, then which time, then book. find_slot_days gives the days
+and how many places each has left. find_slots gives the times on one day — pass
+the date the citizen asked for. Then pass that slot's slot_id to book_slot. If
+you already know the day, go straight to find_slots; do not spend a turn asking
+what you can look up.
+
+Never state a date, a time, an inspector or an office that a tool did not just
+give you. Read back what came out of the tool, including when you are saying no.
+If a time the citizen asked for is not in the list, it is full: say so for the
+day you actually searched, then offer what did come back. Guessing is not a
+small error here — someone arrives at the office on the wrong morning.
+
+When a tool gives an error, that error is the answer. Say it plainly in their
+language and do the next useful thing it points at.
 
 You are being spoken aloud. Never say an id of any kind — no slot_id, no
-application id, no token id, no long code. Name a slot by its time and
-inspector ("09:30 with Inspector A"), and an application by its number
-(SS-2026-004182). Ids are for your tool calls only. Write plain spoken
-sentences, never JSON, lists of codes, or markdown.
+application id, no token id, no rto_id, no long code. Name an office by its
+name, and an application by its number (SS-2026-004182). Ids are for your tool
+calls only. Write plain spoken sentences, never JSON, lists of codes, or
+markdown.
+
+Offering times, say the day and the times — "on Thursday there is 9:30, 10:15
+and 11". The office assigns the inspector, so naming one against every time
+sounds like a choice they have to make and it is not. Name the inspector once
+the appointment is made, and whenever you read a booked appointment back.
 
 Never name a tool or function to the citizen. They cannot run anything: you
 run the tools. Say "I will check you in" or "let me look at the queue", never
@@ -124,6 +157,9 @@ class VoiceSession:
     messages: list[dict[str, Any]] = field(default_factory=list)
     application_id: str | None = None
     token_id: str | None = None
+    # The office the application was filed at. Slot searches default to it, so
+    # talking about another city cannot quietly move where the test is taken.
+    rto_id: str | None = None
     pending: PendingAction | None = None
     # Which language to answer in, decided from the citizen's last message.
     language: str | None = None
@@ -150,6 +186,15 @@ def _purge_expired() -> None:
 def start_session(citizen_ref: str) -> VoiceSession:
     _purge_expired()
     session = VoiceSession(id=str(uuid.uuid4()), citizen_ref=citizen_ref[:120])
+    # Pick up a journey already in progress before the first word is spoken.
+    # Without it a citizen who filled in the wizard and then opened Saarthi to
+    # book was told to apply first, and taking that answer filed a second
+    # application at the default office — so the appointment ended up on a
+    # record the tracker was not showing.
+    resumed = existing_journey(session.citizen_ref)
+    session.application_id = resumed.get("application_id")
+    session.rto_id = resumed.get("rto_id")
+    session.token_id = resumed.get("token_id")
     _SESSIONS[session.id] = session
     return session
 
@@ -221,6 +266,24 @@ def _chat_tools() -> list[dict[str, Any]]:
     return tools
 
 
+def _turn_context(language: str | None) -> str:
+    """
+    The two things that have to be the freshest instruction in the conversation:
+    what day it is, and which language to answer in.
+
+    The model has no clock. Asked for "the 25th" it still has to hand find_slots
+    a YYYY-MM-DD, and with nothing to count from it invented one — so the tool
+    searched a different day than the citizen had asked about and the reply
+    quoted a third. ``date.today()`` deliberately, not UTC: this must be the same
+    day the booking engine builds its slot grids for.
+    """
+    today = date.today()
+    note = (f"Today is {today.strftime('%A, %d %B %Y')} ({today.isoformat()}). "
+            "Work out any day the citizen names from this, and pass it to "
+            "find_slots as YYYY-MM-DD.")
+    return f"{note} {language}" if language else note
+
+
 def _call_nvidia(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
                  language: str | None = None) -> dict[str, Any]:
     api_key = os.getenv("NVIDIA_API_KEY")
@@ -229,11 +292,11 @@ def _call_nvidia(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | N
 
     payload: dict[str, Any] = {
         "model": NVIDIA_MODEL,
-        # The language steer goes last, after the whole conversation: a rule in
-        # the system prompt is many turns away by the time it matters, and the
-        # model kept answering English questions in Hindi.
+        # The date and language steer go last, after the whole conversation: a
+        # rule in the system prompt is many turns away by the time it matters,
+        # and the model kept answering English questions in Hindi.
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *messages,
-                     *([{"role": "system", "content": language}] if language else [])],
+                     {"role": "system", "content": _turn_context(language)}],
         # Low: the same sentence twice matters less than the same *decision*
         # twice. At 0.3 the opening turn sometimes asked which step the citizen
         # wanted instead of starting the application, which stalls the journey
@@ -284,7 +347,12 @@ def _tool_arguments(session: VoiceSession, tool: str, arguments: dict[str, Any])
     if tool == "apply_for_licence":
         args["citizen_ref"] = session.citizen_ref
         args.setdefault("licence_kind", "learner")
-        args.setdefault("rto_id", DEFAULT_RTO)
+        args.setdefault("rto_id", session.rto_id or DEFAULT_RTO)
+    # Slot searches follow the application's office unless the citizen asked for
+    # a different one by name. Defaulting to mh01 regardless is how someone who
+    # applied in Samastipur was read Andheri's times and booked there.
+    if tool in {"find_slots", "find_slot_days"}:
+        args.setdefault("rto_id", session.rto_id or DEFAULT_RTO)
     if tool in {"book_slot", "check_in"}:
         if not session.application_id:
             raise ValueError("No application is active yet. Apply first.")
@@ -299,18 +367,50 @@ def _tool_arguments(session: VoiceSession, tool: str, arguments: dict[str, Any])
 def _remember_ids(session: VoiceSession, result: dict[str, Any]) -> None:
     if result.get("application_id"):
         session.application_id = str(result["application_id"])
+        # Only an application fixes the office. find_slot_days and find_slots
+        # report an rto_id too, and taking it from those would let "what's free
+        # in Patna?" repoint a Mumbai application at Patna's grid.
+        if result.get("rto_id"):
+            session.rto_id = str(result["rto_id"])
     if result.get("token_id"):
         session.token_id = str(result["token_id"])
 
 
-def _action_label(tool: str) -> str:
+def _action_label(tool: str, details: dict[str, Any] | None = None) -> str:
     if tool == "apply_for_licence":
         return "Create your learner-licence application"
     if tool == "book_slot":
+        # Name the appointment on the button too — the same four facts the
+        # wizard's confirm card shows. "Book the selected test appointment"
+        # gives the citizen nothing to check the spoken sentence against, which
+        # is precisely how a wrong date and inspector got past them: what they
+        # pressed and what they heard were unrelated strings.
+        if details and details.get("time"):
+            return (f"Book {details['day']}, {details['time']} with "
+                    f"{details['tester']} at {details['office']}")
         return "Book the selected test appointment"
     if tool == "check_in":
         return "Check in and issue your live queue token"
     return tool.replace("_", " ").capitalize()
+
+
+# What to tell the model when the slot it chose cannot be booked. Raised before
+# the gate rather than after the press: a confirmation button that is certain to
+# fail costs the citizen a turn and tells them nothing they can act on.
+def _unbookable(details: dict[str, Any]) -> str:
+    reason = details["unavailable"]
+    if reason == "already_booked":
+        # The one case with something to say rather than something to retry, so
+        # it is said here in full: the citizen asking to book again is usually
+        # someone who does not believe the first one worked.
+        return (f"This application already holds an appointment on {details['day']} "
+                f"at {details['time']} with {details['tester']} at "
+                f"{details['office']}. Tell the citizen that, in their language, "
+                "rather than booking anything.")
+    if reason == "taken":
+        return "That time has just been taken. Look up the slots again and offer another one."
+    return ("That appointment is not on offer. Look up the slots again and pass "
+            "one of the slot ids they come back with.")
 
 
 def _tool_message(call_id: str, result: dict[str, Any]) -> dict[str, Any]:
@@ -441,8 +541,17 @@ def _run_tool_calls(session: VoiceSession, tool_calls: list[dict[str, Any]],
         try:
             args = _tool_arguments(session, tool, _parse_tool_arguments(function.get("arguments")))
             if tool in MUTATING_TOOLS:
-                session.pending = PendingAction(tool=tool, arguments=args, label=_action_label(tool))
-                result = {"requires_confirmation": True, "label": session.pending.label}
+                details = pending_details(tool, args)
+                if details.get("unavailable"):
+                    raise ValueError(_unbookable(details))
+                session.pending = PendingAction(tool=tool, arguments=args,
+                                                label=_action_label(tool, details))
+                # The resolved appointment goes back to the model, not just the
+                # label: asked to turn a bare "requires_confirmation" into a
+                # spoken sentence it had nothing to read the date, time and
+                # inspector off, so it supplied its own and got all three wrong.
+                result = {"requires_confirmation": True, "label": session.pending.label,
+                          **({"appointment": details} if details else {})}
                 events.append({"tool": tool, "status": "awaiting_confirmation"})
             else:
                 result = dispatch_tool(tool, args)

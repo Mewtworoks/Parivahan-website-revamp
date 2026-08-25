@@ -68,8 +68,9 @@ export function Issued({ go, state }: PageProps) {
         <h3>What happens next</h3>
         <Timeline items={[
           { state: 'now', title: 'Practise for 30 days', tag: 'Until 20 Sep', tone: 'brand', body: 'The law sets a minimum of 30 days as a learner and a maximum of 180. We will remind you the day the window opens and again before it closes.' },
-          { state: 'todo', title: 'Apply for the driving licence', body: 'Form 4. You enter this licence number and your details carry over.',
-            action: <button className="btn btn-a btn-sm" style={{ marginTop: 8 }} onClick={() => go('dl')}>See that journey {Icon.right()}</button> },
+          // DL journey parked, so no hand-off button: the step is still true and
+          // worth showing, but this prototype stops at the learner's licence.
+          { state: 'todo', title: 'Apply for the driving licence', body: 'Form 4. You enter this licence number and your details carry over. That journey is outside this prototype, which covers the learner\'s licence end to end.' },
         ]} />
       </div>
       <div className="sticky-cta"><div className="row g12 wrapf"><button className="btn btn-p" onClick={() => go('status')}>Go to my applications {Icon.right()}</button></div></div>

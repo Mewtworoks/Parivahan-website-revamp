@@ -21,6 +21,7 @@ INSERT ... ON CONFLICT for the atomic booking — noted inline where it matters.
 
 from __future__ import annotations
 
+import sys
 import threading
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
@@ -268,6 +269,17 @@ def slot_times(rto_id: str, on: date) -> list[dict]:
 
 def get_tester(tester_id: str) -> Tester | None:
     return _TESTERS.get(tester_id)
+
+
+def get_slot(slot_id: str) -> Slot | None:
+    """
+    Look a slot up by id, so a caller holding one can say what it actually is.
+
+    The agent needs this before it books: the id is opaque, and describing an
+    appointment from anything other than the row it is about to claim is how a
+    citizen gets told one time and given another.
+    """
+    return _SLOTS.get(slot_id)
 
 
 # --------------------------------------------------------------------------
@@ -528,3 +540,46 @@ def rto_board(rto_id: str) -> dict:
             "avg_test_minutes": tester.avg_test_minutes,
         })
     return {"rto_id": rto_id, "lanes": lanes}
+
+
+# --------------------------------------------------------------------------
+# Persistence
+# --------------------------------------------------------------------------
+# Wrapped at the boundary rather than threaded through the logic above: every
+# mutating entry point snapshots on the way out, so restarting the process no
+# longer wipes the applications, bookings and queue a demo has built up. The
+# reads are untouched — they cost nothing to leave alone.
+
+from . import store  # noqa: E402  (imported here: store needs the models, not the engine)
+
+_persist = store.persisted(sys.modules[__name__])
+
+seed_demo = _persist(seed_demo)
+seed_catalogue = _persist(seed_catalogue)
+ensure_day = _persist(ensure_day)
+apply = _persist(apply)
+book_slot = _persist(book_slot)
+check_in = _persist(check_in)
+call_next = _persist(call_next)
+
+
+def restore() -> bool:
+    """Load a previous snapshot, if there is one. Called once at startup."""
+    return store.load(sys.modules[__name__])
+
+
+def reset_state() -> None:
+    """
+    Drop everything and re-seed from scratch.
+
+    A demo needs a way back to a clean slate — after a run the first slot of the
+    day is taken and tokens are already issued, which makes the next walkthrough
+    read as someone else's leftovers.
+    """
+    for bucket in (_APPS, _APPS_BY_IDEM, _APPS_BY_CITIZEN, _APPS_BY_NUMBER,
+                   _RTOS, _TESTERS, _SLOTS, _BOOKINGS, _TOKENS, _TOKEN_SEQ):
+        bucket.clear()
+    _SLOT_DAYS.clear()
+    global _APP_SEQ
+    _APP_SEQ = 4181
+    seed_catalogue()

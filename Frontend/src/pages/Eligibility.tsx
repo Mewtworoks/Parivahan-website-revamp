@@ -50,6 +50,14 @@ function buildVerdict(lang: Lang, age: number, minimumAge: number, want: Eligibi
     if (lang === 'mr') return { tone: 'warn', title: 'तुमच्याकडे आधीच एक लर्नर लायसन्स आहे', body: 'पुढे जा — तुम्ही दुसऱ्या लर्नर लायसन्सऐवजी कायमस्वरूपी ड्रायव्हिंग लायसन्ससाठी अर्ज करावा.' };
     return { tone: 'warn', title: "You already hold a learner's licence", body: "Skip ahead — you should be applying for the permanent driving licence, not a second learner's licence." };
   }
+  // Somebody who already holds a full licence fell through to "you can apply
+  // for a learner's licence today", which is the one thing they must not do.
+  if (has === 'dl') {
+    if (lang === 'hi') return { tone: 'warn', title: 'आपके पास पहले से ही पूर्ण ड्राइविंग लाइसेंस है', body: 'लर्नर लाइसेंस उन लोगों के लिए है जिनके पास कोई लाइसेंस नहीं है। नई श्रेणी जोड़नी हो तो वह मौजूदा लाइसेंस में जुड़ती है, नया लर्नर लाइसेंस नहीं बनता।' };
+    if (lang === 'mr') return { tone: 'warn', title: 'तुमच्याकडे आधीच पूर्ण ड्रायव्हिंग लायसन्स आहे', body: 'लर्नर लायसन्स ज्यांच्याकडे लायसन्स नाही त्यांच्यासाठी आहे. नवीन श्रेणी हवी असल्यास ती सध्याच्या लायसन्समध्ये जोडली जाते, नवीन लर्नर लायसन्स निघत नाही.' };
+    return { tone: 'warn', title: 'You already hold a full driving licence',
+      body: "A learner's licence is for people who hold none. To add a new class you endorse it onto the licence you already have, rather than starting again." };
+  }
   const classText = { en: want === 'gear' ? 'geared two-wheeler and car classes' : want === 'car' ? 'car (LMV) class' : 'gearless scooter class',
     hi: want === 'gear' ? 'गियर वाले दोपहिया और कार श्रेणी' : want === 'car' ? 'कार (LMV) श्रेणी' : 'गियर रहित स्कूटर श्रेणी',
     mr: want === 'gear' ? 'गिअर असलेली दुचाकी आणि कार श्रेणी' : want === 'car' ? 'कार (LMV) श्रेणी' : 'गिअरलेस स्कूटर श्रेणी' }[lang];
@@ -103,11 +111,19 @@ export function Eligibility({ go, state, update }: PageProps) {
             <div className="row g12"><Pill tone={verdict.tone}>{verdict.tone === 'ok' ? t('Eligible', 'पात्र', 'पात्र') : verdict.tone === 'warn' ? t('Wrong journey', 'गलत यात्रा', 'चुकीचा प्रवास') : t('Not yet eligible', 'अभी पात्र नहीं', 'अजून पात्र नाही')}</Pill></div>
             <div className="col g8"><h2>{verdict.title}</h2><p style={{ color: 'var(--ink2)' }}>{verdict.body}</p></div>
             {verdict.tone !== 'bad' && (
-              <div className="row g12 wrapf">
-                {answers.has === 'll'
-                  ? <button className="btn btn-p" onClick={() => { update({ module: 'dl' }); go('dl'); }}>{t('Go to driving licence', 'ड्राइविंग लाइसेंस पर जाएं', 'ड्रायव्हिंग लायसन्सकडे जा')} {Icon.right()}</button>
-                  : <button className="btn btn-p" onClick={() => go('checklist')}>{t('See what I need', 'देखें मुझे क्या चाहिए', 'मला काय आवश्यक आहे ते पहा')} {Icon.right()}</button>}
-              </div>
+              // DL journey parked. Someone who already holds a learner's licence
+              // belongs in the driving-licence journey, which this prototype does
+              // not carry — so say that plainly instead of offering a button that
+              // opens a wizard with no service behind it.
+              answers.has === 'll' || answers.has === 'dl'
+                ? <Note>{t('The driving-licence journey is not part of this prototype. This build covers the learner\'s licence end to end — apply, book, test, and the live queue on the day.',
+                  'ड्राइविंग लाइसेंस की यात्रा इस प्रोटोटाइप का हिस्सा नहीं है। यह बिल्ड लर्नर लाइसेंस को पूरा कवर करता है — आवेदन, बुकिंग, टेस्ट, और उस दिन की लाइव कतार।',
+                  'ड्रायव्हिंग लायसन्सचा प्रवास या प्रोटोटाइपचा भाग नाही. हे बिल्ड लर्नर लायसन्स पूर्णपणे कव्हर करते — अर्ज, बुकिंग, चाचणी आणि त्या दिवसाची थेट रांग.')}</Note>
+                : (
+                  <div className="row g12 wrapf">
+                    <button className="btn btn-p" onClick={() => go('checklist')}>{t('See what I need', 'देखें मुझे क्या चाहिए', 'मला काय आवश्यक आहे ते पहा')} {Icon.right()}</button>
+                  </div>
+                )
             )}
           </div>
         )}

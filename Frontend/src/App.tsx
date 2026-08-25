@@ -1,7 +1,10 @@
 import { useEffect, useState, type ComponentType, type MouseEvent } from 'react';
 import logo from './assets/logo-master.png';
-import { DrivingLicence } from './pages/DrivingLicence';
+import { Desk } from './pages/Desk';
+// DL journey parked — see the note on Route in types.ts.
+// import { DrivingLicence } from './pages/DrivingLicence';
 import { Eligibility } from './pages/Eligibility';
+import { Proof } from './pages/Proof';
 import { Checklist } from './pages/Checklist';
 import { Home } from './pages/Home';
 import { Issued } from './pages/Issued';
@@ -48,6 +51,8 @@ const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   'Call 1800 000 000': { hi: '1800 000 000 पर कॉल करें', mr: '1800 000 000 वर कॉल करा' },
   'Problem and approach': { hi: 'समस्या और दृष्टिकोण', mr: 'समस्या आणि दृष्टिकोन' },
   'What is mocked': { hi: 'क्या नकली है', mr: 'काय बनावट आहे' },
+  'Inspector desk': { hi: 'निरीक्षक डेस्क', mr: 'निरीक्षक डेस्क' },
+  'See the guarantees run': { hi: 'गारंटी चलती देखें', mr: 'हमी चालताना पहा' },
   Accessibility: { hi: 'सुगम्यता', mr: 'सुलभता' },
   Source: { hi: 'स्रोत', mr: 'स्रोत' },
 };
@@ -58,7 +63,9 @@ function footerT(t: ReturnType<typeof useT>, label: string): string {
 const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
   receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, game: Game, report: Report,
-  test: Test, issued: Issued, dl: DrivingLicence, status: Status,
+  test: Test, issued: Issued, status: Status,
+  desk: Desk, proof: Proof,
+  // DL journey parked: dl: DrivingLicence,
 };
 
 const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
@@ -122,6 +129,11 @@ export default function App() {
               <button className="tb-btn hide-m" onClick={() => go('home')}>{t('Services', 'सेवाएं', 'सेवा')}</button>
               <button className="tb-btn hide-m" onClick={() => go('learn')}>{t('Practice', 'अभ्यास', 'सराव')}</button>
               <button className="tb-btn hide-m" onClick={() => go('status')}>{t('Track', 'ट्रैक करें', 'ट्रॅक करा')}</button>
+              {/* The inspector desk and the proofs are reached from the footer
+                  and from the tracker, not from here: even one-word labels in
+                  this bar wrapped the wordmark and pushed the text-size control
+                  off the end. The tracker is the better home for the desk link
+                  anyway — the two screens are meant to be watched together. */}
             </>
           )}
           <div className="seg hide-m" role="group" aria-label="Text size">

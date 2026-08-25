@@ -152,6 +152,14 @@ export function Status({ go, state, update }: PageProps) {
                     <b style={{ fontWeight: 600 }}>{formatWait(queue.eta_minutes)}</b>
                   </div>
                   <span className="tiny">{t('Recalculated from your inspector\'s own pace every few seconds, and it is the same number shown on the hall display. The official portal shows you nothing at all here.', 'आपके निरीक्षक की गति से हर कुछ सेकंड में फिर से गणना की जाती है, और यही नंबर हॉल डिस्प्ले पर दिखता है। आधिकारिक पोर्टल यहां कुछ भी नहीं दिखाता।')}</span>
+                  {/* Sits here rather than in the top bar because the claim only
+                      means anything when both screens are open: advance the lane
+                      on the desk and this wait changes while you watch it. */}
+                  <div>
+                    <button className="btn btn-s btn-sm" onClick={() => go('desk')}>
+                      {t('Open the inspector desk', 'निरीक्षक डेस्क खोलें')} {Icon.right()}
+                    </button>
+                  </div>
                 </>
               )}
             </div>

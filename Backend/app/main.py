@@ -46,6 +46,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from . import booking_engine as be
 from . import engine
+from . import proofs
 from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
 from . import voice_agent
 from .booking_engine import AlreadyBooked, SlotTaken
@@ -124,7 +125,10 @@ class BookBody(BaseModel):
     slot_id: str
 
 
-# Seed every office the UI can offer, with grids for the days ahead.
+# A previous run's applications, bookings and queue first, if any: restarting
+# the process used to wipe a demo mid-session. Then seed, which fills in any
+# office or day the snapshot did not have and is safe to run over live data.
+be.restore()
 be.seed_catalogue()
 
 
@@ -462,6 +466,40 @@ def agent_voice_cancel(body: VoiceConfirmBody):
 @app.delete("/agent/voice/{session_id}", status_code=204, tags=["agent"])
 def agent_voice_end(session_id: str):
     voice_agent.end_session(session_id)
+
+
+# ------------------------- proofs (the demo panel) -------------------------
+# The three hard guarantees are invisible on the happy path. These run them for
+# real against the engine and report what happened, so they can be watched.
+
+@app.post("/proof/idempotent-apply", tags=["proof"])
+def proof_idempotent_apply():
+    """Submit the same application twice, as a dropped connection does."""
+    return proofs.idempotent_apply()
+
+
+@app.post("/proof/slot-race", tags=["proof"])
+def proof_slot_race(contenders: int = 8):
+    """Genuine simultaneous bookings at one slot. Exactly one may win."""
+    return proofs.slot_race(max(2, min(contenders, 32)))
+
+
+@app.post("/proof/ledger-tamper", tags=["proof"])
+def proof_ledger_tamper():
+    """Edit a recorded event and show the receipt reporting it."""
+    return proofs.ledger_tamper()
+
+
+@app.post("/demo/reset", tags=["proof"])
+def demo_reset():
+    """
+    Back to a clean slate: no applications, no bookings, an empty queue.
+
+    After a walkthrough the first slot of the day is held and tokens are already
+    issued, so the next run reads as someone else's leftovers.
+    """
+    be.reset_state()
+    return {"reset": True, "offices": len(be.list_rtos())}
 
 
 # ------------------------------- meta --------------------------------------

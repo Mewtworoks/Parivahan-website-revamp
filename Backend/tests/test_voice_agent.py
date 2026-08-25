@@ -3,6 +3,7 @@
 import json
 import re
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import booking_engine as be  # noqa: E402
 from app import voice_agent  # noqa: E402
 from app.agent_tools import dispatch_tool  # noqa: E402
 from app.main import app  # noqa: E402
@@ -350,6 +352,332 @@ def test_a_gated_turn_is_free(monkeypatch):
         client.post("/agent/voice/turn", json={"session_id": sid, "transcript": "jaldi karo"})
     assert len(voice_agent._SESSIONS[sid].turn_stamps) == spent
     voice_agent._CALLER_HITS.clear()
+
+
+def test_find_slots_searches_the_day_the_citizen_asked_for():
+    """
+    The day was hardcoded to today, so a citizen asking for the 25th was read
+    the 24th's times — and the voice path could not book any other day at all,
+    though the grid runs six days ahead.
+    """
+    tomorrow = date.today() + timedelta(days=1)
+    found = dispatch_tool("find_slots", {"rto_id": "mh01", "date": tomorrow.isoformat()})
+    assert found["date"] == tomorrow.isoformat()
+    assert found["slots"], "tomorrow has no bookable times"
+    assert {s["date"] for s in found["slots"]} == {tomorrow.isoformat()}
+
+    slot = be.get_slot(found["slots"][0]["slot_id"])
+    assert slot is not None and slot.slot_date == tomorrow
+
+    # A day outside the window is refused with the window, not with a bare no:
+    # given nothing to offer instead, the model picks a date of its own.
+    far = dispatch_tool("find_slots", {"rto_id": "mh01",
+                                       "date": (date.today() + timedelta(days=90)).isoformat()})
+    assert far["slots"] == [] and far["error"]
+    assert far["bookable_to"] == (date.today()
+                                  + timedelta(days=be.SLOT_DAYS_AHEAD - 1)).isoformat()
+    assert dispatch_tool("find_slots", {"date": "next tuesday"})["error"]
+
+
+def test_find_slots_offers_every_time_of_day_once():
+    """
+    Two failures in one line of code. Truncating to six slots covered only the
+    first two times — three inspectors each — so the agent told a citizen 11:00
+    was unavailable when it was free. And three entries for one time, differing
+    only by an opaque uuid, is what made it offer "10:15 with Inspector A" and
+    then book Inspector C's row.
+    """
+    found = dispatch_tool("find_slots", {"rto_id": "mh01",
+                                         "date": (date.today() + timedelta(days=2)).isoformat()})
+    times = [s["time"] for s in found["slots"]]
+    assert times == sorted(times) and len(times) == len(set(times)), times
+    # The whole working day is on offer, not just the opening times.
+    assert "11:00" in times and times[-1] > "14:00", times
+
+    # One id per time, and it belongs to the inspector that was named with it.
+    for entry in found["slots"]:
+        slot = be.get_slot(entry["slot_id"])
+        assert slot is not None
+        assert slot.start.strftime("%H:%M") == entry["time"]
+        assert be.get_tester(slot.tester_id).name == entry["tester"]
+        assert entry["left"] >= 1
+
+
+def test_the_confirmation_names_the_appointment_it_will_actually_book():
+    """
+    The gate handed the model nothing but "Book the selected test appointment",
+    so the sentence spoken before the button was invented: it promised the 25th
+    with Inspector A, then read the booking back as the 24th with Inspector C.
+    """
+    applied = dispatch_tool("apply_for_licence", {"citizen_ref": "voice-gate-detail",
+                                                  "licence_kind": "learner",
+                                                  "rto_id": "mh01"})
+    on = (date.today() + timedelta(days=3)).isoformat()
+    slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": on})["slots"][0]
+
+    details = voice_agent.pending_details("book_slot", {"slot_id": slot["slot_id"]})
+    assert details["date"] == on
+    assert details["time"] == slot["time"] and details["tester"] == slot["tester"]
+
+    label = voice_agent._action_label("book_slot", details)
+    assert slot["time"] in label and slot["tester"] in label and details["day"] in label
+
+    # And what the gate reports is what booking it returns — the pre-press
+    # sentence and the post-press sentence cannot come from different rows.
+    booked = dispatch_tool("book_slot", {"application_id": applied["application_id"],
+                                         "slot_id": slot["slot_id"]})
+    assert booked["ok"]
+    assert (booked["date"], booked["time"], booked["tester"]) == (
+        details["date"], details["time"], details["tester"])
+
+
+def test_an_unbookable_slot_never_reaches_the_confirm_button(monkeypatch):
+    """
+    A button that is certain to fail costs the citizen a press and tells them
+    nothing. The model is sent back to find_slots on that same turn instead.
+    """
+    applied = dispatch_tool("apply_for_licence", {"citizen_ref": "voice-stale-slot",
+                                                  "licence_kind": "learner",
+                                                  "rto_id": "mh01"})
+    on = (date.today() + timedelta(days=4)).isoformat()
+    slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": on})["slots"][0]
+    # Somebody else takes it between the agent reading it out and booking it.
+    dispatch_tool("book_slot", {"application_id": applied["application_id"],
+                                "slot_id": slot["slot_id"]})
+    assert voice_agent.pending_details("book_slot", {"slot_id": slot["slot_id"]}) \
+        == {"unavailable": "taken"}
+    assert voice_agent.pending_details("book_slot", {"slot_id": "no-such-slot"}) \
+        == {"unavailable": "unknown"}
+
+    replies = [
+        {"content": "", "tool_calls": [{"id": "s1", "function": {
+            "name": "book_slot", "arguments": json.dumps({"slot_id": slot["slot_id"]})}}]},
+        {"content": "वह समय अभी किसी और ने ले लिया।"},
+    ]
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None: replies.pop(0))
+    session = voice_agent.start_session("voice-stale-slot")
+    session.application_id = applied["application_id"]
+    body = client.post("/agent/voice/turn",
+                       json={"session_id": session.id, "transcript": "wahi book karo"}).json()
+    assert body["tool_events"] == [{"tool": "book_slot", "status": "error"}]
+    assert "pending_confirmation" not in body
+    assert session.pending is None
+
+
+def test_the_model_is_told_what_day_it_is(monkeypatch):
+    """
+    It has no clock, and find_slots needs a YYYY-MM-DD. Given nothing to count
+    from, it invented a date for "the 25th" and the tool searched another day.
+    """
+    sent: list[dict] = []
+    monkeypatch.setenv("NVIDIA_API_KEY", "test-key")
+
+    class Fake:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": "ठीक है।"}}]}
+
+    def capture(url, headers=None, json=None, timeout=None):
+        sent.append(json)
+        return Fake()
+
+    monkeypatch.setattr(voice_agent.httpx, "post", capture)
+    session = client.post("/agent/voice/start", json={"citizen_ref": "voice-clock"}).json()
+    client.post("/agent/voice/turn", json={"session_id": session["session_id"],
+                                           "transcript": "25 तारीख का slot chahiye"})
+    steer = sent[0]["messages"][-1]
+    assert steer["role"] == "system"
+    # The engine builds its grids on the local date, so the model must be told
+    # that same date — not UTC, which is a different day for part of every night.
+    assert date.today().isoformat() in steer["content"]
+    assert "Devanagari" in steer["content"], "the language steer was dropped"
+
+
+def test_a_session_picks_up_the_application_the_citizen_already_has():
+    """
+    Someone who filled in the wizard and then opened Saarthi to book was told to
+    apply first — the session only ever learned an id from a tool it had run
+    itself. Taking that answer filed a second application at the default office,
+    and the appointment then hung off a record the tracker was not showing.
+    """
+    ref = "voice-resume-wizard"
+    existing = client.post("/apply", json={
+        "citizen_ref": ref, "licence_kind": "learner", "rto_id": "br33",
+        "idempotency_key": "wizard-key-1", "applicant_name": "Asha Devi",
+    }).json()
+
+    session = voice_agent.start_session(ref)
+    assert session.application_id == existing["application_id"]
+    assert session.rto_id == "br33"
+
+    # And booking now goes through that application, not a fresh one.
+    args = voice_agent._tool_arguments(session, "book_slot", {"slot_id": "x"})
+    assert args["application_id"] == existing["application_id"]
+
+
+def test_slot_searches_follow_the_office_the_application_was_filed_at():
+    """
+    find_slots defaulted to mh01 whatever the application said, so a citizen who
+    applied in Samastipur was read Andheri's times and booked there — six
+    hundred kilometres from the office holding their papers.
+    """
+    ref = "voice-office-follows"
+    client.post("/apply", json={"citizen_ref": ref, "licence_kind": "learner",
+                                "rto_id": "br06", "idempotency_key": "wizard-key-2"}).json()
+    session = voice_agent.start_session(ref)
+
+    for tool in ("find_slots", "find_slot_days"):
+        assert voice_agent._tool_arguments(session, tool, {})["rto_id"] == "br06"
+    # Named explicitly, another office still wins — the citizen may be moving.
+    assert voice_agent._tool_arguments(
+        session, "find_slots", {"rto_id": "mh01"})["rto_id"] == "mh01"
+
+    found = dispatch_tool("find_slots", voice_agent._tool_arguments(session, "find_slots", {}))
+    assert found["rto_id"] == "br06" and "Darbhanga" in found["office"]
+    assert be.get_slot(found["slots"][0]["slot_id"]).rto_id == "br06"
+
+    # Browsing another office must not repoint the session at it.
+    voice_agent._remember_ids(session, dispatch_tool("find_slot_days", {"rto_id": "mh01"}))
+    assert session.rto_id == "br06"
+
+
+def test_the_offices_and_days_the_agent_offers_are_the_ones_the_wizard_shows():
+    """
+    The wizard asks for an office first and then a day, because both are real
+    choices. With neither tool the agent could only ever apply at the default
+    office and guess at dates one call at a time.
+    """
+    bihar = dispatch_tool("list_offices", {"state": "Bihar"})["offices"]
+    assert {o["rto_id"] for o in bihar} == {"br33", "br06", "br01"}
+    assert [o["km"] for o in bihar] == sorted(o["km"] for o in bihar), "not nearest first"
+    for office in bihar:
+        assert office["load"] in {"light", "busy"} and office["name"]
+
+    days = dispatch_tool("find_slot_days", {"rto_id": "br33"})
+    assert [d["date"] for d in days["days"]] == [
+        (date.today() + timedelta(days=n)).isoformat()
+        for n in range(be.SLOT_DAYS_AHEAD)
+    ]
+    assert all(d["left"] >= 0 and d["day"] for d in days["days"])
+    assert "Samastipur" in days["office"]
+
+
+def test_a_second_booking_is_refused_with_the_appointment_already_held():
+    """
+    An application holds one appointment. Left to the booking call, the citizen
+    presses Confirm and is told afterwards that it did nothing — and a citizen
+    asking to book twice is usually one who does not believe the first worked.
+    """
+    ref = "voice-double-book"
+    applied = dispatch_tool("apply_for_licence", {"citizen_ref": ref,
+                                                  "licence_kind": "learner",
+                                                  "rto_id": "mh02"})
+    on = (date.today() + timedelta(days=2)).isoformat()
+    slots = dispatch_tool("find_slots", {"rto_id": "mh02", "date": on})["slots"]
+    dispatch_tool("book_slot", {"application_id": applied["application_id"],
+                                "slot_id": slots[0]["slot_id"]})
+
+    blocked = voice_agent.pending_details("book_slot", {
+        "application_id": applied["application_id"], "slot_id": slots[1]["slot_id"]})
+    assert blocked["unavailable"] == "already_booked"
+    assert blocked["time"] == slots[0]["time"] and "Wadala" in blocked["office"]
+
+    told = voice_agent._unbookable(blocked)
+    assert slots[0]["time"] in told and blocked["day"] in told and "Wadala" in told
+
+
+def test_the_whole_apply_to_booked_journey_over_voice(monkeypatch):
+    """
+    The journey the demo is judged on, end to end through the gate: apply at the
+    office the citizen named, find the day, find the time, book it. Every
+    spoken-facing string has to come from the tools, and the two mutating steps
+    each have to stop at a confirmation.
+    """
+    on = (date.today() + timedelta(days=3)).isoformat()
+    script = [
+        {"content": "", "tool_calls": [{"id": "o1", "function": {
+            "name": "list_offices", "arguments": '{"state":"Bihar"}'}}]},
+        {"content": "", "tool_calls": [{"id": "a1", "function": {
+            "name": "apply_for_licence", "arguments": '{"rto_id":"br01"}'}}]},
+        {"content": "मैं पटना में आपका आवेदन बनाऊँगा। कृपया पुष्टि करें।"},
+    ]
+
+    def scripted(messages, tools=None, language=None):
+        return script.pop(0) if script else {"content": "आपका आवेदन बन गया है।"}
+
+    monkeypatch.setattr(voice_agent, "_call_nvidia", scripted)
+    started = client.post("/agent/voice/start",
+                          json={"citizen_ref": "voice-journey"}).json()
+    sid = started["session_id"]
+
+    applying = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": "पटना में लर्नर लाइसेंस बनवाना है"}).json()
+    assert [e["status"] for e in applying["tool_events"]] == ["complete", "awaiting_confirmation"]
+    applied = client.post("/agent/voice/confirm", json={"session_id": sid}).json()
+    result = applied["tool_events"][0]["result"]
+    assert result["rto_id"] == "br01" and "Patna" in result["office"]
+
+    session = voice_agent._SESSIONS[sid]
+    assert session.application_id and session.rto_id == "br01"
+
+    # Booking: days, then times, then the action — all inside one turn.
+    found = dispatch_tool("find_slots", {"rto_id": "br01", "date": on})
+    chosen = found["slots"][1]
+    script[:] = [
+        {"content": "", "tool_calls": [{"id": "d1", "function": {
+            "name": "find_slot_days", "arguments": "{}"}}]},
+        {"content": "", "tool_calls": [{"id": "t1", "function": {
+            "name": "find_slots", "arguments": json.dumps({"date": on})}}]},
+        {"content": "", "tool_calls": [{"id": "b1", "function": {
+            "name": "book_slot", "arguments": json.dumps({"slot_id": chosen["slot_id"]})}}]},
+        {"content": "मैं यह समय बुक करूँगा। कृपया पुष्टि करें।"},
+    ]
+    booking = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": f"{on} को slot book karo"}).json()
+    assert [e["status"] for e in booking["tool_events"]] == [
+        "complete", "complete", "awaiting_confirmation"]
+
+    # The button names the appointment the confirm will actually make.
+    label = booking["pending_confirmation"]["label"]
+    assert chosen["time"] in label and chosen["tester"] in label and "Patna" in label
+
+    booked = client.post("/agent/voice/confirm",
+                         json={"session_id": sid}).json()["tool_events"][0]["result"]
+    assert booked["ok"] is True
+    # The panel needs this to put a spoken booking on the same screens as a
+    # wizard one; every other field here is what gets read aloud.
+    assert booked["booking_id"]
+    assert (booked["date"], booked["time"], booked["tester"]) == (
+        on, chosen["time"], chosen["tester"])
+    assert "Patna" in booked["office"]
+
+    # And the journey now reads back the same appointment it just made.
+    status = dispatch_tool("get_journey_status", {"citizen_id": "voice-journey"})
+    assert status["stage"] == "slot_booked"
+    assert status["appointment"]["date"] == on
+    assert status["appointment"]["time"] == chosen["time"]
+    assert "Patna" in status["appointment"]["office"]
+
+
+def test_no_tool_name_ever_reaches_a_field_the_agent_reads_aloud():
+    """
+    The agent is told never to name a tool, and was then handed
+    "Pick a test appointment time (find_slots, then book_slot)" to read out.
+    """
+    names = {t["name"] for t in voice_agent.AGENT_TOOL_SCHEMA}
+    spoken = [dispatch_tool("apply_for_licence", {"citizen_ref": "voice-no-toolnames",
+                                                  "licence_kind": "learner"})["next_action"]]
+    spoken += [step["text"] for step in
+               (dispatch_tool("explain_ll_step", {"step": s}) for s in
+                ("eligibility", "documents", "fee", "test_format",
+                 "pass_criteria", "after_pass"))]
+    for text in spoken:
+        assert text, "an empty line is not an answer"
+        for name in names:
+            assert name not in text, f"tool name {name!r} in text read aloud: {text!r}"
 
 
 def test_voice_cancel_discards_server_pending_action():
