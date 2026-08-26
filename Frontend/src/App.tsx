@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type MouseEvent } from 'react';
 import logo from './assets/logo-master.png';
 import { Desk } from './pages/Desk';
 // DL journey parked — see the note on Route in types.ts.
@@ -134,6 +134,22 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'));
   const { lang, setLang } = useLanguage();
   const t = useT();
+  // Text size, language and theme used to be three separate top-bar controls — on a phone that
+  // was what wrapped the wordmark and pushed things off the end. One "Display" button opening a
+  // popover holds all three without needing the bar itself to grow.
+  const [dispOpen, setDispOpen] = useState(false);
+  const dispRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!dispOpen) return;
+    const onDocClick = (e: globalThis.MouseEvent) => { if (dispRef.current && !dispRef.current.contains(e.target as Node)) setDispOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDispOpen(false); };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [dispOpen]);
 
   const update = (patch: Partial<AppState>) => setState(s => ({ ...s, ...patch }));
 
@@ -212,17 +228,38 @@ export default function App() {
               <button className="tb-btn hide-m" onClick={() => go('status')}>{t('Track', 'ट्रैक करें', 'ट्रॅक करा')}</button>
             </>
           )}
-          <div className="seg hide-m" role="group" aria-label="Text size">
-            <button onClick={() => setTextSize(Math.max(14, textSize - 1))} aria-label="Smaller text">A−</button>
-            <button onClick={() => setTextSize(16)} aria-pressed={textSize === 16} aria-label="Normal text">A</button>
-            <button onClick={() => setTextSize(Math.min(21, textSize + 1))} aria-label="Larger text">A+</button>
+          <div className="disp hide-m" ref={dispRef}>
+            <button className="disp-b" aria-expanded={dispOpen} aria-controls="disppop" onClick={() => setDispOpen(v => !v)}>
+              {Icon.sliders()}
+              <span className="dlabel">{t('Display', 'डिस्प्ले')}</span>
+              <span className="chev">{Icon.down()}</span>
+            </button>
+            {dispOpen && (
+              <div className="pop" id="disppop" role="group" aria-label="Display settings">
+                <div className="pop-g">
+                  <span className="pop-l" id="szl">{t('Text size', 'टेक्स्ट आकार')}</span>
+                  <div className="seg" role="group" aria-labelledby="szl">
+                    <button onClick={() => setTextSize(Math.max(14, textSize - 1))} aria-label="Smaller text">A−</button>
+                    <button onClick={() => setTextSize(16)} aria-pressed={textSize === 16} aria-label="Normal text">A</button>
+                    <button onClick={() => setTextSize(Math.min(21, textSize + 1))} aria-label="Larger text">A+</button>
+                  </div>
+                </div>
+                <div className="pop-g">
+                  <label className="pop-l" htmlFor="langsel">{t('Language', 'भाषा')}</label>
+                  <select className="lang-select" id="langsel" style={{ width: '100%' }} aria-label="Language" value={lang} onChange={e => setLang(e.target.value as Lang)}>
+                    {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeLabel}</option>)}
+                  </select>
+                </div>
+                <div className="pop-g">
+                  <span className="pop-l" id="thml">{t('Theme', 'थीम')}</span>
+                  <div className="seg" role="group" aria-labelledby="thml">
+                    <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>{Icon.moon({ width: 14, height: 14 })} {t('Dark', 'डार्क')}</button>
+                    <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>{Icon.sun({ width: 14, height: 14 })} {t('Light', 'लाइट')}</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <select className="lang-select hide-m" aria-label="Language" value={lang} onChange={e => setLang(e.target.value as Lang)}>
-            {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeLabel}</option>)}
-          </select>
-          <button className="btn btn-s btn-sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-            {theme === 'dark' ? Icon.sun() : Icon.moon()}
-          </button>
           {/* Identity, not a gate — nothing on the site is blocked either way.
               Signed out it offers the number; signed in it becomes the profile,
               which is where signing out lives. */}

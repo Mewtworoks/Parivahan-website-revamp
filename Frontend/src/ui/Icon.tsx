@@ -4,6 +4,9 @@ type IconProps = SVGProps<SVGSVGElement>;
 
 /** Small inline-SVG icon set used throughout the site. */
 export const Icon = {
+  sliders: (p?: IconProps) => (
+    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" {...p}><path d="M3 6h9M15 6h2M3 14h2M8 14h9" /><circle cx="13.4" cy="6" r="1.9" /><circle cx="6.4" cy="14" r="1.9" /></svg>
+  ),
   check: (p?: IconProps) => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8.5l3.2 3.2L13 5" /></svg>
   ),
