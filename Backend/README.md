@@ -128,20 +128,28 @@ speech-to-speech Realtime session takes it with at most a reshuffle.
 
 ## 🔒 Design notes
 
-- **Why it is safe at scale.** The idempotency key absorbs the retry-storms
-  that overload the current portal. Slot allocation is a single critical
-  section — `UNIQUE(slot_id)` + `INSERT … ON CONFLICT` (or `SELECT … FOR
-  UPDATE`) in Postgres, a `threading.Lock` in this demo. Both give the same
-  guarantee: one winner per slot.
+- **The guarantees are constraints, not conventions.** Each one is enforced by
+  the schema, so no code path — and no second process — can route around it:
+  `UNIQUE(idempotency_key)` on applications, `UNIQUE(slot_id)` and
+  `UNIQUE(application_id)` on bookings, and a composite primary key on the
+  insert-only ledger. Booking claims its slot with a conditional
+  `UPDATE … WHERE booked_by IS NULL` and checks the row count, so the winner is
+  decided by what actually changed rather than by a check that has since gone
+  stale. This used to be a `threading.Lock`, which held for one worker and was
+  silently false for two; `tests/test_persistence.py` now races six real
+  interpreters at one slot and expects exactly one winner.
 - **Append-only ledger.** Every state transition is a hash-chained row.
   Altering, inserting, or dropping any event breaks every hash after it, so
-  `chain_valid` goes false — no clerk can quietly rewrite a journey.
-- **State is in-memory** (`_APPS`, `_SLOTS`, `_TOKENS`, `_ATTEMPTS`), with every
-  mutating entry point snapshotting to `state.json` on the way out and
-  `be.restore()` reloading it at startup — so a restart mid-demo no longer wipes
-  the journey. Test attempts are the exception and are not snapshotted. The
-  shapes are Pydantic models, so real persistence is a thin layer, not a
-  rewrite. `POST /demo/reset` returns to a clean slate.
+  `chain_valid` goes false — no clerk can quietly rewrite a journey. The engine
+  only ever inserts, and the primary key refuses a second event at a position
+  that already exists.
+- **State is SQLite** (`Backend/state.db`, WAL mode), opened on first use and
+  written inside a `BEGIN IMMEDIATE` transaction per mutation — so a restart
+  mid-demo resumes rather than wiping the journey, and two workers see one set
+  of facts. Test attempts are the exception and stay in memory. Nothing uses
+  SQLite-only syntax: set `DATABASE_URL` to a MySQL or Postgres URL and the same
+  tables and statements run unchanged. `POST /demo/reset` returns to a clean
+  slate.
 - **Two identifiers, two levels of protection.** `application_id` is a v4 uuid —
   122 bits, not enumerable — so `GET /application/{id}` treats holding one as
   evidence you were given it. The display number is sequential

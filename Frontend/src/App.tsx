@@ -21,6 +21,8 @@ import { GameIntro } from './practice/GameIntro';
 import { Learn } from './practice/Learn';
 import { Report } from './practice/Report';
 import { FOOTER_COLUMNS, type FooterTarget } from './data/siteContent';
+import { prettyPhone, useIdentity } from './lib/identity';
+import { loadJourney, saveJourney } from './lib/journeyStore';
 import { LANGUAGES, useLanguage, useT, type Lang } from './lib/language';
 import { scrollToTop } from './lib/scrollToTop';
 import type { AppState, PageProps, Route } from './types';
@@ -29,6 +31,8 @@ import { GrievanceSheet } from './ui/GrievanceSheet';
 import { Icon } from './ui/Icon';
 import { InfoSheet } from './ui/InfoSheet';
 import { Note, Sheet } from './ui/SharedUI';
+import { IdentitySheet } from './ui/SignIn';
+import { ToastHost } from './ui/Toast';
 import { VoiceAgent } from './components/VoiceAgent';
 
 // Translations for the footer's data-driven labels (FOOTER_COLUMNS lives in data/siteContent.ts as
@@ -73,6 +77,20 @@ const PAGES: Record<Route, ComponentType<PageProps>> = {
 const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
 
 /**
+ * The screens that need to know whose journey this is.
+ *
+ * Only the form. Everything before it — checking whether you qualify, playing
+ * the practice road — is worth doing before you have decided to apply at all,
+ * and demanding a number first would turn a two-minute look into a sign-up.
+ * The stages after it are self-gating: they need an application, and there is
+ * no way to have one without passing through here.
+ *
+ * Saarthi is the other gated surface, for the same reason and not by route: it
+ * fills this form on the citizen's behalf, so it has to know whose.
+ */
+const SIGN_IN_REQUIRED: Route[] = ['apply'];
+
+/**
  * The route named in the address bar, or home.
  *
  * Kept in the hash rather than the path so the built app stays a plain static
@@ -99,11 +117,17 @@ const HELP_FAQ: [question: string, answer: string][] = [
 /** The whole site: top bar, the active page, footer, and the help/info overlay sheets. */
 export default function App() {
   const [route, setRoute] = useState<Route>(routeFromHash);
-  const [state, setState] = useState<AppState>({});
+  // Restored from the last visit, so a reload mid-form does not start over —
+  // see lib/journeyStore.ts for why this had to exist.
+  const [state, setState] = useState<AppState>(loadJourney);
   const [helpOpen, setHelpOpen] = useState(false);
   const [grievanceOpen, setGrievanceOpen] = useState(false);
   const [infoPanelId, setInfoPanelId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
+  // Saarthi closed itself to show the sign-in sheet, and wants to come back.
+  const [resumeVoice, setResumeVoice] = useState(false);
+  const phone = useIdentity();
   const [textSize, setTextSize] = useState(16);
   // The inline script in index.html already set this attribute before first paint, so read it back
   // rather than recomputing — that keeps the toggle in sync with whatever it decided.
@@ -135,6 +159,10 @@ export default function App() {
     };
   }, []);
 
+  // Every change to the journey, not just the ones a step boundary notices —
+  // the form's own "Saved a moment ago" pill claims this granularity.
+  useEffect(() => { saveJourney(state); }, [state]);
+
   useEffect(() => { document.documentElement.style.setProperty('--rs', textSize + 'px'); }, [textSize]);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -142,6 +170,7 @@ export default function App() {
   }, [theme]);
 
   const ActivePage = PAGES[route] || Home;
+  const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
   const inFullScreenFlow = FULL_SCREEN_FLOW_ROUTES.includes(route);
 
   const handleFooterLink = (e: MouseEvent, target: FooterTarget) => {
@@ -167,14 +196,20 @@ export default function App() {
           <div className="grow" />
           {!inFullScreenFlow && (
             <>
-              <button className="tb-btn hide-m" onClick={() => go('home')}>{t('Services', 'सेवाएं', 'सेवा')}</button>
+              {/* "Services" used to sit here and did exactly what the wordmark
+                  beside it does — go home. Two controls, one destination, and
+                  the one people reach for first is the wordmark. Its place goes
+                  to the staff view, which had no way in from the top bar at all
+                  and is the screen worth finding: open it beside the tracker and
+                  the citizen's wait moves as the lane is called.
+
+                  A swap, not an addition. The bar has no room to grow — that is
+                  what wrapped the wordmark and pushed the text-size control off
+                  the end last time — so this label is kept to the width of the
+                  one it replaced. */}
+              <button className="tb-btn hide-m" onClick={() => go('desk')}>{t('RTO desk', 'आरटीओ डेस्क', 'आरटीओ डेस्क')}</button>
               <button className="tb-btn hide-m" onClick={() => go('learn')}>{t('Practice', 'अभ्यास', 'सराव')}</button>
               <button className="tb-btn hide-m" onClick={() => go('status')}>{t('Track', 'ट्रैक करें', 'ट्रॅक करा')}</button>
-              {/* The inspector desk and the proofs are reached from the footer
-                  and from the tracker, not from here: even one-word labels in
-                  this bar wrapped the wordmark and pushed the text-size control
-                  off the end. The tracker is the better home for the desk link
-                  anyway — the two screens are meant to be watched together. */}
             </>
           )}
           <div className="seg hide-m" role="group" aria-label="Text size">
@@ -188,6 +223,15 @@ export default function App() {
           <button className="btn btn-s btn-sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? Icon.sun() : Icon.moon()}
           </button>
+          {/* Identity, not a gate — nothing on the site is blocked either way.
+              Signed out it offers the number; signed in it becomes the profile,
+              which is where signing out lives. */}
+          <button className="btn btn-s btn-sm hide-m" onClick={() => setIdentityOpen(true)}
+            aria-label={phone ? `Profile — signed in as ${prettyPhone(phone)}` : undefined}>
+            {phone
+              ? <span className="row g6">{Icon.phone()}<span className="mono">{prettyPhone(phone)}</span></span>
+              : t('Sign in', 'साइन इन')}
+          </button>
           {/* Saarthi is the only call to action up here. Help sat beside it
               competing for the same press, and Saarthi answers the questions
               the sheet lists anyway. The sheet is still reached from the
@@ -195,7 +239,32 @@ export default function App() {
           <button className="btn btn-p btn-sm" onClick={() => setVoiceOpen(true)}>{Icon.speaker()} {t('Talk to Saarthi', 'सारथी से बात करें')}</button>
         </div>
       </header>
-      <main><ActivePage go={go} state={state} update={update} /></main>
+      <main>
+        {needsSignIn
+          ? (
+            <div className="narrow fade" style={{ padding: '64px 24px' }}>
+              <div className="card card-p col g16" style={{ maxWidth: 520 }}>
+                <div className="col g6">
+                  <span className="eyebrow">{t('Before you begin', 'शुरू करने से पहले')}</span>
+                  <h2>{t('The form needs a mobile number', 'फ़ॉर्म के लिए मोबाइल नंबर चाहिए')}</h2>
+                  <p className="sub">
+                    {t('It is what your application is saved under, and what the tracker and Saarthi use to find it again. Checking your eligibility and the practice test need no number at all.',
+                      'आपका आवेदन इसी नंबर पर सहेजा जाता है, और ट्रैकर व सारथी इसी से उसे दोबारा ढूँढते हैं। पात्रता जाँच और अभ्यास परीक्षा के लिए कोई नंबर नहीं चाहिए।')}
+                  </p>
+                </div>
+                <div className="row g10 wrapf">
+                  <button className="btn btn-p" onClick={() => setIdentityOpen(true)}>
+                    {t('Sign in', 'साइन इन')} {Icon.right()}
+                  </button>
+                  <button className="btn btn-s" onClick={() => go('elig')}>
+                    {t('Check if I qualify instead', 'इसके बजाय पात्रता जाँचें')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+          : <ActivePage go={go} state={state} update={update} />}
+      </main>
       <footer className="footer">
         <div className="wrap col g24">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 28 }}>
@@ -218,8 +287,35 @@ export default function App() {
         </div>
       </footer>
       <BackToTop />
-      {voiceOpen && <VoiceAgent state={state} update={update} onClose={() => setVoiceOpen(false)} />}
+      <ToastHost />
+      {/* Saarthi gets `go` because it fills the form on the citizen's behalf and
+          then has somewhere to send them — the panel covers the page, so
+          "your form is filled, shall we book the slot?" needs a door. */}
+      {voiceOpen && (
+        <VoiceAgent
+          state={state}
+          update={update}
+          go={route => { setVoiceOpen(false); go(route); }}
+          onSignIn={() => { setVoiceOpen(false); setResumeVoice(true); setIdentityOpen(true); }}
+          onClose={() => setVoiceOpen(false)}
+        />
+      )}
       {infoPanelId && <InfoSheet id={infoPanelId} onClose={() => setInfoPanelId(null)} />}
+      {/* The only sign-in on the site. Saarthi points here rather than carrying
+          a second copy of the form, so there is one shape to learn and one
+          place it lives. Signed in, the same sheet is the profile. */}
+      {identityOpen && (
+        <IdentitySheet
+          phone={phone}
+          onClose={() => {
+            setIdentityOpen(false);
+            // Saarthi steps aside to show this sheet, so it comes back when the
+            // citizen is done — being dropped on the home page after signing in
+            // means pressing "Talk to Saarthi" all over again.
+            if (resumeVoice) { setResumeVoice(false); setVoiceOpen(true); }
+          }}
+        />
+      )}
       {grievanceOpen && <GrievanceSheet state={state} onClose={() => setGrievanceOpen(false)} />}
       {helpOpen && (
         <Sheet title={t('Need help?', 'सहायता चाहिए?', 'मदत हवी आहे?')} onClose={() => setHelpOpen(false)}>

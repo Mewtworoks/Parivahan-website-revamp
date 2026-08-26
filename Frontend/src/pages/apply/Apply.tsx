@@ -6,6 +6,7 @@ import { STEPS } from '../../data/applicationFlow';
 import { FORM1 } from '../../data/documents';
 import { feeTotal } from '../../data/fees';
 import { CLASSES } from '../../data/vehicleClasses';
+import { signedInPhone } from '../../lib/identity';
 import { scrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/language';
 import { useAction } from '../../lib/useApi';
@@ -80,7 +81,11 @@ export function Apply({ go, state, update }: PageProps) {
     const name = [form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' ');
     const classCodes = classIds.map(id => CLASSES.find(c => c.id === id)!.code);
     const submitted = await run('submit', () => api.apply({
-      citizenRef: form.phone || form.uid || name,
+      // The signed-in number wins. Filing under whatever was typed into stage
+      // two meant an application Saarthi and the tracker could not then find,
+      // because they look the journey up by the number the citizen signed in
+      // with — one reference or none.
+      citizenRef: signedInPhone() || form.phone || form.uid || name,
       licenceKind: 'learner',
       rtoId: form.rto || api.DEFAULT_RTO,
       idempotencyKey,

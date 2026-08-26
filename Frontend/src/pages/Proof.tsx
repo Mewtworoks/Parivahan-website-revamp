@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as api from '../api';
+import { clearJourney } from '../lib/journeyStore';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
@@ -23,6 +24,23 @@ function Verdict({ ok, children }: { ok: boolean; children: React.ReactNode }) {
       <Pill tone={ok ? 'ok' : 'warn'}>{ok ? Icon.check() : Icon.bang()} {ok ? 'Held' : 'Failed'}</Pill>
       <span className="sub">{children}</span>
     </div>
+  );
+}
+
+/**
+ * The output half of a proof card.
+ *
+ * Every proof prints its result under the same rule and at the same rhythm, so
+ * the three cards read as one instrument rather than three. Kept as a component
+ * because the spacing was drifting per card — the race's pills, the ledger's
+ * two tables and the idempotency rows each had their own idea of it.
+ */
+function Result({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <hr className="hr" style={{ marginTop: 4 }} />
+      <div className="col g20">{children}</div>
+    </>
   );
 }
 
@@ -73,6 +91,14 @@ export function Proof(_props: PageProps) {
 
   const reset = () => run('reset', api.resetDemo, () => {
     setIdem(null); setRace(null); setLedger(null);
+    // The browser holds its own copy of the journey now, and the reset just
+    // deleted the application it points at. Left behind, the tracker would open
+    // on an id the service has never heard of — the exact "somebody else's
+    // leftovers" this button exists to prevent. Reloading is the honest way to
+    // land on a clean slate rather than clearing thirteen keys by hand.
+    clearJourney();
+    window.location.hash = '#/home';
+    window.location.reload();
   });
 
   return (
@@ -102,11 +128,10 @@ export function Proof(_props: PageProps) {
           </button>
         </div>
         {idem && (
-          <>
-            <hr className="hr" />
-            <div className="col g8">
+          <Result>
+            <div className="col g12">
               {idem.attempts.map((a, i) => (
-                <div key={i} className="row between g12 wrapf">
+                <div key={i} className="row between g16 wrapf">
                   <span className="sub">{a.label}</span>
                   <b className="mono">{a.application_no}</b>
                 </div>
@@ -115,12 +140,12 @@ export function Proof(_props: PageProps) {
             <Verdict ok={idem.retry_was_deduplicated && idem.new_intent_still_created}>
               {idem.verdict}
             </Verdict>
-          </>
+          </Result>
         )}
       </div>
 
       {/* 2 — the slot race */}
-      <div className="card card-p col g14" style={{ marginTop: 16 }}>
+      <div className="card card-p col g14" style={{ marginTop: 20 }}>
         <div className="row between g12 wrapf">
           <div className="col g4">
             <h3>{t('Eight people, one slot', 'आठ लोग, एक स्लॉट')}</h3>
@@ -135,26 +160,30 @@ export function Proof(_props: PageProps) {
           </button>
         </div>
         {race && !race.error && (
-          <>
-            <hr className="hr" />
-            <div className="row g8 wrapf">
-              {race.results.map(r => (
-                <Pill key={r.applicant} tone={r.outcome === 'won' ? 'ok' : undefined}>
-                  #{r.applicant} {r.outcome === 'won' ? t('booked', 'बुक') : t('refused', 'अस्वीकृत')}
-                </Pill>
-              ))}
+          <Result>
+            <div className="col g10">
+              {/* rowGap as well as gap: eight pills wrap to a second line at
+                  most widths, and a wrapped row with no row gap put the winner
+                  hard against the losers above it. */}
+              <div className="row g10 wrapf" style={{ rowGap: 10 }}>
+                {race.results.map(r => (
+                  <Pill key={r.applicant} tone={r.outcome === 'won' ? 'ok' : undefined}>
+                    #{r.applicant} {r.outcome === 'won' ? t('booked', 'बुक') : t('refused', 'अस्वीकृत')}
+                  </Pill>
+                ))}
+              </div>
+              <span className="tiny">
+                {race.results.find(r => r.outcome === 'rejected')?.detail}
+              </span>
             </div>
-            <span className="tiny">
-              {race.results.find(r => r.outcome === 'rejected')?.detail}
-            </span>
             <Verdict ok={race.winners === 1 && !race.double_booked}>{race.verdict}</Verdict>
-          </>
+          </Result>
         )}
         {race?.error && <Note tone="warn">{race.error}</Note>}
       </div>
 
       {/* 3 — the ledger */}
-      <div className="card card-p col g14" style={{ marginTop: 16 }}>
+      <div className="card card-p col g14" style={{ marginTop: 20 }}>
         <div className="row between g12 wrapf">
           <div className="col g4">
             <h3>{t('Rewrite a record', 'रिकॉर्ड बदलें')}</h3>
@@ -169,15 +198,18 @@ export function Proof(_props: PageProps) {
           </button>
         </div>
         {ledger && (
-          <>
-            <hr className="hr" />
-            <div className="col g8">
+          <Result>
+            {/* The two chains are the whole point of this card and they were
+                running together into one long table — the reader could not see
+                where "before" stopped. Same caption style, a clear gap, and the
+                second one labelled with what changed. */}
+            <div className="col g10">
               <span className="tiny" style={{ fontWeight: 600 }}>
                 {t('Before — receipt verifies', 'पहले — रसीद सत्यापित')} · {ledger.application_no}
               </span>
               <Chain rows={ledger.before.events} />
             </div>
-            <div className="col g8">
+            <div className="col g10">
               <span className="tiny" style={{ fontWeight: 600 }}>
                 {t('After — row', 'बाद में — पंक्ति')} {ledger.edited_row} {t('changed to', 'बदली गई')}:{' '}
                 <i>“{ledger.edited_to}”</i>
@@ -191,13 +223,13 @@ export function Proof(_props: PageProps) {
             <Note tone="brand" icon={Icon.bang()}>
               <b>{t('The honest limit.', 'ईमानदार सीमा।')}</b> {ledger.caveat}
             </Note>
-          </>
+          </Result>
         )}
       </div>
 
       {error && <div style={{ marginTop: 16 }}><Note tone="warn">{error}</Note></div>}
 
-      <div className="card card-p col g12" style={{ marginTop: 24 }}>
+      <div className="card card-p col g12" style={{ marginTop: 32 }}>
         <h3>{t('Start over', 'फिर से शुरू करें')}</h3>
         <span className="sub">
           {t('Clears every application, appointment and queue token, and re-seeds the offices. Use it between walkthroughs so the next one does not open on somebody else\'s leftovers.',

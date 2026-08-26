@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from conftest import BOOKABLE_DAY, applicant
 from app import booking_engine as be  # noqa: E402
 from app import voice_agent  # noqa: E402
 from app.agent_tools import dispatch_tool  # noqa: E402
@@ -48,7 +49,7 @@ def test_voice_queues_mutation_until_visible_confirmation(monkeypatch):
                     "id": "call_apply",
                     "function": {
                         "name": "apply_for_licence",
-                        "arguments": '{"licence_kind":"learner","rto_id":"mh01"}',
+                        "arguments": '{"licence_kind":"learner","rto_id":"mh01","full_name":"Test Applicant","dob":"2008-04-11","state":"Maharashtra","licence_classes":["MCWG"]}',
                     },
                 }],
             }
@@ -89,7 +90,8 @@ def test_parallel_tool_calls_all_get_answered(monkeypatch):
     """
     replies = [
         {"content": "", "tool_calls": [
-            {"id": "p1", "function": {"name": "apply_for_licence", "arguments": "{}"}},
+            {"id": "p1", "function": {"name": "apply_for_licence",
+             "arguments": '{"licence_kind":"learner","full_name":"Test Applicant","dob":"2008-04-11","state":"Maharashtra","licence_classes":["MCWG"]}'}},
             {"id": "p2", "function": {"name": "find_slots", "arguments": '{"rto_id":"mh01"}'}},
         ]},
         {"content": "कृपया पुष्टि करें।"},
@@ -157,10 +159,8 @@ def test_queue_states_the_place_in_the_lane_not_just_the_token():
     citizen told "number 3, nobody ahead of you" hears a contradiction, so the
     place in that inspector's lane has to be stated outright.
     """
-    app_obj = dispatch_tool("apply_for_licence",
-                            {"citizen_ref": "voice-lane", "licence_kind": "learner",
-                             "rto_id": "mh01"})
-    slots = dispatch_tool("find_slots", {"rto_id": "mh01"})
+    app_obj = dispatch_tool("apply_for_licence", applicant("voice-lane", rto_id="mh01"))
+    slots = dispatch_tool("find_slots", {"rto_id": "mh01", "date": BOOKABLE_DAY.isoformat()})
     dispatch_tool("book_slot", {"application_id": app_obj["application_id"],
                                 "slot_id": slots["slots"][0]["slot_id"]})
     token = dispatch_tool("check_in", {"application_id": app_obj["application_id"]})
@@ -173,10 +173,8 @@ def test_queue_states_the_place_in_the_lane_not_just_the_token():
 
 def test_spoken_tool_results_never_carry_internal_ids():
     """Tool output is read aloud, so it must name the inspector, not a row key."""
-    app_obj = dispatch_tool("apply_for_licence",
-                            {"citizen_ref": "voice-no-ids", "licence_kind": "learner",
-                             "rto_id": "mh01"})
-    slots = dispatch_tool("find_slots", {"rto_id": "mh01"})
+    app_obj = dispatch_tool("apply_for_licence", applicant("voice-no-ids", rto_id="mh01"))
+    slots = dispatch_tool("find_slots", {"rto_id": "mh01", "date": BOOKABLE_DAY.isoformat()})
     assert slots["slots"], "no free slots to check"
     booked = dispatch_tool("book_slot", {"application_id": app_obj["application_id"],
                                          "slot_id": slots["slots"][0]["slot_id"]})
@@ -395,7 +393,8 @@ def test_a_gated_turn_is_free(monkeypatch):
     model, so it must not spend the caller's budget either.
     """
     replies = [{"content": "", "tool_calls": [{
-        "id": "g1", "function": {"name": "apply_for_licence", "arguments": "{}"}}]},
+        "id": "g1", "function": {"name": "apply_for_licence",
+        "arguments": '{"licence_kind":"learner","full_name":"Test Applicant","dob":"2008-04-11","state":"Maharashtra","licence_classes":["MCWG"]}'}}]},
         {"content": "कृपया पुष्टि करें।"}]
     monkeypatch.setattr(voice_agent, "_call_nvidia",
                         lambda messages, tools=None, language=None: replies.pop(0) if replies else {"content": "ok"})
@@ -465,9 +464,7 @@ def test_the_confirmation_names_the_appointment_it_will_actually_book():
     so the sentence spoken before the button was invented: it promised the 25th
     with Inspector A, then read the booking back as the 24th with Inspector C.
     """
-    applied = dispatch_tool("apply_for_licence", {"citizen_ref": "voice-gate-detail",
-                                                  "licence_kind": "learner",
-                                                  "rto_id": "mh01"})
+    applied = dispatch_tool("apply_for_licence", applicant("voice-gate-detail", rto_id="mh01"))
     on = (date.today() + timedelta(days=3)).isoformat()
     slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": on})["slots"][0]
 
@@ -492,9 +489,7 @@ def test_an_unbookable_slot_never_reaches_the_confirm_button(monkeypatch):
     A button that is certain to fail costs the citizen a press and tells them
     nothing. The model is sent back to find_slots on that same turn instead.
     """
-    applied = dispatch_tool("apply_for_licence", {"citizen_ref": "voice-stale-slot",
-                                                  "licence_kind": "learner",
-                                                  "rto_id": "mh01"})
+    applied = dispatch_tool("apply_for_licence", applicant("voice-stale-slot", rto_id="mh01"))
     on = (date.today() + timedelta(days=4)).isoformat()
     slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": on})["slots"][0]
     # Somebody else takes it between the agent reading it out and booking it.
@@ -591,7 +586,8 @@ def test_slot_searches_follow_the_office_the_application_was_filed_at():
     assert voice_agent._tool_arguments(
         session, "find_slots", {"rto_id": "mh01"})["rto_id"] == "mh01"
 
-    found = dispatch_tool("find_slots", voice_agent._tool_arguments(session, "find_slots", {}))
+    found = dispatch_tool("find_slots", voice_agent._tool_arguments(
+        session, "find_slots", {"date": BOOKABLE_DAY.isoformat()}))
     assert found["rto_id"] == "br06" and "Darbhanga" in found["office"]
     assert be.get_slot(found["slots"][0]["slot_id"]).rto_id == "br06"
 
@@ -628,9 +624,7 @@ def test_a_second_booking_is_refused_with_the_appointment_already_held():
     asking to book twice is usually one who does not believe the first worked.
     """
     ref = "voice-double-book"
-    applied = dispatch_tool("apply_for_licence", {"citizen_ref": ref,
-                                                  "licence_kind": "learner",
-                                                  "rto_id": "mh02"})
+    applied = dispatch_tool("apply_for_licence", applicant(ref, rto_id="mh02"))
     on = (date.today() + timedelta(days=2)).isoformat()
     slots = dispatch_tool("find_slots", {"rto_id": "mh02", "date": on})["slots"]
     dispatch_tool("book_slot", {"application_id": applied["application_id"],
@@ -657,7 +651,8 @@ def test_the_whole_apply_to_booked_journey_over_voice(monkeypatch):
         {"content": "", "tool_calls": [{"id": "o1", "function": {
             "name": "list_offices", "arguments": '{"state":"Bihar"}'}}]},
         {"content": "", "tool_calls": [{"id": "a1", "function": {
-            "name": "apply_for_licence", "arguments": '{"rto_id":"br01"}'}}]},
+            "name": "apply_for_licence",
+            "arguments": '{"rto_id":"br01","licence_kind":"learner","full_name":"Test Applicant","dob":"2008-04-11","state":"Bihar","licence_classes":["MCWG"]}'}}]},
         {"content": "मैं पटना में आपका आवेदन बनाऊँगा। कृपया पुष्टि करें।"},
     ]
 
@@ -724,8 +719,7 @@ def test_no_tool_name_ever_reaches_a_field_the_agent_reads_aloud():
     "Pick a test appointment time (find_slots, then book_slot)" to read out.
     """
     names = {t["name"] for t in voice_agent.AGENT_TOOL_SCHEMA}
-    spoken = [dispatch_tool("apply_for_licence", {"citizen_ref": "voice-no-toolnames",
-                                                  "licence_kind": "learner"})["next_action"]]
+    spoken = [dispatch_tool("apply_for_licence", applicant("voice-no-toolnames"))["next_action"]]
     spoken += [step["text"] for step in
                (dispatch_tool("explain_ll_step", {"step": s}) for s in
                 ("eligibility", "documents", "fee", "test_format",
@@ -743,3 +737,81 @@ def test_voice_cancel_discards_server_pending_action():
     assert response.status_code == 200
     assert response.json()["cancelled"] is True
     assert session.pending is None
+
+
+# --------------------------------------------------------------------------
+# Saarthi fills the form. What it fills it with has to be the citizen's.
+# --------------------------------------------------------------------------
+
+def test_an_application_is_never_filed_with_details_the_citizen_never_gave():
+    """
+    The tool schema's "required" list is advice to a model, not a rule. Asked to
+    apply with nothing but a licence kind, the service used to file a nameless
+    application and report success — so a model that skipped the questions
+    produced a record belonging to nobody, and said it was verified.
+
+    Refused, and refused usefully: the reply carries the questions to ask.
+    """
+    result = dispatch_tool("apply_for_licence",
+                           {"citizen_ref": "guard-empty", "licence_kind": "learner"})
+    assert "application_id" not in result, "an application was filed with no details"
+    assert set(result["needs"]) == {"full_name", "dob", "state", "licence_classes"}
+    # Each one has to arrive as something Saarthi can say out loud. A field name
+    # read to somebody who cannot read the form is not a question. Contains a
+    # question rather than ends with one: the date of birth deliberately adds
+    # "say the day, the month and the year" after the question mark.
+    for item in result["ask_for"]:
+        assert "?" in item["ask"] and len(item["ask"].split()) > 3, item
+
+
+def test_a_date_of_birth_in_the_wrong_shape_is_refused_rather_than_guessed():
+    """
+    The tracker authenticates on date of birth, so "11 April 2008" written into
+    the field files an application the citizen can never find again — and
+    guessing between 04-11 and 11-04 locks the wrong one out.
+    """
+    result = dispatch_tool("apply_for_licence", applicant("guard-dob", dob="11 April 2008"))
+    assert result.get("needs") == ["dob"]
+    assert "application_id" not in result
+
+
+def test_the_office_follows_the_state_the_citizen_named():
+    """Saying "Bihar" and being filed in Mumbai is a wasted journey, not a typo."""
+    result = dispatch_tool("apply_for_licence",
+                           applicant("guard-state", state="Bihar"))
+    assert result["rto_id"].startswith("br"), result["rto_id"]
+    # And what comes back is the office's own name, not the row key, because it
+    # is read aloud.
+    assert result["office"] and not result["office"].startswith("br")
+    assert result["form_prefill"]["state"] == "Bihar"
+
+
+def test_what_the_citizen_said_comes_back_for_the_form_they_will_see():
+    """
+    Saarthi tells them the form is filled, so the form has to actually hold
+    their answers — otherwise the browser has nothing to put on screen and the
+    claim is another decoration.
+    """
+    result = dispatch_tool("apply_for_licence", applicant(
+        "guard-prefill", full_name="Anita Shubhangi Kulkarni",
+        dob="2008-04-11", state="Maharashtra", licence_classes=["MCWG", "LMV-NT"]))
+    assert result["applicant_name"] == "Anita Shubhangi Kulkarni"
+    assert result["licence_classes"] == ["MCWG", "LMV-NT"]
+    prefill = result["form_prefill"]
+    assert prefill["full_name"] == "Anita Shubhangi Kulkarni"
+    assert prefill["dob"] == "2008-04-11"
+    assert prefill["classes"] == ["MCWG", "LMV-NT"]
+
+
+def test_the_simulated_verification_is_handed_to_the_agent_to_say():
+    """
+    The ledger row has always read "Documents verified (mock)". The one place
+    that qualifier never reached was the sentence a citizen actually hears,
+    which is the sentence that matters — "created and verified at Andheri RTO"
+    invites them to believe a government record was checked. Nothing was.
+    """
+    result = dispatch_tool("apply_for_licence", applicant("guard-disclosure"))
+    assert result["verification"] == "mocked"
+    disclosure = result["disclosure"].lower()
+    for word in ("aadhaar", "otp", "simulated"):
+        assert word in disclosure, f"{word!r} missing from what the agent is told to say"

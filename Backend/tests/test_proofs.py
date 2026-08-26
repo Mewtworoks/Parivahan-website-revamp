@@ -13,11 +13,21 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 
+from conftest import BOOKABLE_DAY
 from app import booking_engine as be  # noqa: E402
+from app import db  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)
+
+
+def _journey_rows() -> dict[str, int]:
+    """How much of a citizen's journey is on record right now."""
+    with db.read() as conn:
+        return {t.name: conn.execute(select(func.count()).select_from(t)).scalar()
+                for t in (db.applications, db.bookings, db.tokens, db.ledger)}
 
 
 def test_idempotent_apply_proof_shows_one_application_for_two_presses():
@@ -66,10 +76,10 @@ def test_proofs_do_not_consume_the_slots_the_demo_needs():
     the walkthrough is about to make.
     """
     from datetime import date
-    before = len(be.list_free_slots("mh01", date.today()))
+    before = len(be.list_free_slots("mh01", BOOKABLE_DAY))
     client.post("/proof/slot-race?contenders=4")
     client.post("/proof/ledger-tamper")
-    assert len(be.list_free_slots("mh01", date.today())) == before
+    assert len(be.list_free_slots("mh01", BOOKABLE_DAY)) == before
 
 
 def test_proofs_pressed_together_do_not_steal_each_others_slot():
@@ -108,12 +118,14 @@ def test_proofs_pressed_together_do_not_steal_each_others_slot():
 
 def test_demo_reset_clears_the_journey_but_keeps_the_offices():
     client.post("/proof/idempotent-apply")
-    assert be._APPS, "nothing to reset"
+    assert _journey_rows()["applications"], "nothing to reset"
     body = client.post("/demo/reset").json()
     assert body["reset"] is True
-    assert be._APPS == {} and be._BOOKINGS == {} and be._TOKENS == {}
+    # The ledger goes too: leaving orphaned events behind would mean the next
+    # demo's chain verification runs against somebody else's rows.
+    assert _journey_rows() == {"applications": 0, "bookings": 0, "tokens": 0, "ledger": 0}
     # The catalogue and its slot grids have to come back, or the UI has no
     # offices to offer and the next demo cannot start.
     assert body["offices"] >= 3
     from datetime import date
-    assert be.list_free_slots("mh01", date.today()), "reset left no bookable slots"
+    assert be.list_free_slots("mh01", BOOKABLE_DAY), "reset left no bookable slots"

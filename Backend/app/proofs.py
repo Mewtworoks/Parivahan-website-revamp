@@ -127,7 +127,7 @@ def slot_race(threads: int = 8) -> dict[str, Any]:
         "results": results,
         "winners": len(winners),
         "double_booked": len(winners) > 1,
-        "slot_now_held_by_one": be._SLOTS[slot.id].booked_by_application is not None,
+        "slot_now_held_by_one": be.get_slot(slot.id).booked_by_application is not None,
         "verdict": (f"{threads} simultaneous requests, {len(winners)} booking. "
                     "The rest were refused cleanly, so nobody travels to an "
                     "appointment they do not have."),
@@ -150,6 +150,11 @@ def ledger_tamper() -> dict[str, Any]:
     if free:
         be.book_slot(app.id, free[0].id)
         be.check_in(app.id)
+    # Read it back. The engine hands out a snapshot rather than a live object
+    # now that the store is a database, so the two events those calls recorded
+    # are in the ledger table and not in this `app` — and a demonstration that
+    # tampered with a two-row chain would be showing less than the real one.
+    app = be.get_application(app.id)
 
     def rows() -> list[dict[str, Any]]:
         return [{"seq": e.seq, "status": e.status.value, "note": e.note,

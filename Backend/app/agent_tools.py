@@ -31,16 +31,23 @@ Two ways to drive it:
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import date, timedelta
 
 from . import booking_engine as be
 from . import engine
-from .booking_engine import AlreadyBooked, SlotTaken
+from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
 from .booking_models import AppStatus, LicenceKind
 from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
 from .seed_scenarios import SCENARIOS, scenario_by_id
 
 DEFAULT_RTO = "mh01"
+
+# The tracker authenticates a lookup on the date of birth, so a model that
+# writes "11 April 2008" into the field files an application nobody can find
+# again. Checked rather than parsed loosely: guessing between 04-11 and 11-04 is
+# how somebody ends up locked out of their own application.
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # --- The JSON schema the model is given --------------------------------------
 
@@ -115,16 +122,48 @@ AGENT_TOOL_SCHEMA = [
     {
         "type": "function",
         "name": "apply_for_licence",
-        "description": "Submit a licence application for the citizen (retry-safe). "
-                       "Use when the citizen says they want to start / apply.",
+        "description": "Fill in and submit the citizen's licence application "
+                       "(retry-safe). This is the form being completed on their "
+                       "behalf, so do not call it until you have asked for and "
+                       "been told every required field — an application filed "
+                       "with details the citizen never gave is not their "
+                       "application. Ask for them a couple at a time, in plain "
+                       "words, and read the full name and date of birth back "
+                       "before you call this. Everything the form needs beyond "
+                       "these fields is filled with the prototype's synthetic "
+                       "sample data, which the reply names so you can say so.",
         "parameters": {
             "type": "object",
             "properties": {
-                "citizen_ref": {"type": "string"},
+                "citizen_ref": {"type": "string",
+                                "description": "Ignored — the service supplies "
+                                               "this from the session."},
                 "licence_kind": {"type": "string", "enum": ["learner", "permanent"]},
-                "rto_id": {"type": "string"},
+                "full_name": {"type": "string",
+                              "description": "The citizen's full name as they "
+                                             "said it, e.g. 'Anita Kulkarni'."},
+                "dob": {"type": "string",
+                        "description": "Date of birth as YYYY-MM-DD. Ask for it "
+                                       "plainly; it is what the tracker later "
+                                       "authenticates the application against."},
+                "state": {"type": "string",
+                          "description": "The state whose RTO will take the "
+                                         "test, e.g. Maharashtra or Bihar."},
+                "licence_classes": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Vehicle classes, e.g. ['MCWG'] for a "
+                                   "two-wheeler, ['LMV-NT'] for a car, or both. "
+                                   "Ask which they want to ride or drive.",
+                },
+                "phone": {"type": "string",
+                          "description": "Optional ten-digit mobile number. "
+                                         "Never ask for an OTP."},
+                "rto_id": {"type": "string",
+                           "description": "Optional office id from list_offices. "
+                                          "Omit to use the state's nearest."},
             },
-            "required": ["citizen_ref", "licence_kind"],
+            "required": ["licence_kind", "full_name", "dob", "state",
+                         "licence_classes"],
         },
     },
     {
@@ -310,6 +349,51 @@ def _office_name(rto_id: str) -> str:
     return office.name if office else rto_id
 
 
+def _missing_application_details(name: str, dob: str | None, state: str,
+                                 classes: list[str]) -> list[dict]:
+    """
+    Which answers the citizen has not given yet, each with the question to ask.
+
+    The question text travels with the field so the model has something to say
+    rather than a field name to paraphrase — "dob" read aloud to somebody who
+    cannot read the form is not a question.
+    """
+    missing: list[dict] = []
+    if len(name.split()) < 2:
+        missing.append({"field": "full_name",
+                        "ask": "What is your full name, first name and surname?"})
+    if not dob or not _ISO_DATE.fullmatch(dob):
+        missing.append({"field": "dob",
+                        "ask": "What is your date of birth? Say the day, the "
+                               "month and the year.",
+                        "format": "YYYY-MM-DD"})
+    if not state:
+        missing.append({"field": "state",
+                        "ask": "Which state will you take the test in?"})
+    if not classes:
+        missing.append({"field": "licence_classes",
+                        "ask": "Do you want to ride a two-wheeler, drive a car, "
+                               "or both?",
+                        "options": ["MCWG", "LMV-NT"]})
+    return missing
+
+
+def _default_rto_for(state: str) -> str:
+    """
+    The nearest office in the state the citizen named.
+
+    Without this, saying "Bihar" still filed the application in Mumbai — the
+    office is fixed on the application and decides where they have to travel,
+    so guessing it from a constant is the one default that is not harmless.
+    ``list_rtos`` already falls back to Maharashtra for a state with no offices
+    modelled, which is the same thing the picker does.
+    """
+    if not state:
+        return DEFAULT_RTO
+    offices = be.list_rtos(state)
+    return offices[0].id if offices else DEFAULT_RTO
+
+
 def existing_journey(citizen_ref: str) -> dict:
     """
     The application this citizen already has, if any, and where it was filed.
@@ -363,6 +447,8 @@ def pending_details(tool: str, args: dict) -> dict:
         return {"unavailable": "unknown"}
     if not slot.is_free:
         return {"unavailable": "taken"}
+    if be._too_late(slot.slot_date, slot.start):
+        return {"unavailable": "passed"}
     return {
         "date": slot.slot_date.isoformat(),
         "day": slot.slot_date.strftime("%a %d %b"),
@@ -452,14 +538,59 @@ def dispatch_tool(tool: str, args: dict) -> dict:
 
     if tool == "apply_for_licence":
         kind = LicenceKind(args.get("licence_kind", "learner"))
-        rto = args.get("rto_id") or DEFAULT_RTO
+        state = (args.get("state") or "").strip()
+        rto = args.get("rto_id") or _default_rto_for(state)
         citizen_ref = args["citizen_ref"]
+        name = (args.get("full_name") or "").strip()
+        dob = (args.get("dob") or "").strip() or None
+        classes = [c for c in (args.get("licence_classes") or []) if c]
+
+        # The schema's "required" list is advice to the model, not a rule the
+        # service enforces — a model that skipped the questions still got an
+        # application, blank where the citizen's details should be. That is the
+        # exact thing this tool was rewritten to stop, so the check lives here
+        # too. Returned rather than raised: the model needs to go and ask, not
+        # to see a failure it will apologise for and abandon.
+        missing = _missing_application_details(name, dob, state, classes)
+        if missing:
+            return {
+                "needs": [m["field"] for m in missing],
+                "ask_for": missing,
+                "error": ("The form cannot be filed yet. Ask the citizen for "
+                          "these in plain words, one or two at a time, then "
+                          "call this tool again with all of them."),
+            }
+
         key = _stable_idempotency_key(citizen_ref, kind, rto)
-        app_obj = be.apply(citizen_ref, kind, rto, key)
-        return {"application_id": app_obj.id, "application_no": app_obj.display_no,
-                "status": app_obj.status.value,
-                "rto_id": app_obj.rto_id, "office": _office_name(app_obj.rto_id),
-                "next_action": _NEXT_ACTION.get(app_obj.status, "")}
+        app_obj = be.apply(citizen_ref, kind, rto, key, dob=dob,
+                           applicant_name=name or None, licence_classes=classes)
+        return {
+            "application_id": app_obj.id, "application_no": app_obj.display_no,
+            "status": app_obj.status.value,
+            "rto_id": app_obj.rto_id, "office": _office_name(app_obj.rto_id),
+            "applicant_name": app_obj.applicant_name,
+            "licence_classes": app_obj.licence_classes,
+            # What the citizen actually told us, so the browser can put it into
+            # the same form the wizard uses and they can see their own answers
+            # rather than take Saarthi's word for what was filed.
+            "form_prefill": {
+                "state": state or None, "rto": app_obj.rto_id,
+                "full_name": name or None, "dob": dob,
+                "phone": (args.get("phone") or "").strip() or None,
+                "classes": classes,
+            },
+            # Said out loud, every time. The ledger row already reads
+            # "Documents verified (mock)"; until now the only place that
+            # qualifier did not reach was the one sentence a citizen actually
+            # hears, which is the sentence that matters most.
+            "verification": "mocked",
+            "disclosure": (
+                "No document, Aadhaar or OTP check was performed — verification "
+                "is simulated in this prototype. Every field beyond the name, "
+                "date of birth, state and vehicle class is the prototype's own "
+                "sample data, not the citizen's."
+            ),
+            "next_action": _NEXT_ACTION.get(app_obj.status, "")}
 
     if tool == "find_slot_days":
         rto = args.get("rto_id") or DEFAULT_RTO
@@ -517,6 +648,8 @@ def dispatch_tool(tool: str, args: dict) -> dict:
             return {"ok": False, "reason": "That time was just taken — pick another."}
         except AlreadyBooked:
             return {"ok": False, "reason": "You already have an appointment booked."}
+        except SlotPassed:
+            return {"ok": False, "reason": "That time has already passed. Look up the slots again."}
         except KeyError as e:
             return {"ok": False, "reason": str(e)}
         # booking_id is for the caller, not for speech: the panel needs it to put

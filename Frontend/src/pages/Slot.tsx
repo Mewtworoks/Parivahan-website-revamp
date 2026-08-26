@@ -128,7 +128,12 @@ export function Slot({ go, state, update }: PageProps) {
           <div className="card card-p col g14 fade">
             <Pill tone="brand">{t('Ready to confirm', 'पुष्टि के लिए तैयार', 'पुष्टीसाठी तयार')}</Pill>
             <h2>{chosenDay.label}, {time.time} · {office.name}</h2>
-            <p className="sub">{t(`Bring the originals of your age and address proof, a print of the e-receipt and this appointment letter. Reach ten minutes early. ${office.wait.toLowerCase()}.`, `अपने आयु और पता प्रमाण की मूल प्रति, ई-रसीद का प्रिंट और यह अपॉइंटमेंट लेटर लाएं। दस मिनट पहले पहुंचें। ${office.wait.toLowerCase()}।`, `तुमच्या वय आणि पत्ता पुराव्याची मूळ प्रत, ई-पावतीची प्रिंट आणि हे अपॉइंटमेंट लेटर आणा. दहा मिनिटे आधी पोहोचा. ${office.wait.toLowerCase()}.`)}</p>
+            {/* Two lines, not one run-on. The office's wait is its own sentence
+                already ("Avg wait once you arrive: 10 min"), and splicing it
+                lowercased onto the end of another one read as
+                "…ten minutes early. avg wait once you arrive: 10 min." */}
+            <p className="sub">{t('Bring the originals of your age and address proof, a print of the e-receipt and this appointment letter. Arrive ten minutes early.', 'अपने आयु और पता प्रमाण की मूल प्रति, ई-रसीद का प्रिंट और यह अपॉइंटमेंट लेटर लाएं। दस मिनट पहले पहुंचें।', 'तुमच्या वय आणि पत्ता पुराव्याची मूळ प्रत, ई-पावतीची प्रिंट आणि हे अपॉइंटमेंट लेटर आणा. दहा मिनिटे आधी पोहोचा.')}</p>
+            <span className="tiny row g6">{Icon.clock()} {office.wait}</span>
             <div className="row g12 wrapf">
               <button className="btn btn-p" disabled={!state.applicationId || pending === 'book'} onClick={() => void confirm('tutorial')}>{pending === 'book' ? t('Holding the slot…', 'स्लॉट रखा जा रहा है…') : t('Confirm and prepare for the test', 'पुष्टि करें और टेस्ट की तैयारी करें', 'पुष्टी करा आणि टेस्टची तयारी करा')} {Icon.right()}</button>
               <button className="btn btn-s" disabled={!state.applicationId || pending === 'book'} onClick={() => void confirm('status')}>{t('Confirm only', 'केवल पुष्टि करें', 'फक्त पुष्टी करा')}</button>

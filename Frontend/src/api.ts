@@ -345,6 +345,26 @@ export const proveLedgerTamper = () =>
 export const resetDemo = () =>
   request<{ reset: boolean; offices: number }>('/demo/reset', { method: 'POST' });
 
+// ------------------------------------------------------------------ identity
+// A stand-in for the portal's sign-in, not authentication — the service returns
+// the code because nothing sends an SMS, and says so in `delivered` and `note`.
+
+export interface SignInCode {
+  phone: string;
+  code: string;
+  delivered: boolean;
+  expires_in_minutes: number;
+  note: string;
+}
+
+export const requestSignInCode = (phone: string) =>
+  request<SignInCode>('/identity/request-code', { method: 'POST', body: { phone } });
+
+export const verifySignInCode = (phone: string, code: string) =>
+  request<{ citizen_ref: string; phone: string }>('/identity/verify', {
+    method: 'POST', body: { phone, code },
+  });
+
 // ---------------------------------------------------------------- voice agent
 
 export const startVoice = (citizenRef: string) =>

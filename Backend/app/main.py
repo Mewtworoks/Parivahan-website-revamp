@@ -46,10 +46,11 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from . import booking_engine as be
 from . import engine
+from . import identity
 from . import proofs
 from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
 from . import voice_agent
-from .booking_engine import AlreadyBooked, SlotTaken
+from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
 from .booking_models import LicenceKind
 from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
 from .seed_scenarios import SCENARIOS, scenario_by_id
@@ -125,9 +126,10 @@ class BookBody(BaseModel):
     slot_id: str
 
 
-# A previous run's applications, bookings and queue first, if any: restarting
-# the process used to wipe a demo mid-session. Then seed, which fills in any
-# office or day the snapshot did not have and is safe to run over live data.
+# Open the store — a previous run's applications, bookings and queue are
+# already in it, because the database is the state rather than a copy of it.
+# Then seed, which fills in any office or day it does not yet have and is safe
+# to run over live data, and safe to run from two workers at once.
 be.restore()
 be.seed_catalogue()
 
@@ -292,6 +294,8 @@ def book(body: BookBody):
         raise HTTPException(409, "That slot was just taken — pick another.")
     except AlreadyBooked:
         raise HTTPException(409, "This application already holds an appointment.")
+    except SlotPassed:
+        raise HTTPException(409, "That time has already passed — pick a later one.")
     except KeyError as e:
         raise HTTPException(404, str(e))
     tester = be.get_tester(b.tester_id)
@@ -456,6 +460,48 @@ def _caller(request: Request) -> str | None:
     if forwarded:
         return forwarded.split(",")[0].strip()[:64]
     return request.client.host if request.client else None
+
+
+# --------------------------- Identity (a stand-in) -------------------------
+# Not authentication — app/identity.py says so at length and so does the screen
+# that uses it. Its whole job is to give the wizard, the agent and the tracker
+# one `citizen_ref` instead of three, so `latest_application_for()` can find the
+# journey somebody already started.
+
+
+class PhoneBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+
+
+class VerifyBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+    code: str = Field(..., min_length=1, max_length=8)
+
+
+@app.post("/identity/request-code", tags=["identity"])
+def identity_request_code(body: PhoneBody):
+    """
+    Issue a sign-in code — and return it, because nothing here sends an SMS.
+
+    The response says `delivered: false` and carries a note explaining why, so a
+    client cannot present this as a real one-time password without ignoring the
+    field that tells it not to.
+    """
+    try:
+        return identity.request_code(body.phone)
+    except identity.BadPhone as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/identity/verify", tags=["identity"])
+def identity_verify(body: VerifyBody):
+    """Exchange the code for the reference the rest of the journey is keyed on."""
+    try:
+        return identity.verify(body.phone, body.code)
+    except identity.BadPhone as exc:
+        raise HTTPException(400, str(exc))
+    except identity.BadCode as exc:
+        raise HTTPException(401, str(exc))
 
 
 @app.post("/agent/voice/start", tags=["agent"])

@@ -18,7 +18,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .narrow{max-width:760px;margin:0 auto;padding:0 24px}
 .col{display:flex;flex-direction:column}
 .row{display:flex;align-items:center}
-.g4{gap:4px}.g6{gap:6px}.g8{gap:8px}.g10{gap:10px}.g12{gap:12px}.g16{gap:16px}.g20{gap:20px}.g24{gap:24px}.g32{gap:32px}
+/* g14 was used in thirty places and defined in none of them, so every one of
+   those containers was silently rendering at gap:0 — which is why the proof
+   cards, the desk lanes and the slot confirmation all read as cramped. */
+.g4{gap:4px}.g6{gap:6px}.g8{gap:8px}.g10{gap:10px}.g12{gap:12px}.g14{gap:14px}.g16{gap:16px}.g20{gap:20px}.g24{gap:24px}.g32{gap:32px}
 .wrapf{flex-wrap:wrap}
 .grow{flex:1}
 .center{align-items:center}.between{justify-content:space-between}

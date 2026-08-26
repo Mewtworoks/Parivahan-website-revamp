@@ -1,6 +1,9 @@
 fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
+# Storage. SQLite needs no driver of its own; the URL is the only thing that
+# changes to run the same schema on MySQL (+pymysql) or Postgres (+psycopg).
+SQLAlchemy>=2.0.30
 python-dotenv>=1.0.1
 httpx>=0.27.0
 pytest>=8.2.0

@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from conftest import BOOKABLE_DAY
 from app import booking_engine as be           # noqa: E402
 from app.booking_engine import SlotTaken       # noqa: E402
 from app.booking_models import LicenceKind     # noqa: E402
@@ -34,8 +35,8 @@ def test_distinct_keys_create_distinct_applications():
 
 
 def test_atomic_booking_has_exactly_one_winner():
-    be.seed_demo("rto_race")
-    slot = be.list_free_slots("rto_race")[0]
+    be.seed_demo("rto_race", BOOKABLE_DAY)
+    slot = be.list_free_slots("rto_race", BOOKABLE_DAY)[0]
     apps = [be.apply(f"c{i}", LicenceKind.LL, "rto_race", f"race-i{i}")
             for i in range(40)]
 
@@ -55,15 +56,15 @@ def test_atomic_booking_has_exactly_one_winner():
     assert win == 1 and lose == 39, "double-booking occurred!"
 
     # And the losers are still free to book elsewhere — no state was corrupted.
-    assert be.list_free_slots("rto_race"), "the race consumed unrelated slots"
+    assert be.list_free_slots("rto_race", BOOKABLE_DAY), "the race consumed unrelated slots"
 
 
 def test_seed_demo_is_idempotent():
     """Re-seeding the same RTO-day must not duplicate the slot grid."""
-    be.seed_demo("rto_reseed")
-    first = len(be.list_free_slots("rto_reseed"))
-    be.seed_demo("rto_reseed")
-    assert len(be.list_free_slots("rto_reseed")) == first
+    be.seed_demo("rto_reseed", BOOKABLE_DAY)
+    first = len(be.list_free_slots("rto_reseed", BOOKABLE_DAY))
+    be.seed_demo("rto_reseed", BOOKABLE_DAY)
+    assert len(be.list_free_slots("rto_reseed", BOOKABLE_DAY)) == first
 
 
 if __name__ == "__main__":

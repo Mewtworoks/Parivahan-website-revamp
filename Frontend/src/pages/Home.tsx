@@ -27,8 +27,17 @@ const JOURNEY_STEPS: [heading: string, headingHi: string, headingMr: string, bod
 
 const DIFFERENTIATORS: [heading: string, headingHi: string, headingMr: string, body: string][] = [
   ['The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे', 'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.'],
-  ['You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves after every step. Come back on any device with the same mobile number and continue from where you left.'],
-  ['A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes remaining capacity and the average wait after you arrive, so a booking is a real appointment rather than a token.'],
+  // Both of these used to claim something the build did not do. The first
+  // promised a cross-device resume off a mobile number, with nothing behind it
+  // at all — the application lived in memory and a refresh threw it away. The
+  // browser keeps it now, so the claim is scoped to what is actually true.
+  ['You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves as you go and survives closing the tab, so a dropped connection costs you one step and not the whole form. Once it is submitted, the number and your date of birth open it from anywhere.'],
+  // The second said a booking is "an appointment rather than a token", which
+  // reads as a dig at the queue token this build issues and spends a whole
+  // screen making meaningful. The two are not rivals: the appointment is the
+  // time you were given, the token is your place on the day — and it is now
+  // ordered by appointment, which is the thing worth claiming.
+  ['A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes what is genuinely left and the average wait once you arrive. On the day, the queue is called in appointment order — so turning up at dawn earns nothing, and the time you booked is the time you are seen.'],
 ];
 
 export function Home({ go, update }: PageProps) {
@@ -178,6 +187,35 @@ export function Home({ go, update }: PageProps) {
             {DIFFERENTIATORS.map(([heading, headingHi, headingMr, body]) => (
               <div key={heading} className="col g8"><h3 style={{ color: '#fff' }}>{t(heading, headingHi, headingMr)}</h3><p className="sub" style={{ lineHeight: 1.6 }}>{body}</p></div>
             ))}
+          </div>
+        </div>
+      </section>
+      {/* Directly under the three claims, because these two screens are where
+          the claims are checked rather than asserted. Both were reachable only
+          from the footer and — for the desk — from a block inside the tracker
+          that does not render until somebody has checked in, which meant the
+          strongest thing in the build was the hardest thing to find. */}
+      <section className="wrap" style={{ marginTop: 20 }}>
+        <div className="col g16">
+          <div className="row between g16 wrapf">
+            <h2>{t('Or check the claims yourself', 'या फिर दावों को खुद जांचें', 'किंवा दावे स्वतः तपासा')}</h2>
+            <span className="sub">{t('Two screens, both reading the live service', 'दो स्क्रीन, दोनों लाइव सेवा से पढ़ रही हैं', 'दोन स्क्रीन, दोन्ही लाइव्ह सेवेतून वाचत आहेत')}</span>
+          </div>
+          <div className="grid2" style={{ gap: 20 }}>
+            <div className="card card-p col g12">
+              <span className="eyebrow">{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</span>
+              <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Open it beside the tracker, call the next token, and the wait on the applicant’s phone recalculates while you watch. Nothing is simulated — both screens read one queue.', 'उसी कतार का काउंटर वाला हिस्सा। इसे ट्रैकर के साथ खोलिए, अगला टोकन बुलाइए, और आवेदक के फ़ोन का इंतज़ार आपकी आंखों के सामने बदल जाएगा। कुछ भी नकली नहीं — दोनों स्क्रीन एक ही कतार पढ़ती हैं।', 'त्याच रांगेची काउंटरकडची बाजू. ट्रॅकरशेजारी उघडा, पुढचे टोकन बोलवा, आणि अर्जदाराच्या फोनवरची वाट तुमच्या डोळ्यांसमोर बदलेल. काहीही बनावट नाही — दोन्ही स्क्रीन एकच रांग वाचतात.')}</p>
+              <div className="grow" />
+              <div><button className="btn btn-s" onClick={() => go('desk')}>{t('Open the inspector desk', 'निरीक्षक डेस्क खोलें', 'निरीक्षक डेस्क उघडा')} {Icon.right()}</button></div>
+            </div>
+            <div className="card card-p col g12">
+              <span className="eyebrow">{t('Runnable', 'चलाकर देखें', 'चालवून पहा')}</span>
+              <h3>{t('See the guarantees run', 'गारंटी चलती देखें', 'हमी चालताना पहा')}</h3>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit. Each one is fired at the live service from this page — two people race for one slot, the same application is submitted twice, a record is tampered with — and you are shown what came back.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव। हर एक इसी पेज से लाइव सेवा पर चलाया जाता है — दो लोग एक ही स्लॉट के लिए दौड़ते हैं, एक ही आवेदन दो बार जमा होता है, एक रिकॉर्ड से छेड़छाड़ की जाती है — और जो जवाब आया वह आपको दिखाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही. प्रत्येक याच पानावरून लाइव्ह सेवेवर चालवली जाते — दोन माणसे एकाच स्लॉटसाठी धावतात, एकच अर्ज दोनदा सादर होतो, एका नोंदीत फेरफार केला जातो — आणि काय उत्तर आले ते तुम्हाला दाखवले जाते.')}</p>
+              <div className="grow" />
+              <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
+            </div>
           </div>
         </div>
       </section>
