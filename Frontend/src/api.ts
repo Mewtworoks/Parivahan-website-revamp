@@ -237,7 +237,11 @@ export interface VoiceToolEvent {
   tool: string;
   // 'deferred' is a tool the agent asked for in the same breath as one that
   // needs confirming — answered so the transcript stays valid, but not run.
-  status: 'complete' | 'error' | 'awaiting_confirmation' | 'deferred';
+  // 'collecting' is a form answer stored with the form still incomplete;
+  // 'redirected' is a slot lookup sent back to the form; 'corrected' is a
+  // reply the service refused to speak because it contradicted the record.
+  status: 'complete' | 'error' | 'awaiting_confirmation' | 'deferred'
+        | 'collecting' | 'redirected' | 'corrected';
   result?: Record<string, unknown>;
 }
 
@@ -288,6 +292,18 @@ export const apply = (input: ApplyInput) =>
 
 export const getApplication = (id: string, signal?: AbortSignal) =>
   request<ApplicationView>(`/application/${id}`, { signal });
+
+/**
+ * The application filed under a signed-in number, without the number-and-DOB
+ * lookup. Throws a 404 ApiError when there is none, which is a normal state and
+ * not a failure — most people arriving here have not applied yet.
+ *
+ * The lookup form stays for everyone else: somebody checking on a relative's
+ * application has the slip, not the phone it was filed from.
+ */
+export const citizenApplication = (citizenRef: string, signal?: AbortSignal) =>
+  request<ApplicationView>(
+    `/citizen/${encodeURIComponent(citizenRef)}/application`, { signal });
 
 export const findApplication = (no: string, dob: string, signal?: AbortSignal) =>
   request<ApplicationView>(`/application/by-number/${encodeURIComponent(no)}?dob=${encodeURIComponent(dob)}`, { signal });
@@ -367,18 +383,43 @@ export const verifySignInCode = (phone: string, code: string) =>
 
 // ---------------------------------------------------------------- voice agent
 
-export const startVoice = (citizenRef: string) =>
-  request<{ session_id: string; expires_in_minutes: number }>('/agent/voice/start', {
-    method: 'POST', body: { citizen_ref: citizenRef },
+export interface VoiceStart {
+  session_id: string;
+  expires_in_minutes: number;
+  /**
+   * The opening line, composed by the service from what the record already
+   * says about this citizen — an appointment, a filed application, a form left
+   * half-answered. It costs no model call, which is why the panel now asks for
+   * it instead of greeting from a hardcoded string: the first turn used to be
+   * the slowest in the conversation and it was spent saying hello.
+   */
+  greeting: string;
+  /** Whether this picked something up rather than starting from nothing. */
+  resumed: boolean;
+}
+
+export const startVoice = (citizenRef: string, language = 'en') =>
+  request<VoiceStart>('/agent/voice/start', {
+    method: 'POST', body: { citizen_ref: citizenRef, language },
   });
 
-export const voiceTurn = (sessionId: string, transcript: string) =>
+/**
+ * The picker travels with every turn, not just with the session.
+ *
+ * The service used to read each message and decide the language from it, which
+ * flipped a Hindi conversation to English on the word "9:30". The site language
+ * is the answer and always was — someone who wants to switch does it with the
+ * picker, where they can see what they chose.
+ */
+export const voiceTurn = (sessionId: string, transcript: string, language = 'en') =>
   request<VoiceReply>('/agent/voice/turn', {
-    method: 'POST', body: { session_id: sessionId, transcript },
+    method: 'POST', body: { session_id: sessionId, transcript, language },
   });
 
-export const confirmVoiceAction = (sessionId: string) =>
-  request<VoiceReply>('/agent/voice/confirm', { method: 'POST', body: { session_id: sessionId } });
+export const confirmVoiceAction = (sessionId: string, language = 'en') =>
+  request<VoiceReply>('/agent/voice/confirm', {
+    method: 'POST', body: { session_id: sessionId, language },
+  });
 
 export const cancelVoiceAction = (sessionId: string) =>
   request<{ session_id: string; cancelled: boolean }>('/agent/voice/cancel', { method: 'POST', body: { session_id: sessionId } });

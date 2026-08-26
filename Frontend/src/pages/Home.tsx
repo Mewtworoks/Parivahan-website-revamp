@@ -41,6 +41,33 @@ export function Home({ go, update }: PageProps) {
   const t = useT();
   const { lang } = useLanguage();
 
+  const services: ServiceCard[] = [
+    {
+      id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
+      desc: t('Your first licence. Apply online, then visit the RTO once for the test.',
+        'आपका पहला लाइसेंस। ऑनलाइन आवेदन कीजिए, फिर टेस्ट के लिए एक बार आरटीओ जाइए।',
+        'तुमचे पहिले लायसन्स. ऑनलाइन अर्ज करा, नंतर टेस्टसाठी एकदा आरटीओला जा.'),
+      meta: [
+        t('Eight stages, about 14 minutes', 'आठ चरण, लगभग 14 मिनट', 'आठ टप्पे, सुमारे 14 मिनिटे'),
+        t('₹150 per class plus one ₹50 test fee', 'प्रति श्रेणी ₹150 और एक बार ₹50 टेस्ट शुल्क', 'प्रति वर्ग ₹150 आणि एकदा ₹50 टेस्ट शुल्क'),
+        t('With Aadhaar: no RTO visit at all', 'आधार के साथ: आरटीओ जाने की ज़रूरत नहीं', 'आधारसह: आरटीओला जाण्याची गरज नाही'),
+        t('10 questions, 6 to pass', '10 प्रश्न, पास होने के लिए 6', '10 प्रश्न, उत्तीर्ण होण्यासाठी 6'),
+      ],
+      // Straight into the wizard. The eligibility check is a separate question
+      // with its own button in the hero — routing "Start" through it made
+      // someone who already knows they qualify answer three questions before
+      // they were allowed to begin. Stage one's Back still goes to the
+      // checklist, so what you need to have ready stays one press away.
+      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'apply'
+    },
+    // DL journey parked — the wizard exists but has no service behind it, and a
+    // card here is an invitation to find that out. See the note in types.ts.
+    // { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),
+    //   desc: 'Convert a valid learner\'s licence into a permanent driving licence.',
+    //   meta: ['Starts from your LL number', '₹500 — ₹200 grant + ₹300 test', 'LL must be 30 to 180 days old', 'You bring the vehicle to the test'],
+    //   cta: t('Start driving licence', 'ड्राइविंग लाइसेंस शुरू करें', 'ड्रायव्हिंग लायसन्स सुरू करा'), targetRoute: 'dl' },
+  ];
+
   return (
     <div className="fade">
       <section className="hero">
@@ -56,7 +83,15 @@ export function Home({ go, update }: PageProps) {
                 : lang === 'mr'
                   ? <>तुमच्या लर्नर लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
                   : <>Apply for your<br />learner's licence<br /><span className="uline">online.</span></>}</h1>
-              <p className="lede" style={{ maxWidth: 520 }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
+              {/* A fixed 520 held on every screen, so as the hero grew the
+                sentence stayed a narrow column with the headline stretching
+                away above it. Still capped — this is prose — but it now tracks
+                the column it sits in. */}
+              <p className="lede" style={{ maxWidth: 'min(620px, 100%)' }}>
+                {t('Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.',
+                  'अपनी पात्रता जाँचिए, आवेदन पूरा कीजिए, सही शुल्क दीजिए, आरटीओ टेस्ट का स्लॉट बुक कीजिए और स्थिति देखिए — सब एक ही जगह।',
+                  'तुमची पात्रता तपासा, अर्ज पूर्ण करा, नेमके शुल्क भरा, आरटीओ टेस्टचा स्लॉट बुक करा आणि स्थिती पाहा — सर्व एकाच ठिकाणी.')}
+              </p>
               <div className="row g12 wrapf" style={{ marginTop: 4 }}>
                 <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
                 <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>

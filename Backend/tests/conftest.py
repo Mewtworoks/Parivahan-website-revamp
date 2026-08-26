@@ -16,8 +16,27 @@ deleted when the process ends: real connections, real locking, real proof.
 import os
 from datetime import date, timedelta
 
+import pytest
+
 os.environ["STATE_FILE"] = ":memory:"
 os.environ.pop("DATABASE_URL", None)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """
+    Saarthi's rate limits are per caller, and the whole suite is one caller.
+
+    Sixty turns in five minutes is generous for a person and nothing at all for
+    a test file: adding tests started failing unrelated ones with a 429, which
+    reads as a broken agent rather than as a shared bucket. The limits are
+    tested directly in test_voice_agent.py, so clearing them here removes the
+    coupling without removing the coverage.
+    """
+    from app import voice_agent
+    voice_agent._CALLER_HITS.clear()
+    yield
+    voice_agent._CALLER_HITS.clear()
 
 def applicant(ref: str, **overrides) -> dict:
     """

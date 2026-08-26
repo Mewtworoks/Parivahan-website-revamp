@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { clearConversation } from './conversation';
 
 /**
  * Who the browser is currently acting as, as a mobile number.
@@ -42,6 +43,10 @@ export function signIn(phone: string): void {
 export function signOut(): void {
   current = null;
   try { localStorage.removeItem(KEY); } catch { /* nothing stored */ }
+  // The transcript belongs to whoever was signed in. Left behind, the next
+  // person to open Saarthi on this device reads the last one's conversation —
+  // including their name and date of birth, said out loud in it.
+  clearConversation();
   for (const listener of listeners) listener(current);
 }
 

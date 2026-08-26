@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as api from '../api';
+import { clearConversation } from '../lib/conversation';
 import { clearJourney } from '../lib/journeyStore';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
@@ -97,6 +98,7 @@ export function Proof(_props: PageProps) {
     // leftovers" this button exists to prevent. Reloading is the honest way to
     // land on a clean slate rather than clearing thirteen keys by hand.
     clearJourney();
+    clearConversation();
     window.location.hash = '#/home';
     window.location.reload();
   });

@@ -3,6 +3,7 @@ import * as api from '../api';
 import { SEED_STATUS } from '../data/applicant';
 import { CLASSES } from '../data/vehicleClasses';
 import { formatDay, formatTime, formatWait } from '../lib/format';
+import { prettyPhone, useIdentity } from '../lib/identity';
 import { useT } from '../lib/language';
 import { useAction, useApi, usePolling } from '../lib/useApi';
 import { TODAY_ISO } from '../lib/validate';
@@ -32,11 +33,41 @@ export function Status({ go, state, update }: PageProps) {
   const [dob, setDob] = useState(ownApplication ? (form.dob || '') : '');
   const [lookupId, setLookupId] = useState<string | null>(state.applicationId || null);
   const [notFound, setNotFound] = useState(false);
+  const [mine, setMine] = useState(false);
   const { pending, run } = useAction();
+  const phone = useIdentity();
 
   useEffect(() => {
     if (state.applicationId) setLookupId(state.applicationId);
   }, [state.applicationId]);
+
+  // Signed in, so the application is already known — ask for it by number
+  // instead of asking the citizen to type the number.
+  //
+  // Saarthi has read this record back by name on the panel beside this screen,
+  // and the tracker was still presenting an empty two-field lookup: the same
+  // service, in the same tab, for the same person, pretending not to know who
+  // they were. The lookup stays below for everyone else — somebody checking on
+  // a relative's application has the slip, not the phone it was filed from.
+  useEffect(() => {
+    if (!phone || state.applicationId) return;
+    let dropped = false;
+    void (async () => {
+      try {
+        const found = await api.citizenApplication(phone);
+        if (dropped) return;
+        setMine(true);
+        setLookupId(found.application_id);
+        setApplicationNo(found.application_no);
+        if (found.dob) setDob(found.dob);
+        update({ applicationId: found.application_id });
+      } catch {
+        // A 404 is the ordinary case: signed in, nothing applied for yet.
+      }
+    })();
+    return () => { dropped = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, state.applicationId]);
 
   // The application as the service holds it. Repolled so a colleague advancing
   // the queue at the office shows up here without a reload.
@@ -86,7 +117,21 @@ export function Status({ go, state, update }: PageProps) {
         <h1>{t('Where your application is', 'आपका आवेदन कहां है', 'तुमचा अर्ज कुठे आहे')}</h1>
         <p className="lede">{t('The official portal asks for your application number, your date of birth and a captcha, then shows a table of stage names. Same two inputs, no captcha, and each stage says what it means for you.', 'आधिकारिक पोर्टल आपका आवेदन नंबर, जन्म तिथि और एक कैप्चा मांगता है, फिर चरण नामों की एक तालिका दिखाता है। वही दो इनपुट, कोई कैप्चा नहीं, और हर चरण बताता है कि आपके लिए इसका क्या मतलब है।', 'अधिकृत पोर्टल तुमचा अर्ज क्रमांक, जन्मतारीख आणि एक कॅप्चा मागते, नंतर टप्प्यांच्या नावांचा तक्ता दाखवते. तेच दोन इनपुट, कॅप्चा नाही, आणि प्रत्येक टप्पा सांगतो की तुमच्यासाठी त्याचा अर्थ काय आहे.')}</p>
       </div>
-      <div className="card card-p col g16">
+      {/* Said before the two empty boxes below it, not after: somebody signed in
+          who can already see their application does not need to work out that
+          the form is for looking up somebody else's. */}
+      {mine && phone && (
+        <Note tone="ok" icon={Icon.check()}>
+          {t(`Showing the application filed under ${prettyPhone(phone)}.`,
+            `${prettyPhone(phone)} पर दर्ज आवेदन दिखाया जा रहा है।`)}{' '}
+          <span className="tiny">
+            {t('Enter a different number and date of birth below to look up another one.',
+              'दूसरा आवेदन देखने के लिए नीचे अलग नंबर और जन्म तिथि डालिए।')}
+          </span>
+        </Note>
+      )}
+
+      <div className="card card-p col g16" style={mine ? { marginTop: 14 } : undefined}>
         <div className="grid2">
           <Field label={t('Application number', 'आवेदन नंबर', 'अर्ज क्रमांक')}><Input className="input mono" placeholder="SS-2026-004182" value={applicationNo} onChange={e => setApplicationNo(e.target.value)} /></Field>
           <Field label={t('Date of birth', 'जन्म तिथि', 'जन्मतारीख')}><Input type="date" max={TODAY_ISO} value={dob} onChange={e => setDob(e.target.value)} /></Field>
