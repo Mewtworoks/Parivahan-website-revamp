@@ -1,19 +1,31 @@
 """
-OpenAI Realtime API function-tools for the LL journey copilot.
+Function-tools for the LL journey copilot.
 
 The agent is a *citizen-side* voice copilot that guides someone through the
 Learner Licence journey in Hindi/English. It is wired to the same backend
 state as the test and the booking engine, so it can actually act — not just
 chat.
 
-Flow to register these:
-  1. GET /agent/tools  -> this schema
-  2. Add them to your Realtime session `tools` on session.update
-  3. When the model emits a function_call, POST /agent/dispatch
-     {tool, arguments} and return the result to the model.
+The schema here is deliberately model-agnostic: a flat list of name /
+description / JSON-Schema parameters, which is the shape every current
+function-calling API accepts with at most a reshuffle. ``voice_agent`` nests it
+into the Chat Completions shape in ``_chat_tools()``; a speech-to-speech
+Realtime session would take it nearly as-is.
 
-Keep the *voice* layer on OpenAI Realtime (speech-to-speech, multilingual).
-You can still use LangGraph as the higher-level planner if you like.
+What actually ships is **OpenAI's gpt-oss-20b**, an open-weight model, served
+over NVIDIA NIM's OpenAI-compatible endpoint. That is a deliberate choice for a
+government deployment rather than a fallback: the weights are open, so the same
+agent can run on hardware inside the country with no citizen utterance leaving
+it, and the marginal cost per district is compute rather than per-token billing.
+Swapping the base URL and model in .env is the whole migration to a hosted API.
+
+Two ways to drive it:
+  * Server-side (what the frontend uses) — POST /agent/voice/turn. The key
+    stays in FastAPI, and state-changing tools are held behind an on-screen
+    confirmation. See voice_agent.py.
+  * Client-side, if you own the model socket — GET /agent/tools for this
+    schema, then POST /agent/dispatch {tool, arguments} on each function call
+    and hand the result back to the model.
 """
 
 from __future__ import annotations
@@ -30,7 +42,7 @@ from .seed_scenarios import SCENARIOS, scenario_by_id
 
 DEFAULT_RTO = "mh01"
 
-# --- The JSON schema you hand to the Realtime session --------------------
+# --- The JSON schema the model is given --------------------------------------
 
 AGENT_TOOL_SCHEMA = [
     {

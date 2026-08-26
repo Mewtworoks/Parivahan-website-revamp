@@ -12,8 +12,15 @@ fixes instead of claiming them.
 | No proof a pass was recorded honestly | Hash-chained journey ledger | tampering flips `chain_valid` to `false` |
 
 A secondary flow replaces the static text MCQ with an animated **scenario**
-test — judgment over memorization — and a voice copilot (OpenAI Realtime)
-drives the same backend through function tools, so it can act, not just chat.
+test — judgment over memorization — and **Saarthi**, a Hindi-first voice
+copilot, drives the same backend through function tools, so it can act, not
+just chat.
+
+Saarthi runs **OpenAI's `gpt-oss-20b`**, an open-weight model, served over
+NVIDIA NIM's OpenAI-compatible endpoint. Open weights are the point rather than
+a compromise: the same agent can run on hardware inside the country, so no
+citizen utterance has to leave it, and the marginal cost per district is compute
+instead of per-token billing. Moving to a hosted API is two lines of `.env`.
 
 ---
 
@@ -51,9 +58,9 @@ Backend/
 │   ├── booking_models.py      # Application (hash-chained ledger), RTO, Tester, Slot, Booking, QueueToken
 │   ├── booking_engine.py      # idempotent apply, atomic booking, live queue + ETA
 │   ├── models.py              # scenario schema + attempt/scoring (the legal shell)
-│   ├── seed_scenarios.py      # scenario bank (19 scenarios, every competency covered)
+│   ├── seed_scenarios.py      # scenario bank (40 scenarios, every competency covered)
 │   ├── engine.py              # test build / scoring / proctoring
-│   └── agent_tools.py         # OpenAI Realtime function tools + dispatcher
+│   └── agent_tools.py         # Model-agnostic function tools + dispatcher
 └── tests/
     ├── test_concurrency.py       # the two concurrency guarantees
     ├── test_journey.py           # end-to-end HTTP journey, test engine, agent tools
@@ -99,17 +106,23 @@ application wizard is already a valid `rto_id` here — no mapping layer.
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| `GET` | `/agent/tools` | Function-tool schema to register on `session.update`. |
-| `POST` | `/agent/dispatch` | Execute a tool call the Realtime model emitted. |
+| `GET` | `/agent/tools` | Function-tool schema, for a client driving its own model socket. |
+| `POST` | `/agent/dispatch` | Execute a tool call that model emitted. |
 | `POST` | `/agent/voice/start` | Start a 30-minute server-side Saarthi conversation. |
 | `POST` | `/agent/voice/turn` | Send browser-recognised speech to NVIDIA and receive a reply. |
 | `POST` | `/agent/voice/confirm` | Execute a pending apply, booking, or check-in only after the citizen confirms. |
 | `POST` | `/agent/voice/cancel` | Discard the pending state-changing request. |
 | `DELETE` | `/agent/voice/{session_id}` | End the voice conversation. |
 
-Wiring: `GET /agent/tools` → add to the Realtime session's `tools` → on a
-`function_call`, `POST /agent/dispatch {tool, arguments}` and hand the result
-back to the model. The backend never holds the socket; the client owns the key.
+The frontend uses `/agent/voice/*`: the key stays in FastAPI, the browser only
+does microphone transcription and speech playback, and `apply`, `book_slot` and
+`check_in` are held until the citizen presses a visible confirmation button — so
+a model retry cannot silently file an application or book an appointment.
+
+`/agent/tools` + `/agent/dispatch` are the alternative for a client that owns
+its own model socket: register the schema on the session, then post each
+function call here and hand the result back. The schema is model-agnostic, so a
+speech-to-speech Realtime session takes it with at most a reshuffle.
 
 ---
 
@@ -123,9 +136,19 @@ back to the model. The backend never holds the socket; the client owns the key.
 - **Append-only ledger.** Every state transition is a hash-chained row.
   Altering, inserting, or dropping any event breaks every hash after it, so
   `chain_valid` goes false — no clerk can quietly rewrite a journey.
-- **State is in-memory** (`_APPS`, `_SLOTS`, `_TOKENS`, `_ATTEMPTS`). Restarting
-  clears it. The shapes are already Pydantic models, so persistence is a thin
-  layer, not a rewrite.
+- **State is in-memory** (`_APPS`, `_SLOTS`, `_TOKENS`, `_ATTEMPTS`), with every
+  mutating entry point snapshotting to `state.json` on the way out and
+  `be.restore()` reloading it at startup — so a restart mid-demo no longer wipes
+  the journey. Test attempts are the exception and are not snapshotted. The
+  shapes are Pydantic models, so real persistence is a thin layer, not a
+  rewrite. `POST /demo/reset` returns to a clean slate.
+- **Two identifiers, two levels of protection.** `application_id` is a v4 uuid —
+  122 bits, not enumerable — so `GET /application/{id}` treats holding one as
+  evidence you were given it. The display number is sequential
+  (`SS-2026-004182`, then `…183`), so `GET /application/by-number` demands the
+  date of birth as well and a wrong one is a 404, never a partial reveal. A uuid
+  as a bearer capability is right for a prototype and is not authentication: in
+  production both sit behind the portal's Aadhaar/mobile session.
 - **Option order carries no information.** Every scenario in the bank is
   authored with its correct option first, so the served order is permuted per
   attempt (seeded on attempt + scenario, so a refresh does not rearrange the

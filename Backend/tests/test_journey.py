@@ -1,7 +1,7 @@
 """
 End-to-end journey over the HTTP surface: apply -> slots -> book -> check in
 -> queue -> tester calls next -> tamper-evident receipt. Plus the ledger
-tamper check and a full 15-scenario test run.
+tamper check and a full scenario test run, however long QUESTIONS_PER_TEST is.
 
 Run:  pytest    (from the Backend directory)
 """

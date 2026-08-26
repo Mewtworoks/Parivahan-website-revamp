@@ -1,6 +1,8 @@
 """
-Test engine: builds a 15-question test, records answers, enforces the legal
-pass shell, and exposes proctoring hooks.
+Test engine: builds a QUESTIONS_PER_TEST-long test, records answers, enforces
+the legal pass shell, and exposes proctoring hooks. The count and the pass mark
+live in models.py — nothing here restates them, because prose that drifts from
+the constants is what told citizens the wrong test format.
 
 In-memory store for the demo. Swap `_ATTEMPTS` for Postgres in production —
 the shapes are already Pydantic models, so persistence is a thin layer.

@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
+import { useLanguage, useT, type Lang } from '../lib/language';
 import type { AppState } from '../types';
 import { Icon } from '../ui/Icon';
 import { Note, Sheet } from '../ui/SharedUI';
+
+/**
+ * The recogniser and the speech synthesiser both want a BCP-47 tag, and getting
+ * it wrong is not a degraded experience but a broken one: hi-IN handed an
+ * English sentence returns Devanagari nonsense, so the citizen's question
+ * reaches Saarthi as words they never said.
+ */
+const SPEECH_LOCALE: Record<Lang, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
 
 type Turn = { who: 'citizen' | 'saarthi'; text: string };
 
@@ -24,20 +33,37 @@ function canRecogniseSpeech(): boolean {
     || (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
 }
 
-function speak(text: string) {
+/**
+ * Read a reply aloud in the language it was actually written in.
+ *
+ * Devanagari settles it outright. Otherwise the reply is either English or
+ * Hinglish \u2014 romanised Hindi, which an en-IN voice pronounces far closer than
+ * a hi-IN one does \u2014 so fall back to the picker, which is what the citizen
+ * chose to read the rest of the site in.
+ */
+function speak(text: string, uiLang: Lang) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : 'en-IN';
+  utterance.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : SPEECH_LOCALE[uiLang];
   utterance.rate = 0.95;
   window.speechSynthesis.speak(utterance);
 }
 
 /** Voice facade for Saarthi. The API key remains in FastAPI; this is mic + UI only. */
 export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
+  const { lang } = useLanguage();
+  const t = useT();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const sessionRef = useRef<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([{ who: 'saarthi', text: 'नमस्ते, मैं सारथी हूँ। मैं लाइसेंस के लिए सही अगला कदम बता सकता हूँ।' }]);
+  // Opens in the language the citizen is already reading the site in. A Hindi
+  // greeting to someone who chose English is an invitation to answer in Hindi,
+  // which is not what they asked for.
+  const [turns, setTurns] = useState<Turn[]>(() => [{
+    who: 'saarthi',
+    text: t('Hello, I am Saarthi. I can tell you the right next step for your licence.',
+            'नमस्ते, मैं सारथी हूँ। मैं लाइसेंस के लिए सही अगला कदम बता सकता हूँ।'),
+  }]);
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [working, setWorking] = useState(false);
@@ -78,7 +104,7 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
   const acceptReply = (reply: api.VoiceReply) => {
     setTurns(old => [...old, { who: 'saarthi', text: reply.reply }]);
     setPending(reply.pending_confirmation?.label || null);
-    speak(reply.reply);
+    speak(reply.reply, lang);
     for (const event of reply.tool_events) {
       const result = event.result;
       if (!result) continue;
@@ -140,7 +166,10 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
     try {
       await api.cancelVoiceAction(sessionId);
       setPending(null);
-      setTurns(old => [...old, { who: 'saarthi', text: 'ठीक है, मैंने वह कार्रवाई रद्द कर दी है।' }]);
+      setTurns(old => [...old, {
+        who: 'saarthi',
+        text: t('All right, I have cancelled that action.', 'ठीक है, मैंने वह कार्रवाई रद्द कर दी है।'),
+      }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not cancel that action.');
     } finally { setWorking(false); }
@@ -152,7 +181,10 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
     if (!Ctor) { setError('Voice input works in Chrome. You can still type to Saarthi below.'); return; }
     setError(null);
     const recognition = new Ctor();
-    recognition.lang = 'hi-IN';
+    // Follows the picker rather than being pinned to Hindi. Pinned, an English
+    // speaker's question came back as Devanagari that resembled the sounds and
+    // meant nothing, and Saarthi answered a sentence nobody had said.
+    recognition.lang = SPEECH_LOCALE[lang];
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
@@ -198,7 +230,13 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
           <button className="btn btn-s" disabled={working || Boolean(pending) || !input.trim()} onClick={() => void send()}>Send</button>
         </div>
         <div className="row g8 wrapf">
-          {['मुझे लर्नर लाइसेंस बनवाना है', 'टेस्ट के लिए स्लॉट दिखाओ', 'मेरा नंबर और इंतज़ार कितना है?'].map(example => (
+          {/* Starters in the citizen's own language — a Hindi chip pressed by an
+              English speaker pins the whole conversation to Hindi, because the
+              service answers in the language of the last thing it was sent. */}
+          {(lang === 'hi'
+            ? ['मुझे लर्नर लाइसेंस बनवाना है', 'टेस्ट के लिए स्लॉट दिखाओ', 'मेरा नंबर और इंतज़ार कितना है?']
+            : ['I want a learner licence', 'Show me test slots', 'What is my token and wait?']
+          ).map(example => (
             <button key={example} className="btn btn-g btn-sm" disabled={working || Boolean(pending)} onClick={() => void send(example)}>{example}</button>
           ))}
         </div>

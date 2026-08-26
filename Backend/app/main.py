@@ -17,12 +17,12 @@ Endpoints:
   GET  /queue/{token_id}               position + tester + live ETA
   POST /tester/{id}/call-next          advance the queue
   GET  /rto/{id}/board                 waiting-hall / tester dashboard
-  POST /test/start                     begin a 15-scenario test
+  POST /test/start                     begin a scenario test (see / for the count)
   GET  /test/{attempt_id}/next         next scenario (answer stripped)
   POST /test/{attempt_id}/answer       submit an answer, get feedback
   GET  /test/{attempt_id}/result       final result + competency breakdown
   POST /test/{attempt_id}/proctor      proctoring subsystem posts events
-  GET  /agent/tools                    OpenAI Realtime function-tool schema
+  GET  /agent/tools                    function-tool schema for the copilot
   POST /agent/dispatch                 execute an agent tool call
 
 Run:  python main.py      (or: uvicorn app.main:app --reload)
@@ -181,7 +181,21 @@ def apply(body: ApplyBody):
 
 @app.get("/application/{app_id}", tags=["journey"])
 def application_status(app_id: str):
-    """Transparency: the full journey ledger, always readable."""
+    """
+    Transparency: the full journey ledger, always readable.
+
+    Deliberately ungated, unlike the by-number lookup below, and the difference
+    is the identifier rather than the data. `app_id` is a v4 uuid — 122 bits, not
+    enumerable — so holding one is itself the evidence you were given it. The
+    display number is sequential (SS-2026-004182, then ...183), so anyone can
+    count through the office's applications; that path is the one that has to ask
+    for a date of birth.
+
+    A uuid as a bearer capability is right for a prototype and is not an
+    authentication story. In production this sits behind the same Aadhaar/mobile
+    session the rest of the portal uses, and this endpoint checks it belongs to
+    the caller.
+    """
     a = be.get_application(app_id)
     if not a:
         raise HTTPException(404, "Application not found")
@@ -410,7 +424,13 @@ def proctor(attempt_id: str, body: ProctorBody):
 
 @app.get("/agent/tools", tags=["agent"])
 def agent_tools():
-    """Function-tool schema to register with the OpenAI Realtime session."""
+    """
+    Function-tool schema, for a client that owns its own model socket.
+
+    The frontend does not need this — it talks to /agent/voice/*, which keeps
+    the key server-side. Exposed because the schema is model-agnostic and the
+    same tools should be drivable from a Realtime session someone else holds.
+    """
     return {"tools": AGENT_TOOL_SCHEMA}
 
 

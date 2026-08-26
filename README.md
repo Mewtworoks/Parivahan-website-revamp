@@ -46,9 +46,10 @@ parivahaan-website-revamp/
 │   │   ├── booking_models.py # Application (hash-chained ledger), Slot, Booking, QueueToken
 │   │   ├── booking_engine.py # Idempotent apply, atomic booking, live queue + ETA
 │   │   ├── models.py         # Scenario schema + attempt/scoring (the legal shell)
-│   │   ├── seed_scenarios.py # Scenario bank (19 scenarios, all competencies)
+│   │   ├── seed_scenarios.py # Scenario bank (40 scenarios, all competencies)
 │   │   ├── engine.py         # Test build / scoring / proctoring / option shuffle
-│   │   └── agent_tools.py    # OpenAI Realtime function tools + dispatcher
+│   │   ├── agent_tools.py    # Model-agnostic function tools + dispatcher
+│   │   └── voice_agent.py    # Saarthi: server-side turns, confirm gate, rate limits
 │   ├── tests/
 │   │   ├── test_concurrency.py       # Proof: 50 retries -> 1 app; 40 threads -> 1 winner
 │   │   ├── test_journey.py           # End-to-end HTTP journey, test engine, agent tools
@@ -125,8 +126,17 @@ for the full API reference.
 | Pile-ups with no information | Live queue token: number, inspector, recomputed ETA | `/queue/{token}` + `/rto/{id}/board` |
 | No proof a pass was recorded honestly | Hash-chained journey ledger | tampering flips `chain_valid` false |
 
-Plus a scenario-based theory test replacing the static MCQ, and a voice
-copilot (OpenAI Realtime) wired to the same state through function tools.
+Plus a scenario-based theory test replacing the static MCQ, and **Saarthi**, a
+Hindi-first voice copilot wired to the same state through function tools — so it
+acts on the real journey rather than describing it.
+
+Saarthi runs **OpenAI's `gpt-oss-20b`**, an open-weight model, served over
+NVIDIA NIM's OpenAI-compatible endpoint. Open weights are the point for a
+government deployment: the same agent can run on hardware inside the country, no
+citizen utterance has to leave it, and the cost per district is compute rather
+than per-token billing. The key never reaches the browser, and `apply`,
+`book_slot` and `check_in` are held behind a visible confirmation button, so a
+model retry cannot silently file an application or book an appointment.
 
 ---
 

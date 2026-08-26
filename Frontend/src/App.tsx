@@ -71,6 +71,21 @@ const PAGES: Record<Route, ComponentType<PageProps>> = {
 
 const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
 
+/**
+ * The route named in the address bar, or home.
+ *
+ * Kept in the hash rather than the path so the built app stays a plain static
+ * bundle — no server rewrite rule, so a refresh on `#/status` cannot 404 the
+ * way `/status` would on a host that has not been told about it.
+ *
+ * Validated against PAGES rather than cast, because the hash is user-editable:
+ * a typo has to land on home, not on `undefined` being rendered as a component.
+ */
+function routeFromHash(): Route {
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  return raw in PAGES ? (raw as Route) : 'home';
+}
+
 type Theme = 'light' | 'dark';
 
 const HELP_FAQ: [question: string, answer: string][] = [
@@ -82,7 +97,7 @@ const HELP_FAQ: [question: string, answer: string][] = [
 
 /** The whole site: top bar, the active page, footer, and the help/info overlay sheets. */
 export default function App() {
-  const [route, setRoute] = useState<Route>('home');
+  const [route, setRoute] = useState<Route>(routeFromHash);
   const [state, setState] = useState<AppState>({});
   const [helpOpen, setHelpOpen] = useState(false);
   const [grievanceOpen, setGrievanceOpen] = useState(false);
@@ -96,7 +111,28 @@ export default function App() {
   const t = useT();
 
   const update = (patch: Partial<AppState>) => setState(s => ({ ...s, ...patch }));
-  const go = (next: Route) => { setRoute(next); scrollToTop(); };
+
+  const go = (next: Route) => {
+    // Each move is a history entry, so Back walks the journey backwards instead
+    // of leaving the site entirely — the gesture someone reaches for first when
+    // a step looks wrong, and the one this had no answer for.
+    if (next !== routeFromHash()) window.history.pushState(null, '', `#/${next}`);
+    setRoute(next);
+    scrollToTop();
+  };
+
+  // Back, Forward, and a hash typed straight into the address bar. pushState
+  // fires neither event, so `go` above is not caught here and there is no loop;
+  // a real Back fires both, and they set the same value.
+  useEffect(() => {
+    const sync = () => { setRoute(routeFromHash()); scrollToTop(); };
+    window.addEventListener('popstate', sync);
+    window.addEventListener('hashchange', sync);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener('hashchange', sync);
+    };
+  }, []);
 
   useEffect(() => { document.documentElement.style.setProperty('--rs', textSize + 'px'); }, [textSize]);
   useEffect(() => {
