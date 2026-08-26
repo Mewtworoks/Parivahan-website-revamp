@@ -1429,6 +1429,305 @@ button {
    transform: rotate(-2.2deg)
 }
 
+/* --- hero stats (inline figures) --- */
+.hero-stats {
+   display: flex;
+   gap: 34px;
+   flex-wrap: wrap;
+   margin-top: 8px
+}
+
+.hero-stats b {
+   display: block;
+   font-family: var(--disp);
+   font-size: 1.55rem;
+   color: var(--ink);
+   line-height: 1.1
+}
+
+.hero-stats span {
+   font-size: .8rem;
+   color: var(--muted)
+}
+
+/* --- floating badges on hero art --- */
+.float {
+   position: absolute;
+   background: var(--surface);
+   color: var(--ink);
+   border-radius: 14px;
+   padding: 12px 15px;
+   box-shadow: var(--sh-lg);
+   display: flex;
+   gap: 11px;
+   align-items: center;
+   font-size: .86rem;
+   font-weight: 500
+}
+
+.float-a {
+   right: -14px;
+   top: -26px
+}
+
+.float-b {
+   left: -18px;
+   bottom: -26px
+}
+
+/* --- home v2: floor stats, single start-here panel, coded steps, claim ticks --- */
+.hero .floor {
+   position: relative;
+   z-index: 2;
+   border-top: 1px solid var(--line);
+   display: grid;
+   grid-template-columns: repeat(3, 1fr)
+}
+
+.hero .floor>div {
+   padding: 22px 0 44px
+}
+
+.hero .floor>div+div {
+   padding-left: 32px;
+   position: relative
+}
+
+.hero .floor>div+div:before {
+   content: "";
+   position: absolute;
+   left: 0;
+   top: 22px;
+   bottom: 44px;
+   width: 1px;
+   background: var(--line)
+}
+
+.hero .floor b {
+   display: block;
+   font-family: var(--disp);
+   font-size: 1.6rem;
+   font-weight: 600;
+   letter-spacing: -.03em;
+   line-height: 1.1;
+   color: var(--ink)
+}
+
+.hero .floor span {
+   font-size: .82rem;
+   color: var(--muted)
+}
+
+@media(max-width:560px) {
+   .hero .floor {
+      grid-template-columns: 1fr
+   }
+
+   .hero .floor>div {
+      padding-bottom: 22px
+   }
+
+   .hero .floor>div+div {
+      padding-left: 0;
+      border-top: 1px solid var(--line)
+   }
+
+   .hero .floor>div+div:before {
+      display: none
+   }
+}
+
+/* --- start-here panel --- */
+.start {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: 36px;
+   align-items: center;
+   background: var(--surface);
+   border: 1px solid var(--line);
+   border-left: 3px solid var(--brand);
+   border-radius: var(--r-lg);
+   padding: 28px 30px;
+   box-shadow: var(--sh)
+}
+
+.facts {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 11px 26px;
+   margin: 0;
+   padding: 0;
+   list-style: none
+}
+
+.facts li {
+   display: flex;
+   gap: 10px;
+   align-items: flex-start;
+   font-size: .9rem;
+   color: var(--ink2)
+}
+
+.facts svg {
+   flex: none;
+   margin-top: 4px;
+   color: var(--brand)
+}
+
+@media(max-width:760px) {
+   .start {
+      grid-template-columns: 1fr;
+      gap: 22px
+   }
+
+   .facts {
+      grid-template-columns: 1fr
+   }
+}
+
+/* --- steps (four-column journey) --- */
+.steps {
+   display: grid;
+   grid-template-columns: repeat(4, 1fr);
+   background: var(--surface);
+   border: 1px solid var(--line);
+   border-radius: var(--r-lg);
+   overflow: hidden
+}
+
+.steps>div {
+   padding: 24px 22px 26px
+}
+
+.steps>div+div {
+   border-left: 1px solid var(--line)
+}
+
+.steps .n {
+   display: inline-flex;
+   align-items: center;
+   gap: 9px;
+   font-family: "IBM Plex Mono", monospace;
+   font-size: .68rem;
+   letter-spacing: .1em;
+   color: var(--muted);
+   margin-bottom: 13px
+}
+
+.steps .n i {
+   width: 21px;
+   height: 21px;
+   border-radius: 99px;
+   background: var(--brand-soft);
+   border: 1px solid var(--brand-line);
+   color: var(--brand);
+   display: grid;
+   place-items: center;
+   font-size: .68rem;
+   font-weight: 700;
+   font-style: normal
+}
+
+.steps h3 {
+   margin-bottom: 6px
+}
+
+.steps p {
+   font-size: .885rem;
+   color: var(--muted);
+   line-height: 1.55;
+   margin: 0
+}
+
+@media(max-width:760px) {
+   .steps {
+      grid-template-columns: 1fr 1fr
+   }
+
+   .steps>div:nth-child(3) {
+      border-left: 0
+   }
+
+   .steps>div:nth-child(n+3) {
+      border-top: 1px solid var(--line)
+   }
+}
+
+@media(max-width:480px) {
+   .steps {
+      grid-template-columns: 1fr
+   }
+
+   .steps>div {
+      border-left: 0 !important
+   }
+
+   .steps>div+div {
+      border-top: 1px solid var(--line)
+   }
+}
+
+/* --- claims (three promises) --- */
+.claims {
+   display: grid;
+   grid-template-columns: repeat(3, 1fr);
+   border: 1px solid var(--line);
+   border-radius: var(--r-lg);
+   overflow: hidden;
+   background: var(--surface)
+}
+
+.claims>div {
+   padding: 26px 24px 28px
+}
+
+.claims>div+div {
+   border-left: 1px solid var(--line)
+}
+
+.claim-ic {
+   width: 26px;
+   height: 26px;
+   border-radius: 7px;
+   background: var(--brand-soft);
+   border: 1px solid var(--brand-line);
+   color: var(--brand);
+   display: grid;
+   place-items: center;
+   margin-bottom: 14px
+}
+
+.claims p {
+   font-size: .9rem;
+   color: var(--muted);
+   line-height: 1.6;
+   margin-top: 8px
+}
+
+@media(max-width:760px) {
+   .claims {
+      grid-template-columns: 1fr
+   }
+
+   .claims>div+div {
+      border-left: 0;
+      border-top: 1px solid var(--line)
+   }
+}
+
+/* --- lookup bar --- */
+.lookup {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 24px;
+   flex-wrap: wrap;
+   background: var(--surface);
+   border: 1px dashed var(--line2);
+   border-radius: var(--r-lg);
+   padding: 24px 28px
+}
+
 .modcard {
    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
    position: relative;

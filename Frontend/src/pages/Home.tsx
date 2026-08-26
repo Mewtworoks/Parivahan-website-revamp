@@ -7,6 +7,17 @@ import { Icon } from '../ui/Icon';
 import { LicenceCard } from '../ui/LicenceCard';
 import { Pill } from '../ui/SharedUI';
 
+interface ServiceCard {
+  id: string;
+  icon: ReturnType<typeof Icon.card>;
+  tag: string;
+  title: string;
+  desc: string;
+  meta: string[];
+  cta: string;
+  targetRoute: string;
+}
+
 // A verb code, not a translated label — it reads as a system/step marker (like the "n" it sits
 // beside), the same register as the mono application-number placeholder further down the page.
 const JOURNEY_STEPS: [verb: string, heading: string, headingHi: string, headingMr: string, body: string][] = [
@@ -41,7 +52,7 @@ export function Home({ go, update }: PageProps) {
   const t = useT();
   const { lang } = useLanguage();
 
-  const services: ServiceCard[] = [
+  const _services: ServiceCard[] = [
     {
       id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
       desc: t('Your first licence. Apply online, then visit the RTO once for the test.',
