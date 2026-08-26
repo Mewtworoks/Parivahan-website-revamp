@@ -1,10 +1,12 @@
 import { useRef, useState, type ComponentType } from 'react';
 import * as api from '../../api';
 import { PRE_BASE, preFor } from '../../data/applicant';
+import { demoForm } from '../../data/demoApplicant';
 import { STEPS } from '../../data/applicationFlow';
 import { FORM1 } from '../../data/documents';
 import { feeTotal } from '../../data/fees';
 import { CLASSES } from '../../data/vehicleClasses';
+import { signedInPhone } from '../../lib/identity';
 import { scrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/language';
 import { useAction } from '../../lib/useApi';
@@ -61,11 +63,29 @@ export function Apply({ go, state, update }: PageProps) {
 
   const valid = stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1Answers });
 
+  /**
+   * Fill every stage and jump to the last one.
+   *
+   * Typing nine screens of details in front of an audience proves nothing the
+   * build is arguing — the argument starts at Submit. The state's own office is
+   * kept if one is already picked, so this does not silently move the
+   * application to Mumbai when the demo is about Bihar.
+   */
+  const fillForDemo = () => {
+    update({ form: { ...demoForm(form.state || 'Maharashtra'), ...(form.rto ? { rto: form.rto } : {}) } });
+    setStep(STEPS.length - 1);
+    scrollToTop();
+  };
+
   const submit = async () => {
     const name = [form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' ');
     const classCodes = classIds.map(id => CLASSES.find(c => c.id === id)!.code);
     const submitted = await run('submit', () => api.apply({
-      citizenRef: form.phone || form.uid || name,
+      // The signed-in number wins. Filing under whatever was typed into stage
+      // two meant an application Saarthi and the tracker could not then find,
+      // because they look the journey up by the number the citizen signed in
+      // with — one reference or none.
+      citizenRef: signedInPhone() || form.phone || form.uid || name,
       licenceKind: 'learner',
       rtoId: form.rto || api.DEFAULT_RTO,
       idempotencyKey,
@@ -114,7 +134,15 @@ export function Apply({ go, state, update }: PageProps) {
     <div className="wrap fade" style={{ padding: '32px 24px 0' }}>
       <div className="row between g16 wrapf" style={{ marginBottom: 24 }}>
         <div className="col g4"><span className="eyebrow">{t("New learner's licence", 'नई लर्नर लाइसेंस', 'नवीन लर्नर लायसन्स')} · {form.state || 'Maharashtra'}</span><h1 style={{ fontSize: '1.9rem' }}>{currentLabelTranslated}</h1></div>
-        <Pill tone="ok">{Icon.check()} {t('Saved a moment ago', 'कुछ समय पहले सेव किया गया', 'काही वेळापूर्वी सेव्ह केले')}</Pill>
+        <div className="row g10 wrapf" style={{ alignItems: 'center' }}>
+          {/* Demo shortcut. Labelled for what it is rather than hidden, because
+              an audience seeing nine stages fill themselves should be told that
+              is what happened. */}
+          <button className="btn btn-g btn-sm" onClick={fillForDemo} title="Fill every stage with the sample applicant and jump to Review">
+            {Icon.play()} {t('Fill for demo', 'डेमो के लिए भरें', 'डेमोसाठी भरा')}
+          </button>
+          <Pill tone="ok">{Icon.check()} {t('Saved a moment ago', 'कुछ समय पहले सेव किया गया', 'काही वेळापूर्वी सेव्ह केले')}</Pill>
+        </div>
       </div>
       <div style={{ display: 'grid', gap: 36, gridTemplateColumns: '250px minmax(0,1fr)' }} className="applygrid">
         <aside className="hide-m"><div style={{ position: 'sticky', top: 88 }}>

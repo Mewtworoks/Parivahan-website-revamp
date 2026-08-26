@@ -1,7 +1,10 @@
 import { useEffect, useState, type ComponentType, type MouseEvent } from 'react';
 import logo from './assets/logo-master.png';
-import { DrivingLicence } from './pages/DrivingLicence';
+import { Desk } from './pages/Desk';
+// DL journey parked — see the note on Route in types.ts.
+// import { DrivingLicence } from './pages/DrivingLicence';
 import { Eligibility } from './pages/Eligibility';
+import { Proof } from './pages/Proof';
 import { Checklist } from './pages/Checklist';
 import { Home } from './pages/Home';
 import { Issued } from './pages/Issued';
@@ -18,6 +21,8 @@ import { GameIntro } from './practice/GameIntro';
 import { Learn } from './practice/Learn';
 import { Report } from './practice/Report';
 import { FOOTER_COLUMNS, type FooterTarget } from './data/siteContent';
+import { prettyPhone, useIdentity } from './lib/identity';
+import { loadJourney, saveJourney } from './lib/journeyStore';
 import { LANGUAGES, useLanguage, useT, type Lang } from './lib/language';
 import { scrollToTop } from './lib/scrollToTop';
 import type { AppState, PageProps, Route } from './types';
@@ -26,12 +31,16 @@ import { GrievanceSheet } from './ui/GrievanceSheet';
 import { Icon } from './ui/Icon';
 import { InfoSheet } from './ui/InfoSheet';
 import { Note, Sheet } from './ui/SharedUI';
+import { IdentitySheet } from './ui/SignIn';
+import { ToastHost } from './ui/Toast';
+import { VoiceAgent } from './components/VoiceAgent';
 
 // Translations for the footer's data-driven labels (FOOTER_COLUMNS lives in data/siteContent.ts as
 // plain English strings) — kept as a lookup here rather than restructuring that data shape.
 const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   "Learner's licence": { hi: 'लर्नर लाइसेंस', mr: 'लर्नर लायसन्स' },
   'Driving licence': { hi: 'ड्राइविंग लाइसेंस', mr: 'ड्रायव्हिंग लायसन्स' },
+  'Driving licence · reference': { hi: 'ड्राइविंग लाइसेंस · संदर्भ', mr: 'ड्रायव्हिंग लायसन्स · संदर्भ' },
   Help: { hi: 'सहायता', mr: 'मदत' },
   'About this build': { hi: 'इस निर्माण के बारे में', mr: 'या निर्मितीबद्दल' },
   'Check eligibility': { hi: 'पात्रता जांचें', mr: 'पात्रता तपासा' },
@@ -48,6 +57,8 @@ const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   'Call 1800 000 000': { hi: '1800 000 000 पर कॉल करें', mr: '1800 000 000 वर कॉल करा' },
   'Problem and approach': { hi: 'समस्या और दृष्टिकोण', mr: 'समस्या आणि दृष्टिकोन' },
   'What is mocked': { hi: 'क्या नकली है', mr: 'काय बनावट आहे' },
+  'Inspector desk': { hi: 'निरीक्षक डेस्क', mr: 'निरीक्षक डेस्क' },
+  'See the guarantees run': { hi: 'गारंटी चलती देखें', mr: 'हमी चालताना पहा' },
   Accessibility: { hi: 'सुगम्यता', mr: 'सुलभता' },
   Source: { hi: 'स्रोत', mr: 'स्रोत' },
 };
@@ -58,10 +69,41 @@ function footerT(t: ReturnType<typeof useT>, label: string): string {
 const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
   receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
-  test: Test, issued: Issued, dl: DrivingLicence, status: Status,
+  test: Test, issued: Issued, status: Status,
+  desk: Desk, proof: Proof,
+  // DL journey parked: dl: DrivingLicence,
 };
 
 const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
+
+/**
+ * The screens that need to know whose journey this is.
+ *
+ * Only the form. Everything before it — checking whether you qualify, playing
+ * the practice road — is worth doing before you have decided to apply at all,
+ * and demanding a number first would turn a two-minute look into a sign-up.
+ * The stages after it are self-gating: they need an application, and there is
+ * no way to have one without passing through here.
+ *
+ * Saarthi is the other gated surface, for the same reason and not by route: it
+ * fills this form on the citizen's behalf, so it has to know whose.
+ */
+const SIGN_IN_REQUIRED: Route[] = ['apply'];
+
+/**
+ * The route named in the address bar, or home.
+ *
+ * Kept in the hash rather than the path so the built app stays a plain static
+ * bundle — no server rewrite rule, so a refresh on `#/status` cannot 404 the
+ * way `/status` would on a host that has not been told about it.
+ *
+ * Validated against PAGES rather than cast, because the hash is user-editable:
+ * a typo has to land on home, not on `undefined` being rendered as a component.
+ */
+function routeFromHash(): Route {
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  return raw in PAGES ? (raw as Route) : 'home';
+}
 
 type Theme = 'light' | 'dark';
 
@@ -74,11 +116,18 @@ const HELP_FAQ: [question: string, answer: string][] = [
 
 /** The whole site: top bar, the active page, footer, and the help/info overlay sheets. */
 export default function App() {
-  const [route, setRoute] = useState<Route>('home');
-  const [state, setState] = useState<AppState>({});
+  const [route, setRoute] = useState<Route>(routeFromHash);
+  // Restored from the last visit, so a reload mid-form does not start over —
+  // see lib/journeyStore.ts for why this had to exist.
+  const [state, setState] = useState<AppState>(loadJourney);
   const [helpOpen, setHelpOpen] = useState(false);
   const [grievanceOpen, setGrievanceOpen] = useState(false);
   const [infoPanelId, setInfoPanelId] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
+  // Saarthi closed itself to show the sign-in sheet, and wants to come back.
+  const [resumeVoice, setResumeVoice] = useState(false);
+  const phone = useIdentity();
   const [textSize, setTextSize] = useState(16);
   // The inline script in index.html already set this attribute before first paint, so read it back
   // rather than recomputing — that keeps the toggle in sync with whatever it decided.
@@ -87,7 +136,32 @@ export default function App() {
   const t = useT();
 
   const update = (patch: Partial<AppState>) => setState(s => ({ ...s, ...patch }));
-  const go = (next: Route) => { setRoute(next); scrollToTop(); };
+
+  const go = (next: Route) => {
+    // Each move is a history entry, so Back walks the journey backwards instead
+    // of leaving the site entirely — the gesture someone reaches for first when
+    // a step looks wrong, and the one this had no answer for.
+    if (next !== routeFromHash()) window.history.pushState(null, '', `#/${next}`);
+    setRoute(next);
+    scrollToTop();
+  };
+
+  // Back, Forward, and a hash typed straight into the address bar. pushState
+  // fires neither event, so `go` above is not caught here and there is no loop;
+  // a real Back fires both, and they set the same value.
+  useEffect(() => {
+    const sync = () => { setRoute(routeFromHash()); scrollToTop(); };
+    window.addEventListener('popstate', sync);
+    window.addEventListener('hashchange', sync);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener('hashchange', sync);
+    };
+  }, []);
+
+  // Every change to the journey, not just the ones a step boundary notices —
+  // the form's own "Saved a moment ago" pill claims this granularity.
+  useEffect(() => { saveJourney(state); }, [state]);
 
   useEffect(() => { document.documentElement.style.setProperty('--rs', textSize + 'px'); }, [textSize]);
   useEffect(() => {
@@ -96,6 +170,7 @@ export default function App() {
   }, [theme]);
 
   const ActivePage = PAGES[route] || Home;
+  const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
   const inFullScreenFlow = FULL_SCREEN_FLOW_ROUTES.includes(route);
 
   const handleFooterLink = (e: MouseEvent, target: FooterTarget) => {
@@ -112,13 +187,27 @@ export default function App() {
         <div className="wrap tb-in">
           <button className="mark" onClick={() => go('home')} aria-label="Parivahan Sewa home">
             <img src={logo} alt="" className="mark-g" />
-            <span className="col" style={{ alignItems: 'flex-start' }}><span className="mark-t">Parivahan Sewa</span><span className="mark-s">{t('Licence services · redesign concept', 'लाइसेंस सेवाएं · पुनर्रचना संकल्पना', 'परवाना सेवा · पुनर्रचना संकल्पना')}</span></span>
+            {/* Wordmark alone. The strapline and the Prototype badge both said
+                here what the hero kicker, the home-page notice and the footer
+                disclaimer already say — and on a phone the strapline wrapped to
+                three lines and clipped the name it sat under. */}
+            <span className="mark-t">Parivahan Sewa</span>
           </button>
-          <span className="badge-proto hide-m">{t('Prototype', 'प्रोटोटाइप', 'प्रोटोटाइप')}</span>
           <div className="grow" />
           {!inFullScreenFlow && (
             <>
-              <button className="tb-btn hide-m" onClick={() => go('home')}>{t('Services', 'सेवाएं', 'सेवा')}</button>
+              {/* "Services" used to sit here and did exactly what the wordmark
+                  beside it does — go home. Two controls, one destination, and
+                  the one people reach for first is the wordmark. Its place goes
+                  to the staff view, which had no way in from the top bar at all
+                  and is the screen worth finding: open it beside the tracker and
+                  the citizen's wait moves as the lane is called.
+
+                  A swap, not an addition. The bar has no room to grow — that is
+                  what wrapped the wordmark and pushed the text-size control off
+                  the end last time — so this label is kept to the width of the
+                  one it replaced. */}
+              <button className="tb-btn hide-m" onClick={() => go('desk')}>{t('RTO desk', 'आरटीओ डेस्क', 'आरटीओ डेस्क')}</button>
               <button className="tb-btn hide-m" onClick={() => go('learn')}>{t('Practice', 'अभ्यास', 'सराव')}</button>
               <button className="tb-btn hide-m" onClick={() => go('status')}>{t('Track', 'ट्रैक करें', 'ट्रॅक करा')}</button>
             </>
@@ -134,16 +223,60 @@ export default function App() {
           <button className="btn btn-s btn-sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? Icon.sun() : Icon.moon()}
           </button>
-          <button className="btn btn-s btn-sm" onClick={() => setHelpOpen(true)}>{Icon.phone()} {t('Help', 'सहायता', 'मदत')}</button>
+          {/* Identity, not a gate — nothing on the site is blocked either way.
+              Signed out it offers the number; signed in it becomes the profile,
+              which is where signing out lives. */}
+          <button className="btn btn-s btn-sm hide-m" onClick={() => setIdentityOpen(true)}
+            aria-label={phone ? `Profile — signed in as ${prettyPhone(phone)}` : undefined}>
+            {phone
+              ? <span className="row g6">{Icon.phone()}<span className="mono">{prettyPhone(phone)}</span></span>
+              : t('Sign in', 'साइन इन')}
+          </button>
+          {/* Saarthi is the only call to action up here. Help sat beside it
+              competing for the same press, and Saarthi answers the questions
+              the sheet lists anyway. The sheet is still reached from the
+              footer's "Call 1800 000 000". */}
+          <button className="btn btn-p btn-sm" onClick={() => setVoiceOpen(true)}>{Icon.speaker()} {t('Talk to Saarthi', 'सारथी से बात करें')}</button>
         </div>
       </header>
-      <main><ActivePage go={go} state={state} update={update} /></main>
+      <main>
+        {needsSignIn
+          ? (
+            <div className="narrow fade" style={{ padding: '64px 24px' }}>
+              <div className="card card-p col g16" style={{ maxWidth: 520 }}>
+                <div className="col g6">
+                  <span className="eyebrow">{t('Before you begin', 'शुरू करने से पहले')}</span>
+                  <h2>{t('The form needs a mobile number', 'फ़ॉर्म के लिए मोबाइल नंबर चाहिए')}</h2>
+                  <p className="sub">
+                    {t('It is what your application is saved under, and what the tracker and Saarthi use to find it again. Checking your eligibility and the practice test need no number at all.',
+                      'आपका आवेदन इसी नंबर पर सहेजा जाता है, और ट्रैकर व सारथी इसी से उसे दोबारा ढूँढते हैं। पात्रता जाँच और अभ्यास परीक्षा के लिए कोई नंबर नहीं चाहिए।')}
+                  </p>
+                </div>
+                <div className="row g10 wrapf">
+                  <button className="btn btn-p" onClick={() => setIdentityOpen(true)}>
+                    {t('Sign in', 'साइन इन')} {Icon.right()}
+                  </button>
+                  <button className="btn btn-s" onClick={() => go('elig')}>
+                    {t('Check if I qualify instead', 'इसके बजाय पात्रता जाँचें')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+          : <ActivePage go={go} state={state} update={update} />}
+      </main>
       <footer className="footer">
         <div className="wrap col g24">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 28 }}>
             {FOOTER_COLUMNS.map(([heading, links]) => (
               <div key={heading} className="col g12"><b style={{ fontWeight: 600, fontSize: '.93rem' }}>{footerT(t, heading)}</b>
-                <nav className="linkcol">{links.map(([label, target]) => <a key={label} href="#" onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>)}</nav></div>
+                {/* A link to a route gets that route's real href, so ctrl-click,
+                    middle-click and "copy link address" behave the way they do
+                    anywhere else. The click handler still routes in-page. Links
+                    that open a sheet have no URL of their own and keep "#". */}
+                <nav className="linkcol">{links.map(([label, target]) => (
+                  <a key={label} href={'go' in target ? `#/${target.go}` : '#'} onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>
+                ))}</nav></div>
             ))}
           </div>
           <hr className="hr" />
@@ -154,7 +287,35 @@ export default function App() {
         </div>
       </footer>
       <BackToTop />
+      <ToastHost />
+      {/* Saarthi gets `go` because it fills the form on the citizen's behalf and
+          then has somewhere to send them — the panel covers the page, so
+          "your form is filled, shall we book the slot?" needs a door. */}
+      {voiceOpen && (
+        <VoiceAgent
+          state={state}
+          update={update}
+          go={route => { setVoiceOpen(false); go(route); }}
+          onSignIn={() => { setVoiceOpen(false); setResumeVoice(true); setIdentityOpen(true); }}
+          onClose={() => setVoiceOpen(false)}
+        />
+      )}
       {infoPanelId && <InfoSheet id={infoPanelId} onClose={() => setInfoPanelId(null)} />}
+      {/* The only sign-in on the site. Saarthi points here rather than carrying
+          a second copy of the form, so there is one shape to learn and one
+          place it lives. Signed in, the same sheet is the profile. */}
+      {identityOpen && (
+        <IdentitySheet
+          phone={phone}
+          onClose={() => {
+            setIdentityOpen(false);
+            // Saarthi steps aside to show this sheet, so it comes back when the
+            // citizen is done — being dropped on the home page after signing in
+            // means pressing "Talk to Saarthi" all over again.
+            if (resumeVoice) { setResumeVoice(false); setVoiceOpen(true); }
+          }}
+        />
+      )}
       {grievanceOpen && <GrievanceSheet state={state} onClose={() => setGrievanceOpen(false)} />}
       {helpOpen && (
         <Sheet title={t('Need help?', 'सहायता चाहिए?', 'मदत हवी आहे?')} onClose={() => setHelpOpen(false)}>

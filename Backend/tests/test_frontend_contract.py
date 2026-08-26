@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient           # noqa: E402
 
+from conftest import BOOKABLE_DAY
 from app.main import app                            # noqa: E402
 from app.models import PASS_THRESHOLD, QUESTIONS_PER_TEST  # noqa: E402
 from app.seed_scenarios import SCENARIOS            # noqa: E402
@@ -105,7 +106,7 @@ def test_unmodelled_state_falls_back_to_maharashtra():
 def test_office_load_reflects_real_queue_depth():
     before = next(o for o in client.get("/rtos").json()["rtos"] if o["id"] == "mh03")
     app_obj = _apply(rto_id="mh03", idempotency_key="load-probe")
-    slot = client.get("/slots", params={"rto_id": "mh03"}).json()["slots"][0]
+    slot = client.get("/slots", params={"rto_id": "mh03", "on": BOOKABLE_DAY.isoformat()}).json()["slots"][0]
     client.post("/book", json={"application_id": app_obj["application_id"],
                                "slot_id": slot["slot_id"]})
     client.post(f"/checkin/{app_obj['application_id']}")
@@ -170,7 +171,7 @@ def test_application_view_carries_booking_and_queue_for_the_status_page():
     app_id = app_obj["application_id"]
     assert "booking" not in app_obj and "queue" not in app_obj
 
-    slot = client.get("/slots", params={"rto_id": "mh01"}).json()["slots"][0]
+    slot = client.get("/slots", params={"rto_id": "mh01", "on": BOOKABLE_DAY.isoformat()}).json()["slots"][0]
     client.post("/book", json={"application_id": app_id, "slot_id": slot["slot_id"]})
     booked = client.get(f"/application/{app_id}").json()
     assert booked["booking"]["label"] and booked["booking"]["time"]

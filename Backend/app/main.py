@@ -17,12 +17,12 @@ Endpoints:
   GET  /queue/{token_id}               position + tester + live ETA
   POST /tester/{id}/call-next          advance the queue
   GET  /rto/{id}/board                 waiting-hall / tester dashboard
-  POST /test/start                     begin a 15-scenario test
+  POST /test/start                     begin a scenario test (see / for the count)
   GET  /test/{attempt_id}/next         next scenario (answer stripped)
   POST /test/{attempt_id}/answer       submit an answer, get feedback
   GET  /test/{attempt_id}/result       final result + competency breakdown
   POST /test/{attempt_id}/proctor      proctoring subsystem posts events
-  GET  /agent/tools                    OpenAI Realtime function-tool schema
+  GET  /agent/tools                    function-tool schema for the copilot
   POST /agent/dispatch                 execute an agent tool call
 
 Run:  python main.py      (or: uvicorn app.main:app --reload)
@@ -32,15 +32,25 @@ from __future__ import annotations
 
 import os
 from datetime import date
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+# .env.example tells you to copy it to .env, so .env has to be read — and read
+# before any module below it calls os.getenv at import time. A real environment
+# variable already set in the shell wins, which is what a deployment expects.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 from . import booking_engine as be
 from . import engine
+from . import identity
+from . import proofs
 from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
-from .booking_engine import AlreadyBooked, SlotTaken
+from . import voice_agent
+from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
 from .booking_models import LicenceKind
 from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
 from .seed_scenarios import SCENARIOS, scenario_by_id
@@ -86,6 +96,19 @@ class DispatchBody(BaseModel):
     arguments: dict = Field(default_factory=dict)
 
 
+class VoiceStartBody(BaseModel):
+    citizen_ref: str = Field(..., min_length=1, max_length=120)
+
+
+class VoiceTurnBody(BaseModel):
+    session_id: str
+    transcript: str = Field(..., min_length=1, max_length=1000)
+
+
+class VoiceConfirmBody(BaseModel):
+    session_id: str
+
+
 class ApplyBody(BaseModel):
     citizen_ref: str
     licence_kind: LicenceKind
@@ -103,7 +126,11 @@ class BookBody(BaseModel):
     slot_id: str
 
 
-# Seed every office the UI can offer, with grids for the days ahead.
+# Open the store — a previous run's applications, bookings and queue are
+# already in it, because the database is the state rather than a copy of it.
+# Then seed, which fills in any office or day it does not yet have and is safe
+# to run over live data, and safe to run from two workers at once.
+be.restore()
 be.seed_catalogue()
 
 
@@ -156,7 +183,21 @@ def apply(body: ApplyBody):
 
 @app.get("/application/{app_id}", tags=["journey"])
 def application_status(app_id: str):
-    """Transparency: the full journey ledger, always readable."""
+    """
+    Transparency: the full journey ledger, always readable.
+
+    Deliberately ungated, unlike the by-number lookup below, and the difference
+    is the identifier rather than the data. `app_id` is a v4 uuid — 122 bits, not
+    enumerable — so holding one is itself the evidence you were given it. The
+    display number is sequential (SS-2026-004182, then ...183), so anyone can
+    count through the office's applications; that path is the one that has to ask
+    for a date of birth.
+
+    A uuid as a bearer capability is right for a prototype and is not an
+    authentication story. In production this sits behind the same Aadhaar/mobile
+    session the rest of the portal uses, and this endpoint checks it belongs to
+    the caller.
+    """
     a = be.get_application(app_id)
     if not a:
         raise HTTPException(404, "Application not found")
@@ -253,6 +294,8 @@ def book(body: BookBody):
         raise HTTPException(409, "That slot was just taken — pick another.")
     except AlreadyBooked:
         raise HTTPException(409, "This application already holds an appointment.")
+    except SlotPassed:
+        raise HTTPException(409, "That time has already passed — pick a later one.")
     except KeyError as e:
         raise HTTPException(404, str(e))
     tester = be.get_tester(b.tester_id)
@@ -385,7 +428,13 @@ def proctor(attempt_id: str, body: ProctorBody):
 
 @app.get("/agent/tools", tags=["agent"])
 def agent_tools():
-    """Function-tool schema to register with the OpenAI Realtime session."""
+    """
+    Function-tool schema, for a client that owns its own model socket.
+
+    The frontend does not need this — it talks to /agent/voice/*, which keeps
+    the key server-side. Exposed because the schema is model-agnostic and the
+    same tools should be drivable from a Realtime session someone else holds.
+    """
     return {"tools": AGENT_TOOL_SCHEMA}
 
 
@@ -396,6 +445,127 @@ def agent_dispatch(body: DispatchBody):
         return dispatch_tool(body.tool, body.arguments)
     except KeyError as e:
         raise HTTPException(400, f"Unknown tool or missing argument: {e}")
+
+
+def _caller(request: Request) -> str | None:
+    """
+    Who to bill a voice turn to, for rate limiting only.
+
+    Behind a proxy the socket address is the proxy, so the forwarded chain's
+    first hop is preferred when one is present. This is not identity and is
+    never stored on the conversation — it is spoofable, and only decides who
+    gets throttled.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:64]
+    return request.client.host if request.client else None
+
+
+# --------------------------- Identity (a stand-in) -------------------------
+# Not authentication — app/identity.py says so at length and so does the screen
+# that uses it. Its whole job is to give the wizard, the agent and the tracker
+# one `citizen_ref` instead of three, so `latest_application_for()` can find the
+# journey somebody already started.
+
+
+class PhoneBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+
+
+class VerifyBody(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+    code: str = Field(..., min_length=1, max_length=8)
+
+
+@app.post("/identity/request-code", tags=["identity"])
+def identity_request_code(body: PhoneBody):
+    """
+    Issue a sign-in code — and return it, because nothing here sends an SMS.
+
+    The response says `delivered: false` and carries a note explaining why, so a
+    client cannot present this as a real one-time password without ignoring the
+    field that tells it not to.
+    """
+    try:
+        return identity.request_code(body.phone)
+    except identity.BadPhone as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/identity/verify", tags=["identity"])
+def identity_verify(body: VerifyBody):
+    """Exchange the code for the reference the rest of the journey is keyed on."""
+    try:
+        return identity.verify(body.phone, body.code)
+    except identity.BadPhone as exc:
+        raise HTTPException(400, str(exc))
+    except identity.BadCode as exc:
+        raise HTTPException(401, str(exc))
+
+
+@app.post("/agent/voice/start", tags=["agent"])
+def agent_voice_start(body: VoiceStartBody):
+    """Create a short-lived, server-side Saarthi conversation."""
+    session = voice_agent.start_session(body.citizen_ref)
+    return {"session_id": session.id, "expires_in_minutes": voice_agent.SESSION_TTL_MINUTES}
+
+
+@app.post("/agent/voice/turn", tags=["agent"])
+def agent_voice_turn(body: VoiceTurnBody, request: Request):
+    """Send recognised speech to NVIDIA and return Saarthi's spoken reply."""
+    return voice_agent.turn(body.session_id, body.transcript, _caller(request))
+
+
+@app.post("/agent/voice/confirm", tags=["agent"])
+def agent_voice_confirm(body: VoiceConfirmBody, request: Request):
+    """Execute Saarthi's pending state-changing action after a citizen confirms."""
+    return voice_agent.confirm(body.session_id, _caller(request))
+
+
+@app.post("/agent/voice/cancel", tags=["agent"])
+def agent_voice_cancel(body: VoiceConfirmBody):
+    """Discard the voice action the citizen chose not to confirm."""
+    return voice_agent.cancel_pending(body.session_id)
+
+
+@app.delete("/agent/voice/{session_id}", status_code=204, tags=["agent"])
+def agent_voice_end(session_id: str):
+    voice_agent.end_session(session_id)
+
+
+# ------------------------- proofs (the demo panel) -------------------------
+# The three hard guarantees are invisible on the happy path. These run them for
+# real against the engine and report what happened, so they can be watched.
+
+@app.post("/proof/idempotent-apply", tags=["proof"])
+def proof_idempotent_apply():
+    """Submit the same application twice, as a dropped connection does."""
+    return proofs.idempotent_apply()
+
+
+@app.post("/proof/slot-race", tags=["proof"])
+def proof_slot_race(contenders: int = 8):
+    """Genuine simultaneous bookings at one slot. Exactly one may win."""
+    return proofs.slot_race(max(2, min(contenders, 32)))
+
+
+@app.post("/proof/ledger-tamper", tags=["proof"])
+def proof_ledger_tamper():
+    """Edit a recorded event and show the receipt reporting it."""
+    return proofs.ledger_tamper()
+
+
+@app.post("/demo/reset", tags=["proof"])
+def demo_reset():
+    """
+    Back to a clean slate: no applications, no bookings, an empty queue.
+
+    After a walkthrough the first slot of the day is held and tokens are already
+    issued, so the next run reads as someone else's leftovers.
+    """
+    be.reset_state()
+    return {"reset": True, "offices": len(be.list_rtos())}
 
 
 # ------------------------------- meta --------------------------------------

@@ -7,9 +7,17 @@ export type FooterColumn = [heading: string, links: FooterLink[]];
 // Footer link targets: either a route jump, or a panel of real content.
 export const FOOTER_COLUMNS: FooterColumn[] = [
   ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Book a slot', { go: 'slot' }], ['Road safety tutorial', { go: 'tutorial' }]]],
-  ['Driving licence', [['Eligibility window', { go: 'dl' }], ['Apply', { go: 'dl' }], ['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
+  // DL journey parked: the two links that opened the wizard are gone; the two
+  // that open reference panels stay, because that content is real. Titled as
+  // reference, not as a service — a column headed "Driving licence" under a
+  // learner's-only home page reads as a second journey that is not there.
+  ['Driving licence · reference', [['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
   ['Help', [['How a document is verified', { info: 'verify' }], ['What each fee pays for', { info: 'fees' }], ['Report a problem', { grievance: true }], ['Call 1800 000 000', { help: true }]]],
-  ['About this build', [['Problem and approach', { info: 'problem' }], ['What is mocked', { info: 'mocked' }], ['Accessibility', { info: 'a11y' }], ['Source', { info: 'source' }]]],
+  ['About this build', [['Problem and approach', { info: 'problem' }], ['What is mocked', { info: 'mocked' }],
+    // The staff view and the runnable guarantees. Part of the argument rather
+    // than developer tooling, but the top bar had no room left for them.
+    ['Inspector desk', { go: 'desk' }], ['See the guarantees run', { go: 'proof' }],
+    ['Accessibility', { info: 'a11y' }], ['Source', { info: 'source' }]]],
 ];
 
 export interface InfoPanel {

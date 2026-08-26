@@ -1,6 +1,16 @@
-import { Fragment, type InputHTMLAttributes, type ReactNode } from 'react';
+import { Fragment, useEffect, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useT } from '../lib/language';
 import { Icon } from './Icon';
+
+/**
+ * Which sheets are open, innermost last.
+ *
+ * Escape closes the top one only. With one sheet at a time this is the same as
+ * closing "the" sheet, but a listener per sheet would close every open one at
+ * once the moment a second is ever stacked — a silent bug at exactly the point
+ * somebody adds a confirmation over a panel.
+ */
+const openSheets: symbol[] = [];
 
 export function Pill({ tone, children }: { tone?: string; children: ReactNode }) {
   return <span className={'pill' + (tone ? ' pill-' + tone : '')}>{children}</span>;
@@ -126,6 +136,27 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
 }
 
 export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  // Escape closes it. Until now the only ways out were the X and the backdrop,
+  // both of which need a pointer — so anyone driving this from the keyboard was
+  // shut inside a panel covering the page, with the rest of the site still
+  // clickable underneath and no way to reach it.
+  useEffect(() => {
+    const mine = Symbol('sheet');
+    openSheets.push(mine);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (openSheets[openSheets.length - 1] !== mine) return;
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      const at = openSheets.indexOf(mine);
+      if (at !== -1) openSheets.splice(at, 1);
+    };
+  }, [onClose]);
+
   return (
     <div className="sheet-bg" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>

@@ -39,6 +39,7 @@ referenced here by id (`AppState.applicationId`, `.tokenId`, `.attemptId`).
 | Slot | `GET /slots/days`, `GET /slots/times`, `POST /book` | Real remaining capacity per day and per time. Confirming holds the slot; losing a race says so and reloads what is free. |
 | Status | `GET /application/by-number`, `GET /application/{id}`, `POST /checkin`, `GET /queue` | Lookup needs number **and** date of birth. Shows the service's own ledger, and on the day a token, a named inspector and a wait that repolls. |
 | Test | `POST /test/start`, `GET /test/{id}/next`, `POST /test/{id}/answer`, `GET /test/{id}/result` | Ten questions, six to pass, scored on the server. The correct answer is never sent to the browser, options are permuted per attempt, and a fail names the competencies to practise. |
+| Saarthi | `POST /agent/voice/*` | Browser speech recognition and speech playback with a server-side NVIDIA agent. Apply, booking and check-in require an on-screen confirmation. |
 
 Not wired, deliberately: eligibility, checklist, fees, Form 1, e-sign, payment
 and the practice game are self-contained in the UI and have no server state to

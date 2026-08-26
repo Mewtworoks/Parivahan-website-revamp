@@ -5,7 +5,7 @@ import { SCENARIOS, spelledOut } from '../practice/scenarios';
 import type { PageProps, Route } from '../types';
 import { Icon } from '../ui/Icon';
 import { LicenceCard } from '../ui/LicenceCard';
-import { Note, Pill } from '../ui/SharedUI';
+import { Pill } from '../ui/SharedUI';
 
 interface ServiceCard {
   id: 'll' | 'dl';
@@ -27,8 +27,17 @@ const JOURNEY_STEPS: [heading: string, headingHi: string, headingMr: string, bod
 
 const DIFFERENTIATORS: [heading: string, headingHi: string, headingMr: string, body: string][] = [
   ['The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे', 'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.'],
-  ['You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves after every step. Come back on any device with the same mobile number and continue from where you left.'],
-  ['A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes remaining capacity and the average wait after you arrive, so a booking is a real appointment rather than a token.'],
+  // Both of these used to claim something the build did not do. The first
+  // promised a cross-device resume off a mobile number, with nothing behind it
+  // at all — the application lived in memory and a refresh threw it away. The
+  // browser keeps it now, so the claim is scoped to what is actually true.
+  ['You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves as you go and survives closing the tab, so a dropped connection costs you one step and not the whole form. Once it is submitted, the number and your date of birth open it from anywhere.'],
+  // The second said a booking is "an appointment rather than a token", which
+  // reads as a dig at the queue token this build issues and spends a whole
+  // screen making meaningful. The two are not rivals: the appointment is the
+  // time you were given, the token is your place on the day — and it is now
+  // ordered by appointment, which is the thing worth claiming.
+  ['A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes what is genuinely left and the average wait once you arrive. On the day, the queue is called in appointment order — so turning up at dawn earns nothing, and the time you booked is the time you are seen.'],
 ];
 
 export function Home({ go, update }: PageProps) {
@@ -40,11 +49,18 @@ export function Home({ go, update }: PageProps) {
     { id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
       desc: 'Your first licence. Apply online, then visit the RTO once for the test.',
       meta: ['Eight stages, about 14 minutes', '₹150 per class plus one ₹50 test fee', 'With Aadhaar: no RTO visit at all', '10 questions, 6 to pass'],
-      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'elig' },
-    { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),
-      desc: 'Convert a valid learner\'s licence into a permanent driving licence.',
-      meta: ['Starts from your LL number', '₹500 — ₹200 grant + ₹300 test', 'LL must be 30 to 180 days old', 'You bring the vehicle to the test'],
-      cta: t('Start driving licence', 'ड्राइविंग लाइसेंस शुरू करें', 'ड्रायव्हिंग लायसन्स सुरू करा'), targetRoute: 'dl' },
+      // Straight into the wizard. The eligibility check is a separate question
+      // with its own button in the hero — routing "Start" through it made
+      // someone who already knows they qualify answer three questions before
+      // they were allowed to begin. Stage one's Back still goes to the
+      // checklist, so what you need to have ready stays one press away.
+      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'apply' },
+    // DL journey parked — the wizard exists but has no service behind it, and a
+    // card here is an invitation to find that out. See the note in types.ts.
+    // { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),
+    //   desc: 'Convert a valid learner\'s licence into a permanent driving licence.',
+    //   meta: ['Starts from your LL number', '₹500 — ₹200 grant + ₹300 test', 'LL must be 30 to 180 days old', 'You bring the vehicle to the test'],
+    //   cta: t('Start driving licence', 'ड्राइविंग लाइसेंस शुरू करें', 'ड्रायव्हिंग लायसन्स सुरू करा'), targetRoute: 'dl' },
   ];
 
   return (
@@ -52,35 +68,48 @@ export function Home({ go, update }: PageProps) {
       <section className="hero">
         <div className="wrap in">
           <div className="col g20">
-            <span className="kicker">{Icon.dot()} {t("Learner's & driving licence · prototype", 'लर्नर और ड्राइविंग लाइसेंस · प्रोटोटाइप', 'लर्नर आणि ड्रायव्हिंग लायसन्स · प्रोटोटाइप')}</span>
+            {/* Learner's only, here and in the kicker. The DL journey is parked
+                — see the commented service card above — so naming it in the
+                first thing anyone reads sends people looking for a door that is
+                not there. */}
+            <span className="kicker">{Icon.dot()} {t("Learner's licence · prototype", 'लर्नर लाइसेंस · प्रोटोटाइप', 'लर्नर लायसन्स · प्रोटोटाइप')}</span>
             <h1>{lang === 'hi'
-              ? <>अपने लर्नर या ड्राइविंग लाइसेंस के लिए <span className="uline">ऑनलाइन आवेदन करें।</span></>
+              ? <>अपने लर्नर लाइसेंस के लिए <span className="uline">ऑनलाइन आवेदन करें।</span></>
               : lang === 'mr'
-                ? <>तुमच्या लर्नर किंवा ड्रायव्हिंग लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
-                : <>Apply for your<br />learner's or driving<br />licence <span className="uline">online.</span></>}</h1>
+                ? <>तुमच्या लर्नर लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
+                : <>Apply for your<br />learner's licence<br /><span className="uline">online.</span></>}</h1>
             <p className="lede" style={{ maxWidth: 520 }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
             <div className="row g12 wrapf" style={{ marginTop: 4 }}>
               <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
               <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>
             </div>
+            {/* One figure, the one the journey actually measures. "0 visits" and
+                "₹350" quoted an Aadhaar route and a fee total that nothing on
+                the way through commits to. */}
             <div className="hero-stats">
               <span><b>14 min</b><span>to apply, start to end</span></span>
-              <span><b>0 visits</b><span>to the RTO, with Aadhaar</span></span>
-              <span><b>₹350</b><span>two classes, itemised up front</span></span>
             </div>
           </div>
           <div className="hero-art hide-m">
-            <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 20260/0041"
-              name="Rehan Q. Mirza" relation="Son of Qais Mirza" dob="12/04/2005" blood="B+"
-              addressLine1="402, Sundar Niwas, Gokhale Road North" addressLine2="Dadar West, Mumbai 400028"
+            {/* A specimen, so every identifying field is masked. The data was
+                always synthetic, but a full name, parentage, date of birth,
+                blood group and home address rendered on a licence read as a
+                real person's record whatever the footer says — and this card is
+                the first thing on the page. What stays is what carries no
+                identity: the state, the classes, the dates and the office.
+                Issued.tsx passes the citizen's own details and is untouched. */}
+            <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 ••••••/••••"
+              name="•••••• •• •••••" relation="•••••• •••••" dob="••/••/••••" blood="••"
+              addressLine1="•••••••••••••••••••••••••" addressLine2="•••••••••••••••••"
               classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
-            <div className="float float-a"><span style={{ color: 'var(--ok)' }}>{Icon.check()}</span> Documents verified in 4 seconds</div>
-            <div className="float float-b"><span style={{ color: 'var(--brand)' }}>{Icon.pin()}</span> Slot held · Thu 27 Aug, 11:00 am</div>
           </div>
         </div>
       </section>
+      {/* Two-column only while there are two services. With the DL card parked
+          the lone card sat in the left half of a 1fr 1fr grid and the right half
+          read as a panel that had failed to load. */}
       <section className="wrap" style={{ marginTop: -34, position: 'relative', zIndex: 5 }}>
-        <div className="grid2" style={{ gap: 20 }}>
+        <div className={services.length > 1 ? 'grid2' : ''} style={services.length > 1 ? { gap: 20 } : undefined}>
           {services.map((service, i) => (
             <div key={service.id} className={'card modcard' + (i === 0 ? ' dark' : '')} style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 18 }}>
               <span className="idx">{i + 1}</span>
@@ -94,13 +123,21 @@ export function Home({ go, update }: PageProps) {
               </div>
               <div className="col g8"><h2>{service.title}</h2><p style={{ color: i === 0 ? 'oklch(0.89 0.035 262)' : 'var(--ink2)' }}>{service.desc}</p></div>
               <hr className="hr" />
-              <ul className="col g10" style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem' }}>
+              {/* A lone card spans the row, so the four points sit side by side
+                  rather than as a short stack with half the section empty. */}
+              <ul className={services.length > 1 ? 'col g10' : ''} style={services.length > 1
+                ? { margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem' }
+                : { margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 14 }}>
                 {service.meta.map(line => (
                   <li key={line} className="row g10" style={{ alignItems: 'flex-start' }}><span style={{ color: i === 0 ? 'var(--accent)' : 'var(--brand)', marginTop: 5, flex: 'none' }}>{Icon.check()}</span><span style={{ color: i === 0 ? 'oklch(0.88 0.015 196)' : 'var(--ink2)' }}>{line}</span></li>
                 ))}
               </ul>
               <div className="grow" />
-              <button className={i === 0 ? 'btn btn-a btn-full' : 'btn btn-p btn-full'} onClick={() => { update({ module: service.id }); go(service.targetRoute); }}>{service.cta} {Icon.right()}</button>
+              {/* Capped when the card is full-width: btn-full across the whole
+                  row is a button the length of the page. */}
+              <button className={i === 0 ? 'btn btn-a btn-full' : 'btn btn-p btn-full'}
+                style={services.length > 1 ? undefined : { maxWidth: 360 }}
+                onClick={() => { update({ module: service.id }); go(service.targetRoute); }}>{service.cta} {Icon.right()}</button>
             </div>
           ))}
         </div>
@@ -121,7 +158,10 @@ export function Home({ go, update }: PageProps) {
             <div className="col g16" style={{ padding: '32px 30px', justifyContent: 'center' }}>
               <span className="eyebrow">{t('Practice module', 'अभ्यास मॉड्यूल', 'सराव मॉड्यूल')}</span>
               <h2>{t('Nobody tells you what is in the theory test. So play it instead.', 'थ्योरी टेस्ट में क्या है, यह कोई नहीं बताता। तो इसे खेलकर जानें।', 'थिअरी टेस्टमध्ये काय आहे, हे कोणी सांगत नाही. मग ते खेळूनच जाणून घ्या.')}</h2>
-              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations, four seconds each. You are scored on the decision and on how long it took — the same thing the test measures. The report card names the two habits to fix.</p>
+              {/* Says "practice", not "the test". Sitting directly under a card
+                  that reads "10 questions, 6 to pass", a bare count of road
+                  situations looked like a second, contradictory test length. */}
+              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations to practise on, four seconds each — not the test itself. You are scored on the decision and on how long it took, which is what the real test measures. The report card names the two habits to fix.</p>
               <div className="row g10 wrapf">
                 <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} {t('Play the road', 'सड़क खेलें', 'रस्ता खेळा')}</button>
                 <span className="tiny" style={{ alignSelf: 'center' }}>No download · works offline</span>
@@ -150,9 +190,35 @@ export function Home({ go, update }: PageProps) {
           </div>
         </div>
       </section>
-      <div className="wrap" style={{ marginTop: 24 }}>
-        <Note tone="warn">This is a design prototype. It is not a government service, it is not connected to any live system, and every name, number, document and payment in it is synthetic.</Note>
-      </div>
+      {/* Directly under the three claims, because these two screens are where
+          the claims are checked rather than asserted. Both were reachable only
+          from the footer and — for the desk — from a block inside the tracker
+          that does not render until somebody has checked in, which meant the
+          strongest thing in the build was the hardest thing to find. */}
+      <section className="wrap" style={{ marginTop: 20 }}>
+        <div className="col g16">
+          <div className="row between g16 wrapf">
+            <h2>{t('Or check the claims yourself', 'या फिर दावों को खुद जांचें', 'किंवा दावे स्वतः तपासा')}</h2>
+            <span className="sub">{t('Two screens, both reading the live service', 'दो स्क्रीन, दोनों लाइव सेवा से पढ़ रही हैं', 'दोन स्क्रीन, दोन्ही लाइव्ह सेवेतून वाचत आहेत')}</span>
+          </div>
+          <div className="grid2" style={{ gap: 20 }}>
+            <div className="card card-p col g12">
+              <span className="eyebrow">{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</span>
+              <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Open it beside the tracker, call the next token, and the wait on the applicant’s phone recalculates while you watch. Nothing is simulated — both screens read one queue.', 'उसी कतार का काउंटर वाला हिस्सा। इसे ट्रैकर के साथ खोलिए, अगला टोकन बुलाइए, और आवेदक के फ़ोन का इंतज़ार आपकी आंखों के सामने बदल जाएगा। कुछ भी नकली नहीं — दोनों स्क्रीन एक ही कतार पढ़ती हैं।', 'त्याच रांगेची काउंटरकडची बाजू. ट्रॅकरशेजारी उघडा, पुढचे टोकन बोलवा, आणि अर्जदाराच्या फोनवरची वाट तुमच्या डोळ्यांसमोर बदलेल. काहीही बनावट नाही — दोन्ही स्क्रीन एकच रांग वाचतात.')}</p>
+              <div className="grow" />
+              <div><button className="btn btn-s" onClick={() => go('desk')}>{t('Open the inspector desk', 'निरीक्षक डेस्क खोलें', 'निरीक्षक डेस्क उघडा')} {Icon.right()}</button></div>
+            </div>
+            <div className="card card-p col g12">
+              <span className="eyebrow">{t('Runnable', 'चलाकर देखें', 'चालवून पहा')}</span>
+              <h3>{t('See the guarantees run', 'गारंटी चलती देखें', 'हमी चालताना पहा')}</h3>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit. Each one is fired at the live service from this page — two people race for one slot, the same application is submitted twice, a record is tampered with — and you are shown what came back.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव। हर एक इसी पेज से लाइव सेवा पर चलाया जाता है — दो लोग एक ही स्लॉट के लिए दौड़ते हैं, एक ही आवेदन दो बार जमा होता है, एक रिकॉर्ड से छेड़छाड़ की जाती है — और जो जवाब आया वह आपको दिखाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही. प्रत्येक याच पानावरून लाइव्ह सेवेवर चालवली जाते — दोन माणसे एकाच स्लॉटसाठी धावतात, एकच अर्ज दोनदा सादर होतो, एका नोंदीत फेरफार केला जातो — आणि काय उत्तर आले ते तुम्हाला दाखवले जाते.')}</p>
+              <div className="grow" />
+              <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

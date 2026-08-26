@@ -64,8 +64,70 @@ export interface QueueStatus {
   tester: string;
   status: 'waiting' | 'in_test' | 'done' | 'no_show';
   people_ahead: number;
+  /** Place in this inspector's line. The token number is office-wide, so it is
+   *  not a position — showing one as the other reads as a contradiction. */
+  position_in_lane: number;
+  lane_size: number;
   eta_minutes: number;
   someone_in_test: boolean;
+}
+
+/** One inspector's lane on the waiting-hall board. */
+export interface BoardLane {
+  tester_id: string;
+  tester: string;
+  now_serving: number | null;
+  waiting: number;
+  next_numbers: number[];
+  avg_test_minutes: number;
+}
+
+export interface RtoBoard {
+  rto_id: string;
+  lanes: BoardLane[];
+}
+
+// ---- the demo panel: each proof runs the real engine and reports what happened
+
+export interface LedgerRow {
+  seq: number;
+  status: string;
+  note: string;
+  hash: string;
+  prev_hash: string;
+  intact: boolean;
+}
+
+export interface IdempotencyProof {
+  guarantee: string;
+  attempts: { label: string; idempotency_key: string; application_no: string }[];
+  retry_was_deduplicated: boolean;
+  new_intent_still_created: boolean;
+  applications_created: number;
+  verdict: string;
+}
+
+export interface SlotRaceProof {
+  guarantee: string;
+  contenders: number;
+  results: { applicant: number; outcome: 'won' | 'rejected'; detail: string }[];
+  winners: number;
+  double_booked: boolean;
+  slot_now_held_by_one: boolean;
+  verdict: string;
+  error?: string;
+}
+
+export interface TamperProof {
+  guarantee: string;
+  application_no: string;
+  edited_row: number;
+  edited_to: string;
+  before: { chain_valid: boolean; events: LedgerRow[] };
+  after: { chain_valid: boolean; events: LedgerRow[] };
+  restored: boolean;
+  verdict: string;
+  caveat: string;
 }
 
 export interface BookingView {
@@ -171,6 +233,21 @@ export interface TestResultView {
   by_competency: Record<string, { correct: number; wrong: number }>;
 }
 
+export interface VoiceToolEvent {
+  tool: string;
+  // 'deferred' is a tool the agent asked for in the same breath as one that
+  // needs confirming — answered so the transcript stays valid, but not run.
+  status: 'complete' | 'error' | 'awaiting_confirmation' | 'deferred';
+  result?: Record<string, unknown>;
+}
+
+export interface VoiceReply {
+  session_id: string;
+  reply: string;
+  tool_events: VoiceToolEvent[];
+  pending_confirmation?: { label: string };
+}
+
 // ---------------------------------------------------------------- calls
 
 export const health = (signal?: AbortSignal) =>
@@ -246,3 +323,65 @@ export const submitAnswer = (attemptId: string, scenarioId: string, optionId: st
 
 export const testResult = (attemptId: string, signal?: AbortSignal) =>
   request<TestResultView>(`/test/${attemptId}/result`, { signal });
+
+// ------------------------------------------------------ inspector desk / board
+
+// callNext already lives with the queue calls above — this view only needed the
+// board, which nothing had reached for yet.
+export const rtoBoard = (rtoId: string, signal?: AbortSignal) =>
+  request<RtoBoard>(`/rto/${encodeURIComponent(rtoId)}/board`, { signal });
+
+// ----------------------------------------------------------------- demo proofs
+
+export const proveIdempotentApply = () =>
+  request<IdempotencyProof>('/proof/idempotent-apply', { method: 'POST' });
+
+export const proveSlotRace = (contenders = 8) =>
+  request<SlotRaceProof>(`/proof/slot-race?contenders=${contenders}`, { method: 'POST' });
+
+export const proveLedgerTamper = () =>
+  request<TamperProof>('/proof/ledger-tamper', { method: 'POST' });
+
+export const resetDemo = () =>
+  request<{ reset: boolean; offices: number }>('/demo/reset', { method: 'POST' });
+
+// ------------------------------------------------------------------ identity
+// A stand-in for the portal's sign-in, not authentication — the service returns
+// the code because nothing sends an SMS, and says so in `delivered` and `note`.
+
+export interface SignInCode {
+  phone: string;
+  code: string;
+  delivered: boolean;
+  expires_in_minutes: number;
+  note: string;
+}
+
+export const requestSignInCode = (phone: string) =>
+  request<SignInCode>('/identity/request-code', { method: 'POST', body: { phone } });
+
+export const verifySignInCode = (phone: string, code: string) =>
+  request<{ citizen_ref: string; phone: string }>('/identity/verify', {
+    method: 'POST', body: { phone, code },
+  });
+
+// ---------------------------------------------------------------- voice agent
+
+export const startVoice = (citizenRef: string) =>
+  request<{ session_id: string; expires_in_minutes: number }>('/agent/voice/start', {
+    method: 'POST', body: { citizen_ref: citizenRef },
+  });
+
+export const voiceTurn = (sessionId: string, transcript: string) =>
+  request<VoiceReply>('/agent/voice/turn', {
+    method: 'POST', body: { session_id: sessionId, transcript },
+  });
+
+export const confirmVoiceAction = (sessionId: string) =>
+  request<VoiceReply>('/agent/voice/confirm', { method: 'POST', body: { session_id: sessionId } });
+
+export const cancelVoiceAction = (sessionId: string) =>
+  request<{ session_id: string; cancelled: boolean }>('/agent/voice/cancel', { method: 'POST', body: { session_id: sessionId } });
+
+export const endVoice = (sessionId: string) =>
+  request<void>(`/agent/voice/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });

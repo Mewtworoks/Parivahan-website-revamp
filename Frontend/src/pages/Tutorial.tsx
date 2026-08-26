@@ -32,7 +32,18 @@ export function Tutorial({ go, state }: PageProps) {
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g10" style={{ marginBottom: 24 }}>
-        <span className="eyebrow">Before stage 8 · mandatory</span><h1>{t('Road safety tutorial', 'सड़क सुरक्षा ट्यूटोरियल', 'रस्ता सुरक्षा ट्यूटोरियल')}</h1>
+        <div className="row between g12 wrapf">
+          <span className="eyebrow">Before stage 8 · mandatory</span>
+          {/* Demo shortcut, same as the wizard's. Ticking five items in front of
+              an audience shows nothing the build is arguing, and until they are
+              all ticked both onward buttons stay disabled. */}
+          {!allRead && (
+            <button className="btn btn-g btn-sm" onClick={() => setRead(Object.fromEntries(TUTORIAL_ITEMS.map((_, i) => [i, true])))}>
+              {Icon.play()} {t('Mark read for demo', 'डेमो के लिए पढ़ा हुआ चिह्नित करें')}
+            </button>
+          )}
+        </div>
+        <h1>{t('Road safety tutorial', 'सड़क सुरक्षा ट्यूटोरियल', 'रस्ता सुरक्षा ट्यूटोरियल')}</h1>
         <p className="lede">{t('Watching this is mandatory, and in some states you have already paid a road safety fee for it. The official portal links a video most people leave playing in another tab. This is the same content as five things you can read in two minutes, ticked off as you go.', 'इसे देखना अनिवार्य है, और कुछ राज्यों में आप इसके लिए सड़क सुरक्षा शुल्क पहले ही चुका चुके हैं। आधिकारिक पोर्टल एक वीडियो लिंक करता है जिसे ज़्यादातर लोग दूसरे टैब में चलता छोड़ देते हैं। यह वही सामग्री है, पांच बातों के रूप में जिन्हें आप दो मिनट में पढ़ सकते हैं, पढ़ते ही टिक करते जाएं।', 'हे पाहणे सक्तीचे आहे, आणि काही राज्यांत तुम्ही यासाठी रस्ता सुरक्षा शुल्क आधीच भरले आहे. अधिकृत पोर्टल एक व्हिडिओ जोडते जो बहुतेक लोक दुसऱ्या टॅबमध्ये चालू ठेवतात. हीच सामग्री आहे, पाच गोष्टींच्या रूपात ज्या तुम्ही दोन मिनिटांत वाचू शकता, वाचताच टिक करा.')}</p>
       </div>
       <div className="card card-p col g12">
@@ -52,6 +63,16 @@ export function Tutorial({ go, state }: PageProps) {
       <div className="sticky-cta"><div className="row g12 wrapf">
         <button className="btn btn-p" onClick={() => go('learn')} disabled={!allRead}>{t('Practise the situations', 'स्थितियों का अभ्यास करें', 'परिस्थितींचा सराव करा')} {Icon.right()}</button>
         <button className="btn btn-s" onClick={() => go('test')} disabled={!allRead}>{t('Go straight to the test', 'सीधे टेस्ट पर जाएं', 'सरळ टेस्टकडे जा')}</button>
+        {/* The slot phase is reachable from here. An Aadhaar application reaches
+            the tutorial without passing through booking at all — it takes the
+            test from home — so without this the appointment screen has no door
+            on this route, and the slot screen already explains that booking is
+            optional for them. */}
+        <button className="btn btn-g" onClick={() => go('slot')}>
+          {Icon.pin()} {isAadhaar
+            ? t('Book a test slot anyway', 'फिर भी टेस्ट स्लॉट बुक करें')
+            : t('Book a test slot', 'टेस्ट स्लॉट बुक करें')}
+        </button>
       </div></div>
     </div>
   );

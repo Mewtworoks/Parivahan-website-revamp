@@ -18,8 +18,15 @@ export function Report({ go, state, update }: PageProps) {
   const log = state.gameLog || [];
   if (!log.length) {
     return (
-      <div className="narrow" style={{ padding: '60px 24px' }}>
-        <Note>No round played yet. <a href="#" onClick={e => { e.preventDefault(); go('game'); }}>Start the practice game</a>.</Note>
+      // Named, like the report itself. Reached directly — a shared link, a
+      // refresh — this was a lone sentence with nothing saying which screen it
+      // was or what it would have shown.
+      <div className="narrow fade" style={{ padding: '60px 24px' }}>
+        <div className="col g10">
+          <span className="eyebrow">Practice</span>
+          <h1>Readiness report</h1>
+          <Note>No round played yet. <a href="#/game" onClick={e => { e.preventDefault(); go('game'); }}>Start the practice game</a> and the report fills in from it.</Note>
+        </div>
       </div>
     );
   }

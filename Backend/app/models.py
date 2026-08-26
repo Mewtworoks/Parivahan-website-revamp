@@ -2,11 +2,13 @@
 Data models for the reimagined LL theory test.
 
 The key idea: the legal shell of the Learner Licence test is unchanged
-(15 questions, 9 correct to pass, Aadhaar-authenticated, proctored). What
-changes is that every question is an animated *scenario* ending in a
-decision point, instead of a static text MCQ. This file defines how such a
-scenario is represented so the backend (scoring, sequencing, proctoring) and
-the frontend renderer speak the same language.
+(a fixed question count, a fixed pass mark, Aadhaar-authenticated, proctored).
+This build mirrors Maharashtra's shell — see QUESTIONS_PER_TEST and
+PASS_THRESHOLD below, which every other module and the agent's spoken answers
+read from rather than restating. What changes is that every question is an
+animated *scenario* ending in a decision point, instead of a static text MCQ.
+This file defines how such a scenario is represented so the backend (scoring,
+sequencing, proctoring) and the frontend renderer speak the same language.
 """
 
 from __future__ import annotations

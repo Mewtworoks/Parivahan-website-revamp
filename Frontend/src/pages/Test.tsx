@@ -88,10 +88,20 @@ export function Test({ go, state, update }: PageProps) {
   if (error) {
     return (
       <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
-        <Note tone="warn"><b>{t('The test cannot start.', 'टेस्ट शुरू नहीं हो सका।')}</b>{' '}
-          {api.isOffline(error)
-            ? t('The licence service is not responding. Your application is unaffected — the test can be taken when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही। आपके आवेदन पर कोई असर नहीं — सेवा वापस आने पर टेस्ट दिया जा सकता है।')
-            : error.message}</Note>
+        {/* Named with a heading, like every other screen. Deep-linked here with
+            the service down, the page was a lone warning box with nothing
+            saying which screen it was. */}
+        <div className="col g16">
+          <h1>{t("Learner's theory test", 'लर्नर थ्योरी टेस्ट')}</h1>
+          <Note tone="warn"><b>{t('The test cannot start.', 'टेस्ट शुरू नहीं हो सका।')}</b>{' '}
+            {api.isOffline(error)
+              ? t('The licence service is not responding. Your application is unaffected — the test can be taken when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही। आपके आवेदन पर कोई असर नहीं — सेवा वापस आने पर टेस्ट दिया जा सकता है।')
+              : error.message}</Note>
+          <div className="row g10 wrapf">
+            <button className="btn btn-s" onClick={() => go('status')}>{t('Back to my application', 'मेरे आवेदन पर वापस')}</button>
+            <button className="btn btn-g" onClick={() => go('learn')}>{t('Practise while you wait', 'इंतज़ार के दौरान अभ्यास करें')}</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -127,7 +137,10 @@ export function Test({ go, state, update }: PageProps) {
   if (!scenario) {
     return (
       <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
-        <Note>{t('Preparing your test…', 'आपका टेस्ट तैयार हो रहा है…')}</Note>
+        <div className="col g16">
+          <h1>{t("Learner's theory test", 'लर्नर थ्योरी टेस्ट')}</h1>
+          <Note>{t('Preparing your test…', 'आपका टेस्ट तैयार हो रहा है…')}</Note>
+        </div>
       </div>
     );
   }

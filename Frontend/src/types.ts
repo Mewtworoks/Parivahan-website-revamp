@@ -6,7 +6,15 @@
 export type Route =
   | 'home' | 'elig' | 'checklist' | 'status'
   | 'apply' | 'slip' | 'pay' | 'receipt' | 'slot' | 'tutorial'
-  | 'learn' | 'lesson' | 'game' | 'report' | 'test' | 'issued' | 'dl';
+  | 'learn' | 'lesson' | 'game' | 'report' | 'test' | 'issued'
+  // 'dl' is parked. The driving-licence wizard is complete as an interface but
+  // has no service behind it — every other journey on this site is wired to the
+  // real engine, so leaving it reachable invites someone to find the one screen
+  // that only pretends. pages/DrivingLicence.tsx and pages/dl/ are untouched;
+  // search "DL journey parked" to put it back.
+  // Staff-side and behind-the-scenes views. The desk is what makes the
+  // citizen's live queue actually move; the proofs run the guarantees.
+  | 'desk' | 'proof';
 
 export interface EligibilityAnswers {
   dob?: string;

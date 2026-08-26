@@ -22,6 +22,15 @@ secrets.json
 *.pem
 *.key
 
+# The engine's database of applications, bookings and queue tokens, plus the
+# write-ahead log SQLite keeps beside it. Machine-local demo state, and it holds
+# synthetic applicant records — not source.
+Backend/state.db
+Backend/state.db-wal
+Backend/state.db-shm
+# Left over from the JSON-snapshot store this replaced.
+Backend/state.json
+
 # ==========================================
 # Frontend (Node / Angular / React / Vue / Next)
 # ==========================================
