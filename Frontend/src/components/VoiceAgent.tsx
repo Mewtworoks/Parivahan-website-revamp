@@ -69,7 +69,19 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
   const [working, setWorking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [waited, setWaited] = useState(0);
   const log = useRef<HTMLDivElement>(null);
+
+  // A turn takes three to six seconds against the language service. Spent
+  // against a line that never changes, that is indistinguishable from a panel
+  // that has hung — it was read as broken more than once. Counting up says the
+  // wait is being spent rather than lost.
+  useEffect(() => {
+    if (!working) { setWaited(0); return; }
+    const started = Date.now();
+    const tick = setInterval(() => setWaited(Math.floor((Date.now() - started) / 1000)), 250);
+    return () => clearInterval(tick);
+  }, [working]);
 
   // The newest line is the whole point of a voice panel, and the transcript is a
   // fixed-height scroller — without this the reply lands below the fold and the
@@ -208,7 +220,25 @@ export function VoiceAgent({ state, update, onClose }: VoiceAgentProps) {
               {turn.text}
             </div>
           ))}
-          {working && <span className="tiny">Saarthi is checking the journey…</span>}
+          {working && (
+            <div className="flat col g6" style={{ alignSelf: 'flex-start', maxWidth: '90%', padding: '11px 13px' }} aria-live="polite">
+              <span className="tiny" style={{ fontWeight: 600 }}>Saarthi</span>
+              <span className="tiny">
+                {waited < 3
+                  ? t('Checking the journey…', 'यात्रा देखी जा रही है…')
+                  : waited < 7
+                    ? t('Looking up the licence service…', 'लाइसेंस सेवा से जानकारी ली जा रही है…')
+                    : t('Still working — this one is taking longer than usual.', 'अभी भी काम जारी है — इसमें सामान्य से ज़्यादा समय लग रहा है।')}
+                {' '}<span className="mono">{waited}s</span>
+              </span>
+              {/* A bar that fills over the six seconds a turn usually takes. It
+                  keeps moving past that rather than completing and sitting
+                  still, which would claim the reply had arrived. */}
+              <span style={{ display: 'block', height: 3, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+                <span style={{ display: 'block', height: '100%', borderRadius: 999, background: 'var(--brand)', width: `${Math.min(92, 12 + waited * 14)}%`, transition: 'width .25s linear' }} />
+              </span>
+            </div>
+          )}
         </div>
 
         {pending && (

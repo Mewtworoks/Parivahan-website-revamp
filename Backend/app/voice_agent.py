@@ -142,6 +142,20 @@ C" is right, "you are number three and nobody is ahead" sounds like a mistake.
 
 MUTATING_TOOLS = {"apply_for_licence", "book_slot", "check_in"}
 
+# A reply that promises to do one of the gated things. The model mostly calls
+# the tool, but roughly one turn in four it announces the action in words and
+# calls nothing — "I'll start your learner licence application" — so no
+# confirmation button appears and the citizen is left waiting for something that
+# was never queued. Matched only to decide whether to ask once more; the reply
+# itself is never rewritten on the strength of it.
+_PROMISED_ACTION = re.compile(
+    r"\b(i(?:'| wi)?ll|i am going to|let me|main)\b[^.!?]{0,60}"
+    r"\b(start|create|submit|appl(?:y|ying)|book|reserve|check(?:ing)? you in)\b"
+    r"|\b(आवेदन|अर्ज़ी)\b[^।.!?]{0,40}\b(कर|बना|शुरू)"
+    r"|\b(बुक|चेक ?इन)\b[^।.!?]{0,30}\b(कर|कर्?ता|करूँ|करूंगा)",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class PendingAction:
@@ -447,6 +461,58 @@ def _language_steer(text: str) -> str | None:
     return "Reply in English."
 
 
+# Every line the service speaks itself, rather than getting from the model. They
+# are reached whenever the answer channel comes back empty, which is often enough
+# to matter: asked "I want a learner licence" in English, the citizen was told
+# "कृपया स्क्रीन पर पुष्टि करें" because the fallback was a hardcoded Hindi
+# string. The whole point of the per-turn language steer is defeated if the
+# service's own words ignore it.
+_FALLBACKS: dict[str, dict[str, str]] = {
+    "press_confirm_first": {
+        "en": "Press the confirmation button on screen first, or cancel it and ask me something new.",
+        "hi": "पहले स्क्रीन पर दिख रहे पुष्टि बटन को दबाइए, या रद्द करके नया सवाल पूछिए।",
+    },
+    "ready_to_help": {
+        "en": "I am here to help with your licence.",
+        "hi": "मैं आपकी मदद के लिए तैयार हूँ।",
+    },
+    "please_confirm": {
+        "en": "Please confirm on screen.",
+        "hi": "कृपया स्क्रीन पर पुष्टि करें।",
+    },
+    "must_pause": {
+        "en": "I have to stop at this step for now. Please say that again.",
+        "hi": "मुझे अभी एक कदम पर रुकना होगा। कृपया फिर से कहिए।",
+    },
+    "done_see_screen": {
+        "en": "Done. The details are on screen.",
+        "hi": "हो गया। स्क्रीन पर विवरण देखिए।",
+    },
+    # Said twice that it would act and called nothing both times. The citizen
+    # must not be left holding "I will create your application, please confirm"
+    # when there is no button and nothing was queued — the one outcome the
+    # confirmation gate exists to prevent.
+    "could_not_start": {
+        "en": "Sorry — I could not start that just now, and nothing has been "
+              "submitted. Please say it again, or use the form on screen.",
+        "hi": "क्षमा करें — मैं अभी वह शुरू नहीं कर सका, और कुछ भी जमा नहीं हुआ है। "
+              "कृपया दोबारा कहिए, या स्क्रीन पर दिए फ़ॉर्म का उपयोग कीजिए।",
+    },
+}
+
+
+def _fallback(key: str, language: str | None) -> str:
+    """
+    The service's own words, in the language this turn was decided to be in.
+
+    ``language`` is the steer sentence built by ``_language_steer``, so Hindi is
+    the only one that names a script; Hinglish and English both take the Latin
+    line, which is the right call for romanised Hindi too.
+    """
+    variants = _FALLBACKS[key]
+    return variants["hi"] if language and "in Hindi" in language else variants["en"]
+
+
 def _clean_tool_name(raw: str | None) -> str:
     """
     Strip gpt-oss harmony channel markers out of a function name.
@@ -566,7 +632,7 @@ def _run_tool_calls(session: VoiceSession, tool_calls: list[dict[str, Any]],
 def _reply(session: VoiceSession, user_text: str) -> dict[str, Any]:
     if session.pending:
         return {
-            "reply": "पहले स्क्रीन पर दिख रहे पुष्टि बटन को दबाइए, या रद्द करके नया सवाल पूछिए।",
+            "reply": _fallback("press_confirm_first", session.language),
             "tool_events": [],
             "pending_confirmation": {"label": session.pending.label},
         }
@@ -576,6 +642,10 @@ def _reply(session: VoiceSession, user_text: str) -> dict[str, Any]:
     # decision is the freshest instruction in the conversation.
     session.language = _language_steer(user_text)
     events: list[dict[str, Any]] = []
+    # Only ever spent once per turn, so a model that keeps promising instead of
+    # calling cannot loop the citizen — it gets one correction, then whatever it
+    # says stands.
+    nudged_to_act = False
 
     for _ in range(MAX_TOOL_ROUNDS):
         message = _call_nvidia(session.messages, _chat_tools(), session.language)
@@ -586,8 +656,35 @@ def _reply(session: VoiceSession, user_text: str) -> dict[str, Any]:
             **({"tool_calls": tool_calls} if tool_calls else {}),
         })
         if not tool_calls:
-            spoken = _spoken_text(message) or _nudge_for_speech(session)
-            return {"reply": spoken or "मैं आपकी मदद के लिए तैयार हूँ।", "tool_events": events}
+            spoken = _spoken_text(message)
+
+            # Said it would act, but ran nothing. Left alone this is the worst
+            # outcome the gate can produce: the citizen is told their
+            # application is being created, no button appears because nothing
+            # was queued, and the next turn the model believes it already did it.
+            if spoken and not nudged_to_act and not events and _PROMISED_ACTION.search(spoken):
+                nudged_to_act = True
+                log.info("model promised an action without calling a tool; asking again")
+                session.messages.append({
+                    "role": "system",
+                    "content": ("You said you would do that but called no tool, so nothing has "
+                                "happened and the citizen has no confirmation button. Call the "
+                                "tool now. Do not describe it again."),
+                })
+                continue
+
+            # Nudged already and it still only talked about acting. Saying so
+            # plainly beats letting the promise stand: the citizen would wait
+            # for a button that is never coming, and believe an application
+            # exists that does not.
+            if spoken and nudged_to_act and not events and _PROMISED_ACTION.search(spoken):
+                log.warning("model promised an action twice without calling a tool")
+                return {"reply": _fallback("could_not_start", session.language),
+                        "tool_events": events}
+
+            spoken = spoken or _nudge_for_speech(session)
+            return {"reply": spoken or _fallback("ready_to_help", session.language),
+                    "tool_events": events}
 
         _run_tool_calls(session, tool_calls, events)
 
@@ -596,7 +693,7 @@ def _reply(session: VoiceSession, user_text: str) -> dict[str, Any]:
             final = _call_nvidia(session.messages, None, session.language)
             session.messages.append({"role": "assistant", "content": _spoken_text(final)})
             return {
-                "reply": _spoken_text(final) or "कृपया स्क्रीन पर पुष्टि करें।",
+                "reply": _spoken_text(final) or _fallback("please_confirm", session.language),
                 "tool_events": events,
                 "pending_confirmation": {"label": session.pending.label},
             }
@@ -608,7 +705,7 @@ def _reply(session: VoiceSession, user_text: str) -> dict[str, Any]:
     last = _call_nvidia(session.messages, None, session.language)
     spoken = _spoken_text(last)
     session.messages.append({"role": "assistant", "content": spoken})
-    return {"reply": spoken or "मुझे अभी एक कदम पर रुकना होगा। कृपया फिर से कहिए।",
+    return {"reply": spoken or _fallback("must_pause", session.language),
             "tool_events": events}
 
 
@@ -647,7 +744,7 @@ def confirm(session_id: str, caller: str | None = None) -> dict[str, Any]:
                     "sentences what happened and what I should do next. No ids, no JSON."),
     })
     final = _call_nvidia(session.messages, None, session.language)
-    reply = _spoken_text(final) or "हो गया। स्क्रीन पर विवरण देखिए।"
+    reply = _spoken_text(final) or _fallback("done_see_screen", session.language)
     session.messages.append({"role": "assistant", "content": reply})
     return {"session_id": session.id, "reply": reply, "tool_events": [{"tool": pending.tool, "status": "complete", "result": result}]}
 

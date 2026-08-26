@@ -40,7 +40,12 @@ export function Home({ go, update }: PageProps) {
     { id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
       desc: 'Your first licence. Apply online, then visit the RTO once for the test.',
       meta: ['Eight stages, about 14 minutes', '₹150 per class plus one ₹50 test fee', 'With Aadhaar: no RTO visit at all', '10 questions, 6 to pass'],
-      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'elig' },
+      // Straight into the wizard. The eligibility check is a separate question
+      // with its own button in the hero — routing "Start" through it made
+      // someone who already knows they qualify answer three questions before
+      // they were allowed to begin. Stage one's Back still goes to the
+      // checklist, so what you need to have ready stays one press away.
+      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'apply' },
     // DL journey parked — the wizard exists but has no service behind it, and a
     // card here is an invitation to find that out. See the note in types.ts.
     // { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),

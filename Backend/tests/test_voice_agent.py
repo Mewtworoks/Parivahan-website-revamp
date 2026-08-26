@@ -233,15 +233,71 @@ def test_scratchpad_is_never_spoken_to_the_citizen(monkeypatch):
     assert "guidelines" not in body["reply"]
 
 
+def _devanagari(text: str) -> bool:
+    return any("ऀ" <= ch <= "ॿ" for ch in text)
+
+
 def test_empty_answer_never_leaves_the_citizen_with_nothing(monkeypatch):
     """If even the re-ask comes back empty, say something rather than nothing."""
     monkeypatch.setattr(voice_agent, "_call_nvidia",
                         lambda messages, tools=None, language=None: {"content": "", "reasoning_content": "hmm"})
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-silent"}).json()
     body = client.post("/agent/voice/turn", json={
-        "session_id": session["session_id"], "transcript": "namaste",
+        "session_id": session["session_id"], "transcript": "नमस्ते",
     }).json()
-    assert body["reply"] == "मैं आपकी मदद के लिए तैयार हूँ।"
+    assert body["reply"].strip()
+    assert "guidelines" not in body["reply"]
+
+
+def test_the_services_own_words_follow_the_citizens_language(monkeypatch):
+    """
+    The fallbacks are the service speaking, not the model, and they used to be
+    hardcoded Hindi. Asked "I want a learner licence" in English, a citizen was
+    answered "कृपया स्क्रीन पर पुष्टि करें" — which defeats the whole point of
+    deciding the language per turn.
+    """
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None: {"content": "", "reasoning_content": "hmm"})
+
+    english = client.post("/agent/voice/start", json={"citizen_ref": "voice-en"}).json()
+    reply_en = client.post("/agent/voice/turn", json={
+        "session_id": english["session_id"], "transcript": "I want a learner licence",
+    }).json()["reply"]
+
+    hindi = client.post("/agent/voice/start", json={"citizen_ref": "voice-hi"}).json()
+    reply_hi = client.post("/agent/voice/turn", json={
+        "session_id": hindi["session_id"], "transcript": "मुझे लाइसेंस चाहिए",
+    }).json()["reply"]
+
+    assert reply_en.strip() and not _devanagari(reply_en), reply_en
+    assert reply_hi.strip() and _devanagari(reply_hi), reply_hi
+
+
+def test_a_promised_action_that_never_ran_is_not_left_standing(monkeypatch):
+    """
+    The model sometimes says it will apply and calls nothing. Left alone the
+    citizen is told to confirm, no button appears because nothing was queued,
+    and they believe an application exists. After one correction that still
+    produces no tool call, the service says so instead.
+    """
+    calls: list[dict] = []
+
+    def never_calls_a_tool(messages, tools=None, language=None):
+        calls.append({"tools": bool(tools)})
+        return {"content": "I will create your learner licence application, please confirm."}
+
+    monkeypatch.setattr(voice_agent, "_call_nvidia", never_calls_a_tool)
+    session = client.post("/agent/voice/start", json={"citizen_ref": "voice-promise"}).json()
+    body = client.post("/agent/voice/turn", json={
+        "session_id": session["session_id"], "transcript": "I want a learner licence",
+    }).json()
+
+    assert "please confirm" not in body["reply"].lower(), body["reply"]
+    assert "nothing has been submitted" in body["reply"].lower(), body["reply"]
+    assert not body.get("pending_confirmation")
+    # Asked again after the correction, and only once — a model that keeps
+    # promising must not loop the citizen.
+    assert len(calls) == 2, calls
 
 
 def test_tool_call_markup_never_reaches_the_citizen(monkeypatch):

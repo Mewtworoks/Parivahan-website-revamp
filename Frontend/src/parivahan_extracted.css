@@ -28,8 +28,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 .mark{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0}
 .mark-g{width:34px;height:34px;border-radius:10px;background:var(--brand);object-fit:contain;flex:none}
 .mark-t{font-family:var(--disp);font-weight:600;font-size:1.06rem;letter-spacing:-0.02em;line-height:1.1}
-.mark-s{font-size:.7rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;line-height:1}
-.badge-proto{font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--badge-line);padding:4px 8px;border-radius:999px;white-space:nowrap}
 .tb-btn{background:none;border:1px solid transparent;border-radius:10px;padding:7px 11px;font-size:.9rem;font-weight:500;color:var(--ink2);min-height:40px}
 .tb-btn:hover{background:var(--surface2);border-color:var(--line)}
 /* flex:none because overflow:hidden (which is what keeps the rounded corners
@@ -194,9 +192,6 @@ h1{font-size:1.68rem}h2{font-size:1.3rem}
 .hero-stats span{font-size:.8rem;color:var(--muted)}
 .hero-art{position:relative}
 .hero-art .lic{transform:rotate(-2.2deg)}
-.float{position:absolute;background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 15px;box-shadow:var(--sh-lg);display:flex;gap:11px;align-items:center;font-size:.86rem;font-weight:500}
-.float-a{right:-14px;top:-26px}
-.float-b{left:-18px;bottom:-26px}
 .modcard{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;position:relative;overflow:hidden}
 .modcard:hover{transform:translateY(-3px);box-shadow:var(--sh-lg);border-color:var(--brand-line)}
 .modcard .idx{position:absolute;right:22px;bottom:88px;font-family:var(--disp);font-size:5.4rem;font-weight:700;color:var(--brand-soft);line-height:1;letter-spacing:-.05em;pointer-events:none;z-index:0;opacity:.85}
