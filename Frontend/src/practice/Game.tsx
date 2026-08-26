@@ -4,7 +4,7 @@ import { Icon } from '../ui/Icon';
 import type { GameLogEntry, PageProps } from '../types';
 import { PixelScene } from './PixelScene';
 import { AXIS_LABELS, DECISION_LIMIT_MS, FAST_ANSWER_MS, scenariosFor, vehicleFocusFrom } from './scenarios';
-import { isSfxMuted, playCorrect, playWrong, setSfxMuted } from './sound';
+import { isSfxMuted, playCorrect, playGameOver, playWrong, setSfxMuted } from './sound';
 
 /** The practice round: pick an answer against a 4-second countdown, see why, move on. */
 export function Game({ go, state, update }: PageProps) {
@@ -51,7 +51,11 @@ export function Game({ go, state, update }: PageProps) {
     const fast = ms <= FAST_ANSWER_MS;
     setLog(l => [...l, { id: scenario.id, axes: scenario.axes, ok: correct, ms, fast, to: choice === null }]);
     if (correct) { setScore(v => v + (fast ? 120 : 70)); playCorrect(); }
-    else { setHearts(h => h - 1); setShake(true); setTimeout(() => setShake(false), 420); playWrong(); }
+    else {
+      setHearts(h => h - 1);
+      setShake(true); setTimeout(() => setShake(false), 420);
+      if (hearts <= 1) playGameOver(); else playWrong();
+    }
     setPick(choice);
     setRevealed(true);
   }

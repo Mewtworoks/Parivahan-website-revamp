@@ -1,7 +1,10 @@
-// Tiny synthesised feedback sounds for the practice game — no audio files, just short
-// oscillator envelopes. Failing silently (no AudioContext, autoplay-blocked, etc.) is fine;
-// these are a nice-to-have, never load-bearing for the game itself.
+// Feedback sounds for the practice game. Failing silently (autoplay-blocked, missing file, etc.)
+// is fine — these are a nice-to-have, never load-bearing for the game itself.
+import correctSrc from '../assets/correct_quiz.mp3';
+import wrongSrc from '../assets/wrong_quiz.mp3';
+import gameOverSrc from '../assets/game-over_quiz.mp3';
 
+// On by default — a first-time player hears sound unless they explicitly mute it.
 let muted = (() => {
   try { return localStorage.getItem('sfxMuted') === '1'; } catch { return false; }
 })();
@@ -15,47 +18,27 @@ export function setSfxMuted(value: boolean): void {
   try { localStorage.setItem('sfxMuted', value ? '1' : '0'); } catch { /* private browsing, etc. */ }
 }
 
-let ctx: AudioContext | null = null;
-function getContext(): AudioContext | null {
+function playFile(src: string): void {
+  if (muted) return;
   try {
-    if (!ctx) ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    if (ctx.state === 'suspended') void ctx.resume();
-    return ctx;
+    const audio = new Audio(src);
+    void audio.play().catch(() => { /* autoplay-blocked, etc. — fine to skip */ });
   } catch {
-    return null;
+    // Audio unsupported in this environment — fine to skip.
   }
 }
 
-function tone(freq: number, startOffset: number, duration: number, gain: number, type: OscillatorType) {
-  if (muted) return;
-  const audio = getContext();
-  if (!audio) return;
-  const osc = audio.createOscillator();
-  const env = audio.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  const start = audio.currentTime + startOffset;
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(gain, start + 0.015);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(env);
-  env.connect(audio.destination);
-  osc.start(start);
-  osc.stop(start + duration + 0.02);
-}
-
-/** A short rising two-note chime for a correct answer. */
+/** Plays on a correct answer. */
 export function playCorrect(): void {
-  tone(660, 0, 0.11, 0.05, 'sine');
-  tone(880, 0.08, 0.16, 0.05, 'sine');
+  playFile(correctSrc);
 }
 
-/** A short low buzz for a wrong answer or a timeout. */
+/** Plays on a wrong answer or a timeout. */
 export function playWrong(): void {
-  tone(160, 0, 0.22, 0.045, 'square');
+  playFile(wrongSrc);
 }
 
-/** A soft, neutral tick for picking an answer, before the reveal. */
-export function playTick(): void {
-  tone(420, 0, 0.05, 0.03, 'sine');
+/** Plays once all three hearts are gone and the round ends. */
+export function playGameOver(): void {
+  playFile(gameOverSrc);
 }
