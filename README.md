@@ -155,7 +155,7 @@ Deliberately left as UI-only, because they hold no server state: eligibility,
 checklist, fees, Form 1, e-sign, payment, and the practice game.
 
 The six RTO offices are defined once, in `Backend/app/booking_engine.py`, with
-the same ids the application wizard uses — so `form.rto` is already a valid
+the same ids the application wizard uses — so `form.rto` is already a valids
 `rto_id` and there is no mapping layer to drift.
 
 ---
