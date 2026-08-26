@@ -98,6 +98,11 @@ class DispatchBody(BaseModel):
 
 class VoiceStartBody(BaseModel):
     citizen_ref: str = Field(..., min_length=1, max_length=120)
+    # Which language to open in. The greeting is composed before the citizen has
+    # said anything, so there is nothing to detect it from — and greeting an
+    # English reader in Hindi is an invitation to answer in Hindi, which is not
+    # what they chose.
+    language: str = Field("en", max_length=8)
 
 
 class VoiceTurnBody(BaseModel):
@@ -506,9 +511,23 @@ def identity_verify(body: VerifyBody):
 
 @app.post("/agent/voice/start", tags=["agent"])
 def agent_voice_start(body: VoiceStartBody):
-    """Create a short-lived, server-side Saarthi conversation."""
-    session = voice_agent.start_session(body.citizen_ref)
-    return {"session_id": session.id, "expires_in_minutes": voice_agent.SESSION_TTL_MINUTES}
+    """
+    Open a Saarthi conversation, resuming one already in progress.
+
+    The greeting comes back with it, composed from what the record already says
+    about this citizen — an appointment, a filed application, a half-finished
+    form — and costs no upstream call. The opening turn used to be the slowest
+    one in the conversation, and it was spent producing "hello, I am Saarthi".
+    """
+    session = voice_agent.start_session(body.citizen_ref, body.language)
+    return {
+        "session_id": session.id,
+        "expires_in_minutes": voice_agent.SESSION_TTL_MINUTES,
+        "greeting": voice_agent.opening_line(session),
+        # Whether this picked up something already under way, so the panel can
+        # show the transcript it has rather than opening on a blank one.
+        "resumed": bool(session.application_id or session.form_answers),
+    }
 
 
 @app.post("/agent/voice/turn", tags=["agent"])

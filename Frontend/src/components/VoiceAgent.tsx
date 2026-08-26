@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
 import { demoForm } from '../data/demoApplicant';
+import { loadConversation, saveConversation, type Turn } from '../lib/conversation';
 import { useIdentity } from '../lib/identity';
 import { useLanguage, useT, type Lang } from '../lib/language';
 import type { AppState, ApplicationForm, Route } from '../types';
@@ -16,7 +17,8 @@ import { toast } from '../ui/Toast';
  */
 const SPEECH_LOCALE: Record<Lang, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
 
-type Turn = { who: 'citizen' | 'saarthi'; text: string };
+// Turn now lives in lib/conversation.ts, because the transcript outlives this
+// component — it is stored there and read back when the panel reopens.
 
 interface VoiceAgentProps {
   state: AppState;
@@ -95,16 +97,24 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const { lang } = useLanguage();
   const t = useT();
   const phone = useIdentity();
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const sessionRef = useRef<string | null>(null);
-  // Opens in the language the citizen is already reading the site in. A Hindi
-  // greeting to someone who chose English is an invitation to answer in Hindi,
-  // which is not what they asked for.
-  const [turns, setTurns] = useState<Turn[]>(() => [{
+  const [sessionId, setSessionId] = useState<string | null>(() => loadConversation(phone || '').sessionId);
+  const sessionRef = useRef<string | null>(loadConversation(phone || '').sessionId);
+  // Shown until the service answers with its own opening line. That one is
+  // built from the record — an appointment, a filed application, a form left
+  // half-answered — and this is only what stands in for it when nobody is
+  // signed in yet, or the backend cannot be reached.
+  const greeting: Turn = {
     who: 'saarthi',
     text: t('Hello, I am Saarthi. I can tell you the right next step for your licence.',
             'नमस्ते, मैं सारथी हूँ। मैं लाइसेंस के लिए सही अगला कदम बता सकता हूँ।'),
-  }]);
+  };
+  // Picked up where it was left, not started over. Closing this panel to look
+  // at the screen behind it is the thing Saarthi keeps asking people to do.
+  const [turns, setTurns] = useState<Turn[]>(
+    () => loadConversation(phone || '').turns.length
+      ? loadConversation(phone || '').turns
+      : [greeting],
+  );
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [working, setWorking] = useState(false);
@@ -132,10 +142,16 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     if (box) box.scrollTop = box.scrollHeight;
   }, [turns, working, pending]);
 
-  useEffect(() => () => {
-    if (sessionRef.current) void api.endVoice(sessionRef.current).catch(() => undefined);
-    window.speechSynthesis?.cancel();
-  }, []);
+  // Closing the panel stops it talking and nothing else. Ending the server
+  // session here is what made a close-and-reopen start from nothing — the
+  // conversation is ended when the citizen signs out, not when they glance at
+  // the page behind it.
+  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+
+  // Every change, so the transcript survives a close, a reopen and a reload.
+  useEffect(() => {
+    if (phone) saveConversation(phone, turns, sessionRef.current);
+  }, [phone, turns, sessionId]);
 
   // The signed-in number is the reference, so Saarthi reads the same journey the
   // wizard filed and the tracker shows. It used to fall back to
@@ -147,11 +163,41 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const ensureSession = async () => {
     if (sessionRef.current) return sessionRef.current;
     if (!citizenRef) throw new Error('Sign in first so I know whose application to open.');
-    const created = await api.startVoice(citizenRef);
+    const created = await api.startVoice(citizenRef, lang === 'hi' ? 'hi' : 'en');
     sessionRef.current = created.session_id;
     setSessionId(created.session_id);
     return created.session_id;
   };
+
+  // Open the conversation as soon as the panel does, rather than on the first
+  // question. Two things come back with it and both need to be on screen before
+  // the citizen speaks: the session, and an opening line that already knows
+  // where they got to — "we were filling your form and I have your name" beats
+  // "hello" for somebody who was here an hour ago. It costs one cheap request
+  // and no model call, so there is nothing to save by waiting.
+  useEffect(() => {
+    if (!phone || sessionRef.current) return;
+    let dropped = false;
+    void (async () => {
+      try {
+        const created = await api.startVoice(phone, lang === 'hi' ? 'hi' : 'en');
+        if (dropped) return;
+        sessionRef.current = created.session_id;
+        setSessionId(created.session_id);
+        // Only when there is nothing to replace. A transcript already on screen
+        // is the citizen's conversation, and dropping a greeting into the
+        // middle of it would read as Saarthi starting over.
+        setTurns(old => (old.length <= 1 ? [{ who: 'saarthi', text: created.greeting }] : old));
+      } catch {
+        // The stand-in greeting is already showing, and the first question will
+        // report the failure properly. Nothing useful to say here.
+      }
+    })();
+    return () => { dropped = true; };
+    // lang is deliberately not a dependency: changing the site language
+    // mid-conversation must not silently reopen the session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
 
   const acceptReply = (reply: api.VoiceReply) => {
     setTurns(old => [...old, { who: 'saarthi', text: reply.reply }]);
@@ -219,8 +265,18 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     setInput(''); setError(null); setWorking(true);
     setTurns(old => [...old, { who: 'citizen', text: transcript }]);
     try {
-      const id = await ensureSession();
-      acceptReply(await api.voiceTurn(id, transcript));
+      try {
+        acceptReply(await api.voiceTurn(await ensureSession(), transcript));
+      } catch (err) {
+        // The server drops a conversation after half an hour idle. Now that the
+        // transcript outlives the panel, the stored id can point at one that is
+        // gone — so open a new one and send the question rather than showing
+        // the citizen a failure for something they did not do.
+        if (!(err instanceof api.ApiError) || err.status !== 404) throw err;
+        sessionRef.current = null;
+        setSessionId(null);
+        acceptReply(await api.voiceTurn(await ensureSession(), transcript));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Saarthi is unavailable right now.');
     } finally { setWorking(false); }

@@ -43,8 +43,13 @@ export function Desk({ state }: PageProps) {
   const office = offices.find(o => o.id === rtoId);
 
   return (
-    <div className="narrow fade" style={{ padding: '48px 24px 64px' }}>
-      <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26 }}>
+    /* wrap, not narrow: narrow is a reading measure for prose, and this is a
+       board. Held at 860 the lanes could never sit side by side however wide
+       the monitor was. */
+    <div className="wrap fade" style={{ padding: '48px 24px 64px' }}>
+      {/* The heading and the sentence under it are still prose, so they keep a
+          reading width of their own inside the wider board. */}
+      <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26, maxWidth: 720 }}>
         <Pill tone="brand">{Icon.dot()} {t('Staff view', 'कर्मचारी दृश्य')}</Pill>
         <h1>{t('Inspector desk', 'निरीक्षक डेस्क')}</h1>
         <p className="lede">
@@ -71,7 +76,14 @@ export function Desk({ state }: PageProps) {
 
       {!board && <p className="sub" style={{ marginTop: 20 }}>{t('Reading the board…', 'बोर्ड पढ़ा जा रहा है…')}</p>}
 
-      <div className="col g12" style={{ marginTop: 20 }}>
+      {/* Side by side once there is room, stacked when there is not.
+          A desk screen showing one lane at a time is the hall it replaces: the
+          claim this page makes is that every queue is visible at once, and on a
+          1920 monitor three lanes were still filing down a 860-pixel column
+          with the rest of the display empty. auto-fit rather than a fixed
+          column count, so an office with two inspectors does not leave a hole
+          and one with six wraps instead of shrinking to nothing. */}
+      <div className="lanes" style={{ marginTop: 20 }}>
         {lanes.map(lane => (
           <div key={lane.tester_id} className="card card-p col g12">
             <div className="row between g12 wrapf">

@@ -54,6 +54,7 @@ from sqlalchemy import (
     create_engine,
     delete,
     event,
+    inspect,
     text,
 )
 from sqlalchemy.engine import Engine
@@ -186,6 +187,72 @@ tokens = Table(
     Index("ix_tokens_lane", "tester_id", "status"),
 )
 
+# A form somebody started answering and did not finish.
+#
+# Deliberately not a row in ``applications``. An unfinished form is not an
+# application: put one there and it appears in the tracker, gets a display
+# number, gets a ledger chain, and is what ``latest_application_for`` hands the
+# next session — a citizen who answered one question would be told they had
+# already applied. This table holds nothing but the answers given so far, so the
+# worst it can cause is a resumed question.
+drafts = Table(
+    "drafts", METADATA,
+    # String, not Text: a TEXT primary key needs a prefix length on MySQL, and
+    # the whole point of this file is that the schema moves engines unchanged.
+    Column("citizen_ref", String(120), primary_key=True),
+    Column("answers", Text, nullable=False),     # JSON object
+    # What was being asked when they walked away, so the next conversation can
+    # open with "we got as far as your date of birth" rather than starting over.
+    Column("current_field", String(40), nullable=True),
+    Column("updated_at", _STAMP, nullable=False),
+)
+
+# A Saarthi conversation, which used to be a dict with a thirty-minute timer.
+#
+# It held the citizen's half-answered form, so closing the tab, waiting, or
+# restarting the server threw away answers they had already given — and the next
+# session asked for all of them again. Nothing about a conversation was ever
+# ephemeral except where it was stored.
+conversations = Table(
+    "conversations", METADATA,
+    Column("id", _ID, primary_key=True),
+    Column("citizen_ref", String(120), nullable=False),
+    Column("messages", Text, nullable=False),      # JSON: the model's message list
+    Column("language", Text, nullable=True),
+    Column("application_id", _ID, nullable=True),
+    Column("rto_id", _ID, nullable=True),
+    Column("token_id", _ID, nullable=True),
+    # The action waiting on the confirmation button. Kept because a reload in
+    # front of that button used to strand the citizen on something they could
+    # neither confirm nor cancel — the one state the gate must never produce.
+    Column("pending", Text, nullable=True),        # JSON or NULL
+    # What Saarthi last put on the table — "the days", "the times on Thursday".
+    # Kept because "yes" and "the second one" only mean anything against it.
+    Column("offered", String(60), nullable=True),
+    Column("created_at", _STAMP, nullable=False),
+    Column("last_seen", _STAMP, nullable=False),
+    Index("ix_conversations_citizen", "citizen_ref", "last_seen"),
+)
+
+# What went wrong, with no way back to who it happened to.
+#
+# The point is the aggregate: which competency the most people fail, which form
+# field they abandon at, which office loses the most slot races. That is a
+# curriculum signal and a service-design signal, and neither needs a name
+# attached. ``citizen_hash`` is an HMAC rather than a hash because a phone
+# number is a ten-digit space — a plain digest is brute-forced in seconds by
+# anyone holding this table, which would make the anonymity a claim rather than
+# a property. See app/signals.py for the allowlist that keeps `detail` clean.
+signals = Table(
+    "signals", METADATA,
+    Column("id", _ID, primary_key=True),
+    Column("at", _STAMP, nullable=False),
+    Column("citizen_hash", String(32), nullable=False),
+    Column("kind", String(40), nullable=False),
+    Column("detail", Text, nullable=False),        # JSON, allowlisted keys only
+    Index("ix_signals_kind_at", "kind", "at"),
+)
+
 # Sequences. SQLite has no SEQUENCE and AUTOINCREMENT would not survive the
 # "start at 4181 so the first number matches the copy" requirement, so the
 # counters are rows bumped inside the same transaction as the insert they feed.
@@ -276,12 +343,51 @@ def _make_engine(url: str) -> Engine:
     return eng
 
 
+def _add_missing_columns(eng: Engine) -> None:
+    """
+    Bring an existing database up to the current schema, one column at a time.
+
+    ``create_all`` creates tables that are absent and then leaves the ones that
+    exist exactly as they are. That is fine until a column is added to a table
+    somebody is already running, at which point every query naming it fails with
+    "no such column" — which is how a demo database written yesterday stopped
+    the server from answering a single request this morning.
+
+    Deliberately narrow. It adds nullable columns and nothing else: no drops, no
+    type changes, no renames, no data movement. Those need a real migration tool
+    with a version history and a way back, and pretending otherwise here would
+    be worse than not doing it. ``ALTER TABLE … ADD COLUMN`` is spelled the same
+    on SQLite, MySQL and Postgres, so this travels with the rest of the file.
+    """
+    inspector = inspect(eng)
+    existing_tables = set(inspector.get_table_names())
+    for table in METADATA.sorted_tables:
+        if table.name not in existing_tables:
+            continue                     # create_all just made it, in full
+        have = {c["name"] for c in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in have:
+                continue
+            if not column.nullable:
+                # Adding this needs a default and a decision about the rows
+                # already there. Say so rather than failing three queries later.
+                log.error("%s.%s is missing and not nullable — this needs a "
+                          "migration, not a column add", table.name, column.name)
+                continue
+            kind = column.type.compile(eng.dialect)
+            with eng.connect() as conn:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE {table.name} ADD COLUMN {column.name} {kind}")
+            log.info("added %s.%s to an existing database", table.name, column.name)
+
+
 def engine() -> Engine:
     global _engine, _url
     if _engine is None:
         _url = _resolve_url()
         _engine = _make_engine(_url)
         METADATA.create_all(_engine)
+        _add_missing_columns(_engine)
         log.info("storage ready at %s", _url)
     return _engine
 
@@ -340,9 +446,16 @@ def next_value(conn: Connection, name: str, start: int = 0) -> int:
 
 
 def reset(conn: Connection) -> None:
-    """Empty every table. Used by the demo's reset button and by nothing else."""
+    """
+    Empty every table. Used by the demo's reset button and by nothing else.
+
+    Drafts and conversations are in the list for the reason the button exists:
+    left behind, the next walkthrough opens on the previous person's half-filled
+    form and Saarthi greets a stranger by name.
+    """
     for table in (ledger, tokens, bookings, slots, slot_days,
-                  applications, testers, rtos, counters):
+                  applications, testers, rtos, counters,
+                  drafts, conversations, signals):
         conn.execute(delete(table))
 
 

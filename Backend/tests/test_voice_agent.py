@@ -28,19 +28,62 @@ def test_voice_tool_schema_hides_server_identifiers():
 
 
 def test_voice_requires_server_configuration_before_model_call(monkeypatch):
+    """
+    A turn that needs the model says so plainly when there is no key.
+
+    This used to send "मुझे लाइसेंस चाहिए" and expect a 503. That transcript no
+    longer reaches the model at all — it is a request to start the form, which
+    the service now answers itself — so it stopped testing anything. The
+    property is about turns that genuinely need the model, and asking what the
+    fee is, is one.
+    """
     monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-no-key"}).json()
     response = client.post("/agent/voice/turn", json={
-        "session_id": session["session_id"], "transcript": "मुझे लाइसेंस चाहिए",
+        "session_id": session["session_id"], "transcript": "फ़ीस के बारे में बताइए",
     })
     assert response.status_code == 503
     assert "NVIDIA_API_KEY" in response.json()["detail"]
 
 
+def test_the_form_still_fills_when_the_language_service_is_gone(monkeypatch):
+    """
+    The journey the demo is judged on no longer depends on an upstream API.
+
+    Worth stating as its own guarantee rather than as a side effect: the four
+    questions, the confirmation and the result are composed from what the
+    citizen said, so an NVIDIA outage costs explanations and slot negotiation
+    and costs the application nothing.
+    """
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+
+    def must_not_be_called(*args, **kwargs):
+        raise AssertionError("the form spine called the language service")
+
+    monkeypatch.setattr(voice_agent, "_call_nvidia", must_not_be_called)
+    sid = client.post("/agent/voice/start",
+                      json={"citizen_ref": "voice-offline"}).json()["session_id"]
+
+    for said in ("I want a learner licence", "Sehaj Gaba", "11 April 2008",
+                 "Maharashtra", "two wheeler"):
+        body = client.post("/agent/voice/turn",
+                           json={"session_id": sid, "transcript": said})
+        assert body.status_code == 200, body.text
+        answer = body.json()
+
+    assert answer["pending_confirmation"], "never reached the confirmation"
+    filed = client.post("/agent/voice/confirm", json={"session_id": sid}).json()
+    result = filed["tool_events"][0]["result"]
+    assert result["application_no"].startswith("SS-")
+    assert result["applicant_name"] == "Sehaj Gaba"
+    # And the one sentence that must never be missing is in the spoken reply.
+    assert "simulated" in filed["reply"].lower()
+
+
 def test_voice_queues_mutation_until_visible_confirmation(monkeypatch):
     calls = []
 
-    def fake_model(messages, tools=None, language=None):
+    def fake_model(messages, tools=None, language=None, form=''):
         calls.append((messages, tools))
         if len(calls) == 1:
             return {
@@ -97,7 +140,7 @@ def test_parallel_tool_calls_all_get_answered(monkeypatch):
         {"content": "कृपया पुष्टि करें।"},
     ]
 
-    def strict_model(messages, tools=None, language=None):
+    def strict_model(messages, tools=None, language=None, form=''):
         """Reject an invalid transcript the way an OpenAI-compatible endpoint does."""
         asked = {c["id"] for m in messages for c in (m.get("tool_calls") or [])}
         answered = {m.get("tool_call_id") for m in messages if m.get("role") == "tool"}
@@ -200,8 +243,13 @@ def test_harmony_channel_markers_are_stripped_from_tool_names(monkeypatch):
         {"content": "09:30 पर Inspector A उपलब्ध हैं।"},
     ]
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: replies.pop(0))
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-harmony"}).json()
+    # Slot lookups are refused before an application exists, so give this one
+    # the application it would have. The subject here is the mangled tool name,
+    # not the gate.
+    filed = dispatch_tool("apply_for_licence", applicant("voice-harmony"))
+    voice_agent._SESSIONS[session["session_id"]].application_id = filed["application_id"]
     body = client.post("/agent/voice/turn", json={
         "session_id": session["session_id"], "transcript": "slot dikhao",
     }).json()
@@ -222,7 +270,7 @@ def test_scratchpad_is_never_spoken_to_the_citizen(monkeypatch):
         {"content": "मैं आपके लिए स्लॉट देख रहा हूँ।"},
     ]
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: replies.pop(0))
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-scratchpad"}).json()
     body = client.post("/agent/voice/turn", json={
         "session_id": session["session_id"], "transcript": "slot",
@@ -238,7 +286,7 @@ def _devanagari(text: str) -> bool:
 def test_empty_answer_never_leaves_the_citizen_with_nothing(monkeypatch):
     """If even the re-ask comes back empty, say something rather than nothing."""
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: {"content": "", "reasoning_content": "hmm"})
+                        lambda messages, tools=None, language=None, form='': {"content": "", "reasoning_content": "hmm"})
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-silent"}).json()
     body = client.post("/agent/voice/turn", json={
         "session_id": session["session_id"], "transcript": "नमस्ते",
@@ -255,7 +303,7 @@ def test_the_services_own_words_follow_the_citizens_language(monkeypatch):
     deciding the language per turn.
     """
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: {"content": "", "reasoning_content": "hmm"})
+                        lambda messages, tools=None, language=None, form='': {"content": "", "reasoning_content": "hmm"})
 
     english = client.post("/agent/voice/start", json={"citizen_ref": "voice-en"}).json()
     reply_en = client.post("/agent/voice/turn", json={
@@ -280,14 +328,19 @@ def test_a_promised_action_that_never_ran_is_not_left_standing(monkeypatch):
     """
     calls: list[dict] = []
 
-    def never_calls_a_tool(messages, tools=None, language=None):
+    def never_calls_a_tool(messages, tools=None, language=None, form=''):
         calls.append({"tools": bool(tools)})
-        return {"content": "I will create your learner licence application, please confirm."}
+        return {"content": "I will book that appointment for you, please confirm."}
 
     monkeypatch.setattr(voice_agent, "_call_nvidia", never_calls_a_tool)
+    # Booking rather than applying. The apply turn no longer reaches the model —
+    # the service files the form itself — so the promise-without-a-call failure
+    # can only happen on the steps the model still drives, which is where this
+    # now proves it is caught.
+    dispatch_tool("apply_for_licence", applicant("voice-promise"))
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-promise"}).json()
     body = client.post("/agent/voice/turn", json={
-        "session_id": session["session_id"], "transcript": "I want a learner licence",
+        "session_id": session["session_id"], "transcript": "book the 10:15 one",
     }).json()
 
     assert "please confirm" not in body["reply"].lower(), body["reply"]
@@ -305,7 +358,7 @@ def test_tool_call_markup_never_reaches_the_citizen(monkeypatch):
     "<call to=functions.explain_ll_step>{...}".
     """
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: {
+                        lambda messages, tools=None, language=None, form='': {
                             "content": 'मैं बताता हूँ।\n<call to=functions.explain_ll_step>'
                                        '{"step":"full_process"}</call>',
                         })
@@ -328,7 +381,7 @@ def test_the_reply_language_is_decided_from_the_message(monkeypatch):
 
     seen: list[Any] = []
 
-    def capture(messages, tools=None, language=None):
+    def capture(messages, tools=None, language=None, form=''):
         seen.append(language)
         return {"content": "ok"}
 
@@ -348,7 +401,7 @@ def test_a_broad_question_still_gets_an_answer(monkeypatch):
     """
     calls = {"n": 0}
 
-    def researching_model(messages, tools=None, language=None):
+    def researching_model(messages, tools=None, language=None, form=''):
         calls["n"] += 1
         if tools is None:                      # the final, tool-free ask
             return {"content": "कागज़, शुल्क और टेस्ट का पूरा ब्यौरा यह है।"}
@@ -374,7 +427,7 @@ def test_paid_turns_are_rate_limited(monkeypatch):
     upstream call, so a caller has to run out of budget before the bill does.
     """
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: {"content": "ठीक है।"})
+                        lambda messages, tools=None, language=None, form='': {"content": "ठीक है।"})
     voice_agent._CALLER_HITS.clear()
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-flood"}).json()
     sid = session["session_id"]
@@ -397,11 +450,16 @@ def test_a_gated_turn_is_free(monkeypatch):
         "arguments": '{"licence_kind":"learner","full_name":"Test Applicant","dob":"2008-04-11","state":"Maharashtra","licence_classes":["MCWG"]}'}}]},
         {"content": "कृपया पुष्टि करें।"}]
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: replies.pop(0) if replies else {"content": "ok"})
+                        lambda messages, tools=None, language=None, form='': replies.pop(0) if replies else {"content": "ok"})
     voice_agent._CALLER_HITS.clear()
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-free-gate"}).json()
     sid = session["session_id"]
-    client.post("/agent/voice/turn", json={"session_id": sid, "transcript": "apply"})
+    # Answer the form so there is a real confirmation to be gated behind. "apply"
+    # on its own used to reach the model and raise the button; it is answered by
+    # the service now, so it gates nothing and this tested nothing.
+    for said in ("apply", "Deepa Menon", "11 April 2008", "Maharashtra", "car"):
+        client.post("/agent/voice/turn", json={"session_id": sid, "transcript": said})
+    assert voice_agent._SESSIONS[sid].pending, "no confirmation to gate behind"
     spent = len(voice_agent._SESSIONS[sid].turn_stamps)
     for _ in range(4):
         client.post("/agent/voice/turn", json={"session_id": sid, "transcript": "jaldi karo"})
@@ -506,7 +564,7 @@ def test_an_unbookable_slot_never_reaches_the_confirm_button(monkeypatch):
         {"content": "वह समय अभी किसी और ने ले लिया।"},
     ]
     monkeypatch.setattr(voice_agent, "_call_nvidia",
-                        lambda messages, tools=None, language=None: replies.pop(0))
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
     session = voice_agent.start_session("voice-stale-slot")
     session.application_id = applied["application_id"]
     body = client.post("/agent/voice/turn",
@@ -647,26 +705,38 @@ def test_the_whole_apply_to_booked_journey_over_voice(monkeypatch):
     each have to stop at a confirmation.
     """
     on = (date.today() + timedelta(days=3)).isoformat()
-    script = [
-        {"content": "", "tool_calls": [{"id": "o1", "function": {
-            "name": "list_offices", "arguments": '{"state":"Bihar"}'}}]},
-        {"content": "", "tool_calls": [{"id": "a1", "function": {
-            "name": "apply_for_licence",
-            "arguments": '{"rto_id":"br01","licence_kind":"learner","full_name":"Test Applicant","dob":"2008-04-11","state":"Bihar","licence_classes":["MCWG"]}'}}]},
-        {"content": "मैं पटना में आपका आवेदन बनाऊँगा। कृपया पुष्टि करें।"},
-    ]
+    script: list[dict] = []
 
-    def scripted(messages, tools=None, language=None):
+    def scripted(messages, tools=None, language=None, form=''):
         return script.pop(0) if script else {"content": "आपका आवेदन बन गया है।"}
 
     monkeypatch.setattr(voice_agent, "_call_nvidia", scripted)
     started = client.post("/agent/voice/start",
-                          json={"citizen_ref": "voice-journey"}).json()
+                          json={"citizen_ref": "voice-journey", "language": "hi"}).json()
     sid = started["session_id"]
 
+    # Applying is no longer a model conversation. This half of the test used to
+    # script list_offices and apply_for_licence through the model and assert the
+    # tool events came back "complete, awaiting_confirmation". That assertion
+    # was testing the wrong thing once the service started filling the form: it
+    # proved the model *could* be walked through the questions, not that the
+    # citizen gets through them. What matters is unchanged and asserted below —
+    # the office the citizen named is the office it is filed at, and nothing is
+    # filed until the button is pressed.
     applying = client.post("/agent/voice/turn", json={
         "session_id": sid, "transcript": "पटना में लर्नर लाइसेंस बनवाना है"}).json()
-    assert [e["status"] for e in applying["tool_events"]] == ["complete", "awaiting_confirmation"]
+    assert not applying.get("pending_confirmation"), "filed with no name or date"
+
+    # A real-looking name on purpose: "Test Applicant" is refused, because
+    # "test" is a word this service uses constantly and no name parser should
+    # accept "book my test" as somebody's name.
+    for said in ("Rohan Verma", "11 April 2008", "two wheeler"):
+        applying = client.post("/agent/voice/turn",
+                               json={"session_id": sid, "transcript": said}).json()
+    # Patna was heard on the very first turn and never asked about again.
+    assert applying["pending_confirmation"]
+    assert "Patna" in applying["reply"], applying["reply"]
+
     applied = client.post("/agent/voice/confirm", json={"session_id": sid}).json()
     result = applied["tool_events"][0]["result"]
     assert result["rto_id"] == "br01" and "Patna" in result["office"]
@@ -764,15 +834,43 @@ def test_an_application_is_never_filed_with_details_the_citizen_never_gave():
         assert "?" in item["ask"] and len(item["ask"].split()) > 3, item
 
 
-def test_a_date_of_birth_in_the_wrong_shape_is_refused_rather_than_guessed():
+def test_a_date_of_birth_is_taken_however_the_citizen_says_it():
     """
-    The tracker authenticates on date of birth, so "11 April 2008" written into
-    the field files an application the citizen can never find again — and
-    guessing between 04-11 and 11-04 locks the wrong one out.
+    Saarthi used to demand the date "in the format YYYY-MM-DD", out loud, to a
+    person. That is a machine interrogating a citizen, and it is exactly the
+    voice this build exists to replace — so the service reads what people
+    actually say instead, and the format never has to be mentioned.
+
+    Day-first for slashed dates, because that is how a date is written in India.
     """
-    result = dispatch_tool("apply_for_licence", applicant("guard-dob", dob="11 April 2008"))
+    from app.agent_tools import normalise_dob
+
+    for said in ["2008-04-11", "11/04/2008", "11-04-2008", "11.04.2008",
+                 "11 April 2008", "11 apr 2008", "April 11, 2008"]:
+        assert normalise_dob(said) == "2008-04-11", said
+
+    filed = dispatch_tool("apply_for_licence", applicant("guard-dob", dob="11 April 2008"))
+    assert filed["form_prefill"]["dob"] == "2008-04-11"
+
+
+def test_a_date_that_cannot_be_read_is_asked_again_rather_than_guessed():
+    """
+    The tracker authenticates on date of birth, so a wrong one locks somebody
+    out of their own application. Anything genuinely ambiguous or impossible is
+    a question, never a stored guess.
+    """
+    from app.agent_tools import normalise_dob
+
+    for nonsense in ["", "sometime in 2008", "11/04/08", "2008-13-40",
+                     "32 April 2008", "next Tuesday", "2035-01-01"]:
+        assert normalise_dob(nonsense) is None, nonsense
+
+    result = dispatch_tool("apply_for_licence", applicant("guard-dob-2", dob="sometime in 2008"))
     assert result.get("needs") == ["dob"]
     assert "application_id" not in result
+    # And the question it comes back with must not name a format.
+    asked = next(m["ask"] for m in result["ask_for"] if m["field"] == "dob")
+    assert "YYYY" not in asked and "format" not in asked.lower()
 
 
 def test_the_office_follows_the_state_the_citizen_named():
@@ -815,3 +913,240 @@ def test_the_simulated_verification_is_handed_to_the_agent_to_say():
     disclosure = result["disclosure"].lower()
     for word in ("aadhaar", "otp", "simulated"):
         assert word in disclosure, f"{word!r} missing from what the agent is told to say"
+
+
+# --------------------------------------------------------------------------
+# The transcript that went wrong, turned into tests.
+#
+#   citizen: help me with ll
+#   Saarthi: Sure! What's your full name?
+#   citizen: sehaj gaba
+#   Saarthi: Which day would you like to book your test slot?      <- lost it
+#   citizen: is my form fully filled
+#   Saarthi: I need your date of birth ... (Use the format YYYY-MM-DD)
+#
+# Three failures in six turns: it forgot what it was collecting, jumped to a
+# step three answers early, and read a machine format out to a person.
+# --------------------------------------------------------------------------
+
+def _fresh_session(ref: str) -> str:
+    return client.post("/agent/voice/start", json={"citizen_ref": ref}).json()["session_id"]
+
+
+def test_the_service_remembers_answers_the_model_forgets():
+    """
+    The model gave one field and dropped the rest. It no longer has to hold
+    them: each answer is kept on the session and put back on every later call,
+    so four questions answered across four turns still file one application.
+    """
+    sid = _fresh_session("flow-memory")
+    session = voice_agent._SESSIONS[sid]
+
+    # One field per turn, each call "forgetting" everything said before it.
+    for supplied in [{"full_name": "Sehaj Gaba"},
+                     {"dob": "11 April 2008"},
+                     {"state": "Maharashtra"},
+                     {"licence_classes": ["MCWG"]}]:
+        args = voice_agent._tool_arguments(session, "apply_for_licence", dict(supplied))
+
+    assert args["full_name"] == "Sehaj Gaba"
+    assert args["state"] == "Maharashtra"
+    assert args["licence_classes"] == ["MCWG"]
+    # And the whole thing files, from answers no single tool call ever carried.
+    filed = dispatch_tool("apply_for_licence", args)
+    assert filed["applicant_name"] == "Sehaj Gaba"
+    assert filed["form_prefill"]["dob"] == "2008-04-11"
+
+
+def test_a_correction_overwrites_the_earlier_answer():
+    """Remembering answers must not mean refusing to change one."""
+    sid = _fresh_session("flow-correction")
+    session = voice_agent._SESSIONS[sid]
+    voice_agent._tool_arguments(session, "apply_for_licence", {"full_name": "Sehaj Gaba"})
+    args = voice_agent._tool_arguments(session, "apply_for_licence",
+                                       {"full_name": "Sehaj Singh Gaba"})
+    assert args["full_name"] == "Sehaj Singh Gaba"
+
+
+def test_slots_are_refused_while_the_form_is_still_half_filled(monkeypatch):
+    """
+    "Which day would you like to book your test slot?" — asked after one answer
+    of four. There is nothing to book against, so the lookup sends the model
+    back to the form carrying the next question instead of answering.
+    """
+    replies = [
+        {"content": "", "tool_calls": [{
+            "id": "s1", "function": {"name": "find_slot_days", "arguments": "{}"}}]},
+        {"content": "Pehle form pura karte hain."},
+    ]
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
+    sid = _fresh_session("flow-early-slots")
+    voice_agent._SESSIONS[sid].form_answers = {"full_name": "Sehaj Gaba"}
+
+    body = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": "book my slot"}).json()
+
+    assert [e["status"] for e in body["tool_events"]] == ["redirected"]
+    handed_back = json.loads(voice_agent._SESSIONS[sid].messages[-2]["content"])
+    assert "blocked" in handed_back
+    assert set(handed_back["needs"]) == {"dob", "state", "licence_classes"}
+    assert handed_back["have"] == {"full_name": "Sehaj Gaba"}
+
+
+def test_every_turn_restates_what_is_answered_and_what_is_left():
+    """
+    The model is not asked to remember across turns — it is told, as the last
+    thing it reads before replying.
+    """
+    sid = _fresh_session("flow-steer")
+    session = voice_agent._SESSIONS[sid]
+    session.form_answers = {"full_name": "Sehaj Gaba"}
+
+    steer = voice_agent._form_steer(session)
+    assert "Sehaj Gaba" in steer
+    assert "dob" in steer and "state" in steer and "licence_classes" in steer
+    assert "date of birth" in steer          # the exact next question to ask
+    assert "mention test slots" in steer
+    # Told only to ask the next question, it looked up the fee, said nothing
+    # about it, and asked for a date of birth. A turn that reaches the model at
+    # all is usually a question, and a question deserves an answer.
+    assert "answer it first" in steer
+
+
+def test_the_steer_stops_asking_once_the_form_is_filed():
+    """Being asked your name again after applying reads as the service losing it."""
+    sid = _fresh_session("flow-steer-done")
+    session = voice_agent._SESSIONS[sid]
+    session.application_id = "already-filed"
+    steer = voice_agent._form_steer(session)
+    assert "already filed" in steer
+    assert "booking the test slot" in steer
+
+
+def test_no_date_format_is_ever_put_in_front_of_the_model_to_repeat():
+    """
+    "(Use the format YYYY-MM-DD)" reached the citizen because the service handed
+    that string to the model. Nothing it is told about the citizen's date may
+    carry a format for it to read out.
+    """
+    sid = _fresh_session("flow-no-format")
+    session = voice_agent._SESSIONS[sid]
+    steer = voice_agent._form_steer(session)
+    spoken_instruction = steer.split("Still needed")[0]
+    assert "YYYY" not in spoken_instruction
+
+    missing = voice_agent.missing_application_details("", None, "", [])
+    for item in missing:
+        assert "YYYY" not in item["ask"]
+        assert "format" not in item["ask"].lower()
+
+
+def test_verified_is_never_said_without_saying_it_was_simulated():
+    """
+    The model was handed the disclosure and told to pass it on, and still said
+    "your application has been created and verified" and stopped there. So the
+    service appends it rather than trusting the model to remember.
+    """
+    filed = {"application_no": "SS-2026-004182", "verification": "mocked"}
+    said = voice_agent._with_disclosure(
+        "Your application SS-2026-004182 has been created and verified.", filed, None)
+    assert "simulated" in said.lower()
+
+    # Not repeated when the model did remember.
+    already = voice_agent._with_disclosure(
+        "Created. Document checks are simulated in this prototype.", filed, None)
+    assert already.lower().count("simulated") == 1
+
+    # Hindi conversation, Hindi qualifier.
+    hindi = voice_agent._with_disclosure(
+        "आपका आवेदन बन गया है।", filed, "Answer in Hindi.")
+    assert "नकली" in hindi
+
+    # Nothing appended to results that make no such claim.
+    assert voice_agent._with_disclosure("Booked.", {"ok": True}, None) == "Booked."
+
+
+def test_the_next_question_is_asked_in_the_citizens_language():
+    """
+    The form questions are spoken by the service, not the model, so they have to
+    carry the language themselves.
+    """
+    sid = _fresh_session("flow-language")
+    session = voice_agent._SESSIONS[sid]
+    assert voice_agent._next_question(session) == \
+        "What is your full name, first name and surname?"
+
+    session.language = "Answer in Hindi."
+    assert "पूरा नाम" in voice_agent._next_question(session)
+
+    # Nothing left to ask once the answers are in.
+    session.form_answers = {"full_name": "Sehaj Gaba", "dob": "2008-04-11",
+                            "state": "Maharashtra", "licence_classes": ["MCWG"]}
+    assert voice_agent._next_question(session) is None
+
+
+def test_a_half_filled_form_never_raises_a_confirmation_button(monkeypatch):
+    """
+    Called with two answers of four, apply used to reach the gate and put
+    "Create your learner-licence application" on screen — offering to file
+    something that cannot be filed.
+    """
+    replies = [
+        {"content": "", "tool_calls": [{
+            "id": "c1", "function": {"name": "apply_for_licence",
+                                     "arguments": '{"full_name":"Sehaj Gaba"}'}}]},
+        {"content": "ok"},
+    ]
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
+    sid = _fresh_session("flow-partial-gate")
+    body = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": "my name is sehaj gaba"}).json()
+
+    assert body.get("pending_confirmation") is None, "offered to file a half-filled form"
+    assert [e["status"] for e in body["tool_events"]] == ["collecting"]
+    # And the reply is the next question, said by the service without a second
+    # model call — the model is not asked to paraphrase what it already knows.
+    assert body["reply"] == "What is your date of birth? The day, the month and the year is fine."
+    assert voice_agent._SESSIONS[sid].form_answers["full_name"] == "Sehaj Gaba"
+
+
+def test_a_later_turn_cannot_say_verified_bare_either(monkeypatch):
+    """
+    The confirmation is not the only place it claims this. Asked afterwards "is
+    my form fully filled?", the model answered "fully filled and verified" —
+    same false impression, a different turn. Guarded at the turn boundary so no
+    reply path can miss it.
+
+    Two changes from what this used to do. It set `application_id` on the
+    session by hand, which is a state the service can no longer be in — the
+    record is what is read now, not the session's belief about it — so it files
+    a real application. And "is my form fully filled" is answered from that
+    record without the model, so the model has to be provoked by a question it
+    still handles.
+    """
+    monkeypatch.setattr(
+        voice_agent, "_call_nvidia",
+        lambda messages, tools=None, language=None, form='':
+            {"content": "Your details are fully verified and on record."})
+    dispatch_tool("apply_for_licence", applicant("flow-verified-later"))
+    sid = _fresh_session("flow-verified-later")
+
+    body = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": "did anyone check my documents"}).json()
+    assert "simulated" in body["reply"].lower()
+
+
+def test_the_qualifier_is_not_bolted_onto_unrelated_answers(monkeypatch):
+    """A note appended to every sentence stops being read."""
+    monkeypatch.setattr(
+        voice_agent, "_call_nvidia",
+        lambda messages, tools=None, language=None, form='':
+            {"content": "Thursday has 9:30, 10:15 and 11 free."})
+    sid = _fresh_session("flow-no-noise")
+    voice_agent._SESSIONS[sid].application_id = "already-filed"
+
+    body = client.post("/agent/voice/turn", json={
+        "session_id": sid, "transcript": "what times are free"}).json()
+    assert "simulated" not in body["reply"].lower()

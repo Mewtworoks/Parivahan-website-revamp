@@ -14,8 +14,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
 .hi{font-family:var(--sans)}
 /* layout */
-.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
-.narrow{max-width:760px;margin:0 auto;padding:0 24px}
+/* The shell grows with the screen instead of stopping dead at 1120px.
+   Measured at 1920 the page left 400px of empty background down each side and
+   at 2560 it left 720 — the whole site huddled in the middle of the display it
+   is most likely to be demonstrated on. clamp rather than a stack of media
+   queries so it moves continuously, and capped because a container that never
+   stops growing turns every paragraph into an unreadable single line. */
+.wrap{max-width:clamp(1120px,80vw,1440px);margin:0 auto;padding:0 24px}
+/* Prose, so this one is a reading measure and not a layout width — a line much
+   past ninety characters is measurably harder to read, whatever the monitor
+   allows. It gets a little room and no more. */
+.narrow{max-width:clamp(760px,56vw,860px);margin:0 auto;padding:0 24px}
 .col{display:flex;flex-direction:column}
 .row{display:flex;align-items:center}
 /* g14 was used in thirty places and defined in none of them, so every one of
@@ -184,8 +193,13 @@ h1{font-size:1.68rem}h2{font-size:1.3rem}
 .hero{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--surface2),var(--bg) 78%);color:var(--ink);border-bottom:1px solid var(--line)}
 .hero:before{content:"";position:absolute;inset:0;background-image:radial-gradient(oklch(0.475 0.195 262/.10) 1px,transparent 1.6px);background-size:26px 26px;opacity:.85}
 .hero:after{content:"";position:absolute;right:-140px;top:-180px;width:620px;height:620px;border-radius:999px;background:radial-gradient(circle at 30% 30%,oklch(0.62 0.17 258/.20),transparent 64%)}
-.hero .in{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:56px;align-items:center;padding:76px 24px 84px}
-.hero h1{color:var(--ink);font-size:clamp(2.3rem,4.6vw,3.6rem);line-height:1.06;letter-spacing:-0.035em}
+/* gap and vertical padding scale too. Held at 56/76 in a container that is now
+   240px wider, the two halves drifted apart and the whole band read as thin
+   content stretched to fill a screen rather than sized for one. */
+.hero .in{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(56px,5vw,76px);align-items:center;padding:clamp(76px,6vw,104px) 24px clamp(84px,6.5vw,112px)}
+/* The cap was 3.6rem, reached at 1280px and never exceeded, so a 2560px display
+   showed the same headline as a laptop with twice the empty space around it. */
+.hero h1{color:var(--ink);font-size:clamp(2.3rem,4.6vw,4.2rem);line-height:1.06;letter-spacing:-0.035em}
 .hero p{color:var(--ink2)}
 .uline{position:relative;white-space:nowrap;color:var(--brand)}
 .uline:after{content:"";position:absolute;left:-.02em;right:-.02em;bottom:.0em;height:.075em;background:var(--brand);opacity:1;border-radius:2px}
@@ -205,6 +219,10 @@ h1{font-size:1.68rem}h2{font-size:1.3rem}
 .modcard.dark .idx{color:oklch(1 0 0/.07)}
 .modcard.dark .hr{background:oklch(1 0 0/.14)}
 .modcard.dark .sub,.modcard.dark p{color:oklch(0.88 0.035 262)}
+/* Inspector lanes. 340px is the width below which the "Next up" row and the
+   Call next button stop fitting on one line, so that is where it wraps rather
+   than at a guessed breakpoint. */
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;align-items:start}
 .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--surface)}
 .strip>div{padding:22px;border-right:1px solid var(--line);position:relative}
 .strip>div:last-child{border-right:0}

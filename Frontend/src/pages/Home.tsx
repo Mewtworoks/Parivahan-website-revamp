@@ -78,7 +78,11 @@ export function Home({ go, update }: PageProps) {
               : lang === 'mr'
                 ? <>तुमच्या लर्नर लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
                 : <>Apply for your<br />learner's licence<br /><span className="uline">online.</span></>}</h1>
-            <p className="lede" style={{ maxWidth: 520 }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
+            {/* A fixed 520 held on every screen, so as the hero grew the
+                sentence stayed a narrow column with the headline stretching
+                away above it. Still capped — this is prose — but it now tracks
+                the column it sits in. */}
+            <p className="lede" style={{ maxWidth: 'min(620px, 100%)' }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
             <div className="row g12 wrapf" style={{ marginTop: 4 }}>
               <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
               <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>

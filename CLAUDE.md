@@ -72,13 +72,72 @@ Consequences to keep in mind:
 - [`Backend/app/voice_agent.py`](Backend/app/voice_agent.py) — Saarthi. Two-phase
   confirmation on `MUTATING_TOOLS` (`apply_for_licence`, `book_slot`,
   `check_in`): the model must ask before it acts, and a promise to act with no
-  tool call is caught and nudged once.
+  tool call is caught and nudged once. **The model does not drive the form or
+  the booking** — see below.
 - [`Backend/app/proofs.py`](Backend/app/proofs.py) — the runnable guarantees
   behind `#/proof`. These run against the real engine; never mock them.
 - [`Frontend/src/App.tsx`](Frontend/src/App.tsx) — hash routing (`#/route`) via
   `pushState` + `popstate`/`hashchange`. Adding anything to the top bar wraps the
   wordmark; the desk and proof links live on the home page and in the footer for
   that reason.
+
+## Saarthi — what the model does and does not decide
+
+Two recorded conversations failed the same way. Told a name, Saarthi answered
+"which day would you like to book your test slot?" — three answers short of a
+filled form. The second went further: "your application is ready" with nothing
+filed, then a refusal to say the number it had just invented. Every guard built
+before then gated **tool calls**, and in both conversations the model called no
+tools at all. It simply talked, and nothing checked whether what it said matched
+the state the service knew it was in.
+
+So the service stops asking. **A turn whose answer is already in the database is
+answered without an upstream call**, in [`_fast_reply`](Backend/app/voice_agent.py):
+
+| Spoken by the service | Spoken by the model |
+| --- | --- |
+| the four form questions, and the confirmation sentence | explanations, the law, fees |
+| the result after Confirm, disclosure included | corrections and objections it cannot parse |
+| the day list and the times on one day | "next Thursday, some time after lunch" |
+| application number, status, "is my form filled", "when is my test" | anything off script |
+| the opening line, built from the record | |
+
+Consequences worth knowing before changing any of it:
+
+- **The apply journey costs zero model calls** and works with `NVIDIA_API_KEY`
+  unset. `tests/test_fast_form.py` asserts this by making `_call_nvidia` raise.
+- **`read_answer(field, text, prompted)` returns `None` when unsure**, and the
+  turn goes to the model. Never widen it into a guess — a wrong date of birth
+  locks somebody out of their own application at the tracker. `prompted` gates
+  the name only: any two words look like a name, and "puri prakriya samjhaiye"
+  was briefly stored as one.
+- **`_guard_reply` discards a model reply that claims an application exists or
+  offers to book while the form is unfilled.** It is a last line, not the
+  mechanism. Keep it narrow — a version that fired on the word "slot" ate the
+  honest answer to "what is the whole process?", and one that fired on "what …
+  date …?" discarded the service's own question.
+- **Hindi is not an afterthought in the parsers.** Devanagari months, Devanagari
+  digits, city names in both scripts. "11 अप्रैल 2008" not parsing meant the
+  date fell to the model, was never stored, and got asked for again — a loop, in
+  the language most of the users speak.
+- **`session.asked_field` and `session.offered`** are what make "Sehaj Gaba",
+  "yes" and "the 9:30 one" mean anything. Both are persisted.
+
+State that used to live in dicts and now does not:
+[`drafts.py`](Backend/app/drafts.py) (the half-filled form, per citizen),
+[`conversations.py`](Backend/app/conversations.py) (the transcript and the
+pending action), [`signals.py`](Backend/app/signals.py) (anonymous failures).
+A backend restart no longer ends a conversation — `tests/test_resume.py` proves
+it by clearing `_SESSIONS` mid-journey.
+
+`signals` is anonymous **by construction**: an HMAC of the citizen reference
+with `SECRET_KEY`, and an allowlist per kind so a caller cannot widen what is
+stored. A plain digest of a ten-digit phone number is brute-forced in seconds,
+which is why it is not one. Never add a foreign key to that table.
+
+`db._add_missing_columns()` runs after `create_all` and adds nullable columns to
+tables that already exist. `create_all` alone cannot, which is how adding
+`conversations.offered` stopped a running demo from answering any request.
 
 ## Conventions
 
