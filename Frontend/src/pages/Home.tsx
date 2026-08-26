@@ -5,7 +5,7 @@ import { SCENARIOS, spelledOut } from '../practice/scenarios';
 import type { PageProps, Route } from '../types';
 import { Icon } from '../ui/Icon';
 import { LicenceCard } from '../ui/LicenceCard';
-import { Note, Pill } from '../ui/SharedUI';
+import { Pill } from '../ui/SharedUI';
 
 interface ServiceCard {
   id: 'll' | 'dl';
@@ -176,9 +176,6 @@ export function Home({ go, update }: PageProps) {
           </div>
         </div>
       </section>
-      <div className="wrap" style={{ marginTop: 24 }}>
-        <Note tone="warn">This is a design prototype. It is not a government service, it is not connected to any live system, and every name, number, document and payment in it is synthetic.</Note>
-      </div>
     </div>
   );
 }
