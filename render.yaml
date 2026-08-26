@@ -1,0 +1,49 @@
+# Render Blueprint — the FastAPI service.
+#
+# The frontend is not here: it is a static Vite build served from a CDN, so the
+# page paints while this service is still waking. That split matters on the free
+# plan, which spins down after 15 minutes idle. `useOffices` already falls back
+# to a static office list, so a cold backend shows a working page rather than a
+# broken one.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> point at this repo.
+
+services:
+  - type: web
+    name: parivahan-api
+    runtime: python
+    plan: free
+    region: singapore          # closest to the users the build is designed for
+    rootDir: Backend
+    buildCommand: pip install -r requirements.txt
+    # Deliberately not `python main.py`. That entry point hardcodes reload=True,
+    # which spawns a second watcher process — wasted memory on a 512 MB plan and
+    # meaningless without a filesystem that changes.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+      # Start as "*" so the first deploy works before the frontend URL exists,
+      # then replace it with the deployed origin and redeploy. No request here
+      # sends credentials, so "*" is safe either way — but naming the origin is
+      # the honest setting and costs one dashboard edit.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # HMAC key for the anonymous `signals` reference. Generated once by Render
+      # and never shown in the repo. Without it the reference is guessable.
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Set in the dashboard. Never in the blueprint, never in git.
+      # The apply journey works without it — only off-script turns need it.
+      - key: NVIDIA_API_KEY
+        sync: false
+
+    # DATABASE_URL is deliberately absent. Setting it would win outright over
+    # STATE_FILE and move the database somewhere unintended; the default puts
+    # state.db beside the app, which is writable here. The disk is ephemeral, so
+    # a redeploy is a clean slate — which is the right default for a demo.
