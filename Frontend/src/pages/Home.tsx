@@ -69,26 +69,33 @@ export function Home({ go, update }: PageProps) {
               <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
               <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>
             </div>
+            {/* One figure, the one the journey actually measures. "0 visits" and
+                "₹350" quoted an Aadhaar route and a fee total that nothing on
+                the way through commits to. */}
             <div className="hero-stats">
               <span><b>14 min</b><span>to apply, start to end</span></span>
-              <span><b>0 visits</b><span>to the RTO, with Aadhaar</span></span>
-              <span><b>₹350</b><span>two classes, itemised up front</span></span>
             </div>
           </div>
           <div className="hero-art hide-m">
-            <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 20260/0041"
-              name="Rehan Q. Mirza" relation="Son of Qais Mirza" dob="12/04/2005" blood="B+"
-              addressLine1="402, Sundar Niwas, Gokhale Road North" addressLine2="Dadar West, Mumbai 400028"
+            {/* A specimen, so every identifying field is masked. The data was
+                always synthetic, but a full name, parentage, date of birth,
+                blood group and home address rendered on a licence read as a
+                real person's record whatever the footer says — and this card is
+                the first thing on the page. What stays is what carries no
+                identity: the state, the classes, the dates and the office.
+                Issued.tsx passes the citizen's own details and is untouched. */}
+            <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 ••••••/••••"
+              name="•••••• •• •••••" relation="•••••• •••••" dob="••/••/••••" blood="••"
+              addressLine1="•••••••••••••••••••••••••" addressLine2="•••••••••••••••••"
               classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
-            {/* One float, not two. "Documents verified in 4 seconds" was a
-                number nothing in the build measures — the verification step is
-                mocked — so it read as a claim the service cannot keep. */}
-            <div className="float float-b"><span style={{ color: 'var(--brand)' }}>{Icon.pin()}</span> Slot held · Thu 27 Aug, 11:00 am</div>
           </div>
         </div>
       </section>
+      {/* Two-column only while there are two services. With the DL card parked
+          the lone card sat in the left half of a 1fr 1fr grid and the right half
+          read as a panel that had failed to load. */}
       <section className="wrap" style={{ marginTop: -34, position: 'relative', zIndex: 5 }}>
-        <div className="grid2" style={{ gap: 20 }}>
+        <div className={services.length > 1 ? 'grid2' : ''} style={services.length > 1 ? { gap: 20 } : undefined}>
           {services.map((service, i) => (
             <div key={service.id} className={'card modcard' + (i === 0 ? ' dark' : '')} style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 18 }}>
               <span className="idx">{i + 1}</span>
@@ -102,13 +109,21 @@ export function Home({ go, update }: PageProps) {
               </div>
               <div className="col g8"><h2>{service.title}</h2><p style={{ color: i === 0 ? 'oklch(0.89 0.035 262)' : 'var(--ink2)' }}>{service.desc}</p></div>
               <hr className="hr" />
-              <ul className="col g10" style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem' }}>
+              {/* A lone card spans the row, so the four points sit side by side
+                  rather than as a short stack with half the section empty. */}
+              <ul className={services.length > 1 ? 'col g10' : ''} style={services.length > 1
+                ? { margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem' }
+                : { margin: 0, padding: 0, listStyle: 'none', fontSize: '.92rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 14 }}>
                 {service.meta.map(line => (
                   <li key={line} className="row g10" style={{ alignItems: 'flex-start' }}><span style={{ color: i === 0 ? 'var(--accent)' : 'var(--brand)', marginTop: 5, flex: 'none' }}>{Icon.check()}</span><span style={{ color: i === 0 ? 'oklch(0.88 0.015 196)' : 'var(--ink2)' }}>{line}</span></li>
                 ))}
               </ul>
               <div className="grow" />
-              <button className={i === 0 ? 'btn btn-a btn-full' : 'btn btn-p btn-full'} onClick={() => { update({ module: service.id }); go(service.targetRoute); }}>{service.cta} {Icon.right()}</button>
+              {/* Capped when the card is full-width: btn-full across the whole
+                  row is a button the length of the page. */}
+              <button className={i === 0 ? 'btn btn-a btn-full' : 'btn btn-p btn-full'}
+                style={services.length > 1 ? undefined : { maxWidth: 360 }}
+                onClick={() => { update({ module: service.id }); go(service.targetRoute); }}>{service.cta} {Icon.right()}</button>
             </div>
           ))}
         </div>
@@ -129,7 +144,10 @@ export function Home({ go, update }: PageProps) {
             <div className="col g16" style={{ padding: '32px 30px', justifyContent: 'center' }}>
               <span className="eyebrow">{t('Practice module', 'अभ्यास मॉड्यूल', 'सराव मॉड्यूल')}</span>
               <h2>{t('Nobody tells you what is in the theory test. So play it instead.', 'थ्योरी टेस्ट में क्या है, यह कोई नहीं बताता। तो इसे खेलकर जानें।', 'थिअरी टेस्टमध्ये काय आहे, हे कोणी सांगत नाही. मग ते खेळूनच जाणून घ्या.')}</h2>
-              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations, four seconds each. You are scored on the decision and on how long it took — the same thing the test measures. The report card names the two habits to fix.</p>
+              {/* Says "practice", not "the test". Sitting directly under a card
+                  that reads "10 questions, 6 to pass", a bare count of road
+                  situations looked like a second, contradictory test length. */}
+              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations to practise on, four seconds each — not the test itself. You are scored on the decision and on how long it took, which is what the real test measures. The report card names the two habits to fix.</p>
               <div className="row g10 wrapf">
                 <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} {t('Play the road', 'सड़क खेलें', 'रस्ता खेळा')}</button>
                 <span className="tiny" style={{ alignSelf: 'center' }}>No download · works offline</span>

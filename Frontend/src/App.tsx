@@ -36,6 +36,7 @@ import { VoiceAgent } from './components/VoiceAgent';
 const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   "Learner's licence": { hi: 'लर्नर लाइसेंस', mr: 'लर्नर लायसन्स' },
   'Driving licence': { hi: 'ड्राइविंग लाइसेंस', mr: 'ड्रायव्हिंग लायसन्स' },
+  'Driving licence · reference': { hi: 'ड्राइविंग लाइसेंस · संदर्भ', mr: 'ड्रायव्हिंग लायसन्स · संदर्भ' },
   Help: { hi: 'सहायता', mr: 'मदत' },
   'About this build': { hi: 'इस निर्माण के बारे में', mr: 'या निर्मितीबद्दल' },
   'Check eligibility': { hi: 'पात्रता जांचें', mr: 'पात्रता तपासा' },
@@ -157,9 +158,12 @@ export default function App() {
         <div className="wrap tb-in">
           <button className="mark" onClick={() => go('home')} aria-label="Parivahan Sewa home">
             <img src={logo} alt="" className="mark-g" />
-            <span className="col" style={{ alignItems: 'flex-start' }}><span className="mark-t">Parivahan Sewa</span><span className="mark-s">{t('Licence services · redesign concept', 'लाइसेंस सेवाएं · पुनर्रचना संकल्पना', 'परवाना सेवा · पुनर्रचना संकल्पना')}</span></span>
+            {/* Wordmark alone. The strapline and the Prototype badge both said
+                here what the hero kicker, the home-page notice and the footer
+                disclaimer already say — and on a phone the strapline wrapped to
+                three lines and clipped the name it sat under. */}
+            <span className="mark-t">Parivahan Sewa</span>
           </button>
-          <span className="badge-proto hide-m">{t('Prototype', 'प्रोटोटाइप', 'प्रोटोटाइप')}</span>
           <div className="grow" />
           {!inFullScreenFlow && (
             <>
@@ -197,7 +201,13 @@ export default function App() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 28 }}>
             {FOOTER_COLUMNS.map(([heading, links]) => (
               <div key={heading} className="col g12"><b style={{ fontWeight: 600, fontSize: '.93rem' }}>{footerT(t, heading)}</b>
-                <nav className="linkcol">{links.map(([label, target]) => <a key={label} href="#" onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>)}</nav></div>
+                {/* A link to a route gets that route's real href, so ctrl-click,
+                    middle-click and "copy link address" behave the way they do
+                    anywhere else. The click handler still routes in-page. Links
+                    that open a sheet have no URL of their own and keep "#". */}
+                <nav className="linkcol">{links.map(([label, target]) => (
+                  <a key={label} href={'go' in target ? `#/${target.go}` : '#'} onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>
+                ))}</nav></div>
             ))}
           </div>
           <hr className="hr" />

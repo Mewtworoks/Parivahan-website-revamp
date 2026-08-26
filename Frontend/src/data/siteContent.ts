@@ -8,8 +8,10 @@ export type FooterColumn = [heading: string, links: FooterLink[]];
 export const FOOTER_COLUMNS: FooterColumn[] = [
   ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Book a slot', { go: 'slot' }], ['Road safety tutorial', { go: 'tutorial' }]]],
   // DL journey parked: the two links that opened the wizard are gone; the two
-  // that open reference panels stay, because that content is real.
-  ['Driving licence', [['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
+  // that open reference panels stay, because that content is real. Titled as
+  // reference, not as a service — a column headed "Driving licence" under a
+  // learner's-only home page reads as a second journey that is not there.
+  ['Driving licence · reference', [['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
   ['Help', [['How a document is verified', { info: 'verify' }], ['What each fee pays for', { info: 'fees' }], ['Report a problem', { grievance: true }], ['Call 1800 000 000', { help: true }]]],
   ['About this build', [['Problem and approach', { info: 'problem' }], ['What is mocked', { info: 'mocked' }],
     // The staff view and the runnable guarantees. Part of the argument rather
