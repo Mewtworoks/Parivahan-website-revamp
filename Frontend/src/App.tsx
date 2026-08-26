@@ -184,8 +184,11 @@ export default function App() {
           <button className="btn btn-s btn-sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? Icon.sun() : Icon.moon()}
           </button>
+          {/* Saarthi is the only call to action up here. Help sat beside it
+              competing for the same press, and Saarthi answers the questions
+              the sheet lists anyway. The sheet is still reached from the
+              footer's "Call 1800 000 000". */}
           <button className="btn btn-p btn-sm" onClick={() => setVoiceOpen(true)}>{Icon.speaker()} {t('Talk to Saarthi', 'सारथी से बात करें')}</button>
-          <button className="btn btn-s btn-sm" onClick={() => setHelpOpen(true)}>{Icon.phone()} {t('Help', 'सहायता', 'मदत')}</button>
         </div>
       </header>
       <main><ActivePage go={go} state={state} update={update} /></main>

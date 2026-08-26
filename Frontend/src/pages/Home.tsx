@@ -54,12 +54,16 @@ export function Home({ go, update }: PageProps) {
       <section className="hero">
         <div className="wrap in">
           <div className="col g20">
-            <span className="kicker">{Icon.dot()} {t("Learner's & driving licence · prototype", 'लर्नर और ड्राइविंग लाइसेंस · प्रोटोटाइप', 'लर्नर आणि ड्रायव्हिंग लायसन्स · प्रोटोटाइप')}</span>
+            {/* Learner's only, here and in the kicker. The DL journey is parked
+                — see the commented service card above — so naming it in the
+                first thing anyone reads sends people looking for a door that is
+                not there. */}
+            <span className="kicker">{Icon.dot()} {t("Learner's licence · prototype", 'लर्नर लाइसेंस · प्रोटोटाइप', 'लर्नर लायसन्स · प्रोटोटाइप')}</span>
             <h1>{lang === 'hi'
-              ? <>अपने लर्नर या ड्राइविंग लाइसेंस के लिए <span className="uline">ऑनलाइन आवेदन करें।</span></>
+              ? <>अपने लर्नर लाइसेंस के लिए <span className="uline">ऑनलाइन आवेदन करें।</span></>
               : lang === 'mr'
-                ? <>तुमच्या लर्नर किंवा ड्रायव्हिंग लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
-                : <>Apply for your<br />learner's or driving<br />licence <span className="uline">online.</span></>}</h1>
+                ? <>तुमच्या लर्नर लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
+                : <>Apply for your<br />learner's licence<br /><span className="uline">online.</span></>}</h1>
             <p className="lede" style={{ maxWidth: 520 }}>Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.</p>
             <div className="row g12 wrapf" style={{ marginTop: 4 }}>
               <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
@@ -76,7 +80,9 @@ export function Home({ go, update }: PageProps) {
               name="Rehan Q. Mirza" relation="Son of Qais Mirza" dob="12/04/2005" blood="B+"
               addressLine1="402, Sundar Niwas, Gokhale Road North" addressLine2="Dadar West, Mumbai 400028"
               classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
-            <div className="float float-a"><span style={{ color: 'var(--ok)' }}>{Icon.check()}</span> Documents verified in 4 seconds</div>
+            {/* One float, not two. "Documents verified in 4 seconds" was a
+                number nothing in the build measures — the verification step is
+                mocked — so it read as a claim the service cannot keep. */}
             <div className="float float-b"><span style={{ color: 'var(--brand)' }}>{Icon.pin()}</span> Slot held · Thu 27 Aug, 11:00 am</div>
           </div>
         </div>
