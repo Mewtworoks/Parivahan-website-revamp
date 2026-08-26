@@ -160,15 +160,4 @@ the same ids the application wizard uses — so `form.rto` is already a valid
 
 ---
 
-## 🤝 GitHub Collaboration Setup
 
-1. **Remote Repository URL**: `https://github.com/Mewtworoks/Parivahan-website-revamp.git`
-2. **Push Local Changes**:
-   ```bash
-   git add .
-   git commit -m "feat: setup fullstack repository with React frontend and Python backend"
-   git push -u origin main
-   ```
-3. **Invite Collaborator (Friend)**:
-   - Go to GitHub Repository -> **Settings** -> **Collaborators**.
-   - Click **Add people** and enter your friend's GitHub username to give them access.
