@@ -15,6 +15,7 @@ is not asked. And they replay the exact sentences the real model produced, to
 prove the guard catches them even when it misbehaves identically.
 """
 
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -30,19 +31,30 @@ from app.main import app  # noqa: E402
 
 client = TestClient(app)
 
+DEVANAGARI = re.compile("[ऀ-ॿ]")
+
 
 def _refuse(*args, **kwargs):
     raise AssertionError("the language service was called for a turn the service knows")
 
 
-def _start(ref: str) -> str:
+def _start(ref: str, language: str = "en") -> str:
     return client.post("/agent/voice/start",
-                       json={"citizen_ref": ref}).json()["session_id"]
+                       json={"citizen_ref": ref, "language": language}).json()["session_id"]
 
 
-def _say(sid: str, text: str) -> dict:
+def _say(sid: str, text: str, language: str = "en") -> dict:
+    """
+    The language rides on the turn, as the panel now sends it.
+
+    It used to be read out of the transcript, which is why these tests could
+    stay silent about it. That guess was wrong in a way no word list fixed —
+    answering "9:30" in a Hindi conversation turned the rest of it English — so
+    the site's picker decides and the tests say which one they mean.
+    """
     return client.post("/agent/voice/turn",
-                       json={"session_id": sid, "transcript": text}).json()
+                       json={"session_id": sid, "transcript": text,
+                             "language": language}).json()
 
 
 # --- the spine ---------------------------------------------------------------
@@ -306,18 +318,128 @@ def test_the_whole_form_works_in_hindi(monkeypatch):
     again — a loop, in the language most of the users speak.
     """
     monkeypatch.setattr(voice_agent, "_call_nvidia", _refuse)
-    sid = _start("fast-hindi")
+    sid = _start("fast-hindi", "hi")
     for said in ("पटना में लर्नर लाइसेंस बनवाना है", "अनीता कुलकर्णी",
                  "11 अप्रैल 2008", "दोपहिया"):
-        body = _say(sid, said)
+        body = _say(sid, said, "hi")
 
     assert body["pending_confirmation"], body["reply"]
     answers = voice_agent._SESSIONS[sid].form_answers
     assert answers == {"state": "Bihar", "full_name": "अनीता कुलकर्णी",
                        "dob": "2008-04-11", "licence_classes": ["MCWG"]}
-    filed = client.post("/agent/voice/confirm", json={"session_id": sid}).json()
+    filed = client.post("/agent/voice/confirm",
+                        json={"session_id": sid, "language": "hi"}).json()
     assert filed["tool_events"][0]["result"]["rto_id"] == "br01"
     assert "नकली" in filed["reply"], filed["reply"]
+
+
+def test_the_confirmation_button_is_written_in_the_citizens_language(monkeypatch):
+    """
+    The button is the last thing read before an application is filed. It said
+    "Create your learner-licence application" at the end of a conversation held
+    entirely in Hindi — every sentence translated except the one that matters.
+    """
+    monkeypatch.setattr(voice_agent, "_call_nvidia", _refuse)
+
+    sid = _start("label-hi", "hi")
+    for said in ("लाइसेंस बनवाना है", "अनीता कुलकर्णी", "11 अप्रैल 2008",
+                 "महाराष्ट्र", "दोपहिया"):
+        body = _say(sid, said, "hi")
+    assert body["pending_confirmation"]["label"] == "आपका लर्नर-लाइसेंस आवेदन दर्ज करें"
+
+    sid = _start("label-en")
+    for said in ("I want a licence", "Rohan Verma", "11 April 2008",
+                 "Maharashtra", "two wheeler"):
+        body = _say(sid, said)
+    assert body["pending_confirmation"]["label"] == "Create your learner-licence application"
+
+
+def test_saarthi_speaks_of_itself_as_a_woman_in_hindi(monkeypatch):
+    """
+    Hindi marks the speaker's gender on the verb, so "मैं दर्ज करूँगा" is not a
+    neutral sentence — it announces that a man is talking, in a service that
+    presents Saarthi otherwise.
+    """
+    monkeypatch.setattr(voice_agent, "_call_nvidia", _refuse)
+    opened = client.post("/agent/voice/start",
+                         json={"citizen_ref": "gender-hi", "language": "hi"}).json()
+    assert "सकती हूँ" in opened["greeting"], opened["greeting"]
+
+    for said in ("लाइसेंस बनवाना है", "मीरा अय्यर", "11 अप्रैल 2008",
+                 "महाराष्ट्र", "कार"):
+        body = _say(opened["session_id"], said, "hi")
+    assert "करूँगी" in body["reply"], body["reply"]
+    assert "करूँगा" not in body["reply"]
+    assert "दूँगी" in body["reply"], body["reply"]
+
+
+def test_a_bare_time_does_not_change_the_language(monkeypatch):
+    """
+    A whole conversation in Hindi, answered "9:30", switched to English for the
+    rest of it — the booking sentence and the confirmation button both. The
+    language came from the words in each message and "9:30" has none, so "not
+    Hindi" was read as "English". The picker decides now.
+    """
+    monkeypatch.setattr(voice_agent, "_call_nvidia", _refuse)
+    sid = _start("lang-hold", "hi")
+    for said in ("लाइसेंस बनवाना है", "मीरा अय्यर", "11 अप्रैल 2008",
+                 "महाराष्ट्र", "कार"):
+        _say(sid, said, "hi")
+    client.post("/agent/voice/confirm", json={"session_id": sid, "language": "hi"})
+
+    days = _say(sid, "मेरा स्लॉट बुक करो", "hi")
+    assert DEVANAGARI.search(days["reply"]), days["reply"]
+    times = _say(sid, "28", "hi")
+    assert DEVANAGARI.search(times["reply"]), times["reply"]
+
+    # The reported turn: a bare time, and everything after it must stay Hindi.
+    picked = _say(sid, "9:30", "hi")
+    assert picked["pending_confirmation"], picked["reply"]
+    assert DEVANAGARI.search(picked["reply"]), picked["reply"]
+    assert DEVANAGARI.search(picked["pending_confirmation"]["label"]), \
+        picked["pending_confirmation"]["label"]
+
+    booked = client.post("/agent/voice/confirm",
+                         json={"session_id": sid, "language": "hi"}).json()
+    assert DEVANAGARI.search(booked["reply"]), booked["reply"]
+
+
+def test_booking_asked_for_plainly_in_hindi_is_understood(monkeypatch):
+    """
+    "मेरा स्लॉट बुक करो" matched nothing, fell through to the model, and came
+    back as "क्षमा करें — मैं अभी वह शुरू नहीं कर सकी" — an apology for a
+    request the service could answer from the slot grid without asking anybody.
+    """
+    monkeypatch.setattr(voice_agent, "_call_nvidia", _refuse)
+    ref = "hi-booking-words"
+    dispatch_tool("apply_for_licence", applicant(ref))
+    sid = _start(ref, "hi")
+    for said in ("मेरा स्लॉट बुक करो", "स्लॉट बुक करना है", "टेस्ट बुक कीजिए"):
+        body = _say(sid, said, "hi")
+        assert [e["tool"] for e in body["tool_events"]] == ["find_slot_days"], said
+        assert "क्षमा" not in body["reply"], body["reply"]
+
+
+def test_asking_twice_says_what_was_missing(monkeypatch):
+    """
+    "10 जनवरी" was answered with the identical question three times running.
+    They had given the day and the month; nothing ever said the year was what
+    was missing.
+    """
+    monkeypatch.setattr(
+        voice_agent, "_call_nvidia",
+        lambda messages, tools=None, language=None, form='': {"content": "…"})
+    sid = _start("retry-hint", "hi")
+    _say(sid, "श्रेया गाबा", "hi")
+    first = _say(sid, "10 जनवरी", "hi")["reply"]
+    second = _say(sid, "10 जनवरी", "hi")["reply"]
+
+    assert second != first, "asked in exactly the same words twice"
+    assert "साल" in second, second
+    # And once it is answered the hint goes away rather than sticking.
+    third = _say(sid, "10 जनवरी 2001", "hi")
+    assert "साल भी बताइए" not in third["reply"]
+    assert voice_agent._SESSIONS[sid].form_answers["dob"] == "2001-01-10"
 
 
 def test_a_hindi_sentence_names_the_month_in_hindi():

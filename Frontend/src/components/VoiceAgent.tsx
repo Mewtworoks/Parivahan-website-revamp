@@ -83,6 +83,24 @@ function canRecogniseSpeech(): boolean {
  * a hi-IN one does \u2014 so fall back to the picker, which is what the citizen
  * chose to read the rest of the site in.
  */
+/**
+ * Whether Saarthi reads its replies out.
+ *
+ * Remembered, because somebody who muted it did so for a reason — a shared
+ * office, a quiet room, a screen reader already talking — and having to mute it
+ * again on every visit is the service not listening in the other direction.
+ */
+const MUTE_KEY = 'parivahan.voice.muted';
+
+function storedMute(): boolean {
+  try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; }
+}
+
+/** Stop mid-sentence. Safe to call when nothing is speaking. */
+function hush() {
+  try { window.speechSynthesis?.cancel(); } catch { /* no synthesiser here */ }
+}
+
 function speak(text: string, uiLang: Lang) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
@@ -106,7 +124,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const greeting: Turn = {
     who: 'saarthi',
     text: t('Hello, I am Saarthi. I can tell you the right next step for your licence.',
-            'नमस्ते, मैं सारथी हूँ। मैं लाइसेंस के लिए सही अगला कदम बता सकता हूँ।'),
+            'नमस्ते, मैं सारथी हूँ। मैं लाइसेंस के लिए सही अगला कदम बता सकती हूँ।'),
   };
   // Picked up where it was left, not started over. Closing this panel to look
   // at the screen behind it is the thing Saarthi keeps asking people to do.
@@ -116,6 +134,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
       : [greeting],
   );
   const [input, setInput] = useState('');
+  const [muted, setMuted] = useState(storedMute);
   const [listening, setListening] = useState(false);
   const [working, setWorking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -175,8 +194,18 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   // where they got to — "we were filling your form and I have your name" beats
   // "hello" for somebody who was here an hour ago. It costs one cheap request
   // and no model call, so there is nothing to save by waiting.
+  //
+  // `lang` is a dependency, but only while nothing has been said yet. The
+  // greeting was fetched once and kept: switch the site to Hindi, open Saarthi,
+  // and the first line was English above a conversation that then ran entirely
+  // in Hindi — the one turn in the exchange that does not follow the citizen,
+  // because it is the only one written before they have said anything. Asking
+  // again is safe: start_session resumes the same conversation inside its
+  // window rather than opening a second one.
+  const started = useRef(turns.length > 1);
+  started.current = turns.length > 1;
   useEffect(() => {
-    if (!phone || sessionRef.current) return;
+    if (!phone || started.current) return;
     let dropped = false;
     void (async () => {
       try {
@@ -194,15 +223,12 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
       }
     })();
     return () => { dropped = true; };
-    // lang is deliberately not a dependency: changing the site language
-    // mid-conversation must not silently reopen the session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phone]);
+  }, [phone, lang]);
 
   const acceptReply = (reply: api.VoiceReply) => {
     setTurns(old => [...old, { who: 'saarthi', text: reply.reply }]);
     setPending(reply.pending_confirmation?.label || null);
-    speak(reply.reply, lang);
+    if (!muted) speak(reply.reply, lang);
     for (const event of reply.tool_events) {
       const result = event.result;
       if (!result) continue;
@@ -266,7 +292,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     setTurns(old => [...old, { who: 'citizen', text: transcript }]);
     try {
       try {
-        acceptReply(await api.voiceTurn(await ensureSession(), transcript));
+        acceptReply(await api.voiceTurn(await ensureSession(), transcript, lang === 'hi' ? 'hi' : 'en'));
       } catch (err) {
         // The server drops a conversation after half an hour idle. Now that the
         // transcript outlives the panel, the stored id can point at one that is
@@ -275,7 +301,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
         if (!(err instanceof api.ApiError) || err.status !== 404) throw err;
         sessionRef.current = null;
         setSessionId(null);
-        acceptReply(await api.voiceTurn(await ensureSession(), transcript));
+        acceptReply(await api.voiceTurn(await ensureSession(), transcript, lang === 'hi' ? 'hi' : 'en'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Saarthi is unavailable right now.');
@@ -286,7 +312,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     if (!sessionId || !pending || working) return;
     setError(null); setWorking(true);
     try {
-      acceptReply(await api.confirmVoiceAction(sessionId));
+      acceptReply(await api.confirmVoiceAction(sessionId, lang === 'hi' ? 'hi' : 'en'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not complete that action.');
     } finally { setWorking(false); }
@@ -310,7 +336,11 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const listen = () => {
     const Ctor = (window as unknown as { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }).SpeechRecognition
       || (window as unknown as { webkitSpeechRecognition?: new () => any }).webkitSpeechRecognition;
-    if (!Ctor) { setError('Voice input works in Chrome. You can still type to Saarthi below.'); return; }
+    if (!Ctor) { setError(t('Voice input works in Chrome. You can still type to Saarthi below.', 'बोलकर पूछना Chrome में काम करता है। आप नीचे लिखकर भी पूछ सकते हैं।')); return; }
+    // Stop talking the moment somebody starts. Saarthi kept reading its last
+    // reply into the open microphone, which is both rude and self-defeating —
+    // the recogniser hears the synthesiser and sends Saarthi its own words.
+    hush();
     setError(null);
     const recognition = new Ctor();
     // Follows the picker rather than being pinned to Hindi. Pinned, an English
@@ -320,22 +350,68 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
-    recognition.onerror = () => { setListening(false); setError('I could not hear that. Try again or type your question.'); };
+    recognition.onerror = () => { setListening(false); setError(t('I could not hear that. Try again or type your question.', 'मैं सुन नहीं सकी। दोबारा कोशिश कीजिए या सवाल लिखिए।')); };
     recognition.onend = () => setListening(false);
     recognition.onresult = (event: any) => send(event.results[0][0].transcript);
     recognition.start();
   };
 
   return (
-    <Sheet title="सारथी · Voice guide" onClose={onClose}>
-      <div className="col g16">
+    // The title followed the script rather than the picker: "सारथी" was shown
+    // to somebody who had chosen English, on the one panel whose whole promise
+    // is that it answers in the language you use.
+    <Sheet fill title={t('Saarthi · Voice guide', 'सारथी · वॉइस गाइड', 'सारथी · व्हॉइस गाइड')} onClose={onClose}>
+      <div className="col g12" style={{ height: '100%', minHeight: 0 }}>
         {/* Says what Saarthi is about to ask for, before it asks. Someone told
             out of nowhere to say their date of birth to a microphone is right
             to hesitate; someone told first why, and what will never be asked,
-            is not being surprised. */}
-        <Note tone="brand" icon={Icon.speaker()}>
-          <b>Saarthi fills the form for you.</b> It will ask your name, date of birth, state and what you want to drive — that is all. It never asks for an Aadhaar number, an OTP, a password or a card, and document checks are simulated in this prototype. Hindi or English is fine.
-        </Note>
+            is not being surprised.
+
+            Folded to one line, because it was taking a third of the panel on
+            every turn of every conversation and the thing it makes room for is
+            the conversation. The half that matters — what is never asked for —
+            stays on the visible line rather than behind the toggle: a promise
+            about your Aadhaar number is worth nothing if you have to go looking
+            for it. Opens on hover and on click, and it is a real <details>, so
+            it also opens on Enter from the keyboard. */}
+        <div className="row between g10" style={{ flex: 'none' }}>
+          {/* The speaker was decoration on a notice. It is a control now: the
+              one thing a voice panel must let you do is make it stop. */}
+          <button
+            className="btn btn-g btn-sm"
+            aria-pressed={muted}
+            title={muted ? t('Saarthi is muted', 'सारथी म्यूट है') : t('Mute Saarthi', 'सारथी को म्यूट करें')}
+            onClick={() => {
+              const next = !muted;
+              setMuted(next);
+              // Muting stops the sentence in progress, not just the next one.
+              if (next) hush();
+              try { localStorage.setItem(MUTE_KEY, next ? '1' : '0'); } catch { /* private browsing */ }
+            }}
+          >
+            {muted ? Icon.speakerOff() : Icon.speaker()}
+            <span className="tiny">{muted ? t('Muted', 'म्यूट') : t('Speaking', 'बोल रहा है')}</span>
+          </button>
+
+          {/* One word, and everything behind it. The notice was five lines at
+              the top of every conversation; what it says matters once, on the
+              first visit, and is worth a hover after that. */}
+          <details
+            className="disclose"
+            onMouseEnter={e => { e.currentTarget.open = true; }}
+            onMouseLeave={e => { e.currentTarget.open = false; }}
+          >
+            <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
+            <div className="flat disclose-body">
+              <b>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card.',
+                    'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता।')}</b>
+              <p className="tiny" style={{ marginTop: 7 }}>
+                {t('It asks your name, date of birth, state and what you want to drive — that is all. Document checks are simulated in this prototype, and nothing here is a government service. Hindi or English is fine.',
+                  'यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है — बस इतना। इस प्रोटोटाइप में दस्तावेज़ जाँच नकली है, और यह कोई सरकारी सेवा नहीं है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}
+              </p>
+            </div>
+          </details>
+        </div>
 
         {/* Points at the one sign-in rather than carrying a second copy of it.
             Saarthi fills the form on the citizen's behalf, so it has to know
@@ -353,10 +429,23 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           </div>
         )}
 
-        <div ref={log} className="col g10" aria-live="polite" style={{ maxHeight: 285, overflowY: 'auto', paddingRight: 3 }}>
+        {/* Takes whatever the panel has left instead of a fixed 285px box.
+            On a laptop that box left roughly four hundred pixels of empty
+            sidebar under the starter chips while the conversation scrolled
+            inside a third of the height available to it.
+
+            The spacer below, not justify-content:flex-end. They look identical
+            until the conversation outgrows the box, at which point flex-end
+            puts the overflow above the scroll origin and the earlier messages
+            become unreachable — the scrollbar simply will not go up. A first
+            child with margin-top:auto pushes a short conversation down to the
+            input in the same way and leaves the overflow scrollable. */}
+        <div ref={log} className="col g10" aria-live="polite"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 3 }}>
+          <div style={{ marginTop: 'auto', flex: 'none' }} />
           {turns.map((turn, index) => (
             <div key={index} className="flat" style={{ alignSelf: turn.who === 'citizen' ? 'flex-end' : 'flex-start', maxWidth: '90%', padding: '11px 13px', background: turn.who === 'citizen' ? 'var(--brand-soft)' : undefined }}>
-              <span className="tiny" style={{ display: 'block', marginBottom: 3, fontWeight: 600 }}>{turn.who === 'citizen' ? 'You' : 'Saarthi'}</span>
+              <span className="tiny" style={{ display: 'block', marginBottom: 3, fontWeight: 600 }}>{turn.who === 'citizen' ? t('You', 'आप') : t('Saarthi', 'सारथी')}</span>
               {turn.text}
             </div>
           ))}
@@ -383,11 +472,11 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
 
         {pending && (
           <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)' }}>
-            <b>Confirm before Saarthi acts</b>
+            <b>{t('Confirm before Saarthi acts', 'सारथी के काम करने से पहले पुष्टि करें')}</b>
             <span className="sub">{pending}</span>
             <div className="row g10 wrapf">
-              <button className="btn btn-p btn-sm" disabled={working} onClick={confirm}>{Icon.check()} Confirm</button>
-              <button className="btn btn-g btn-sm" disabled={working} onClick={() => void cancel()}>Cancel</button>
+              <button className="btn btn-p btn-sm" disabled={working} onClick={confirm}>{Icon.check()} {t('Confirm', 'पुष्टि करें')}</button>
+              <button className="btn btn-g btn-sm" disabled={working} onClick={() => void cancel()}>{t('Cancel', 'रद्द करें')}</button>
             </div>
           </div>
         )}
@@ -398,10 +487,10 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             step they have not done yet. */}
         <div className="row g10" style={{ alignItems: 'stretch' }}>
           <button className="btn btn-p" style={{ minWidth: 82 }} disabled={!phone || working || Boolean(pending)} onClick={listen}>
-            {listening ? 'Listening…' : '🎙 Speak'}
+            {listening ? t('Listening…', 'सुन रही हूँ…') : `🎙 ${t('Speak', 'बोलिए')}`}
           </button>
-          <input className="input grow" value={input} disabled={!phone || working || Boolean(pending)} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void send(); }} placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : canRecogniseSpeech() ? 'Or type your question…' : 'Type your question…'} />
-          <button className="btn btn-s" disabled={!phone || working || Boolean(pending) || !input.trim()} onClick={() => void send()}>Send</button>
+          <input className="input grow" value={input} disabled={!phone || working || Boolean(pending)} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void send(); }} placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : canRecogniseSpeech() ? t('Or type your question…', 'या अपना सवाल लिखिए…') : t('Type your question…', 'अपना सवाल लिखिए…')} />
+          <button className="btn btn-s" disabled={!phone || working || Boolean(pending) || !input.trim()} onClick={() => void send()}>{t('Send', 'भेजें')}</button>
         </div>
         <div className="row g8 wrapf">
           {/* Starters in the citizen's own language — a Hindi chip pressed by an

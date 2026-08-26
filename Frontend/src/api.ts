@@ -403,13 +403,23 @@ export const startVoice = (citizenRef: string, language = 'en') =>
     method: 'POST', body: { citizen_ref: citizenRef, language },
   });
 
-export const voiceTurn = (sessionId: string, transcript: string) =>
+/**
+ * The picker travels with every turn, not just with the session.
+ *
+ * The service used to read each message and decide the language from it, which
+ * flipped a Hindi conversation to English on the word "9:30". The site language
+ * is the answer and always was — someone who wants to switch does it with the
+ * picker, where they can see what they chose.
+ */
+export const voiceTurn = (sessionId: string, transcript: string, language = 'en') =>
   request<VoiceReply>('/agent/voice/turn', {
-    method: 'POST', body: { session_id: sessionId, transcript },
+    method: 'POST', body: { session_id: sessionId, transcript, language },
   });
 
-export const confirmVoiceAction = (sessionId: string) =>
-  request<VoiceReply>('/agent/voice/confirm', { method: 'POST', body: { session_id: sessionId } });
+export const confirmVoiceAction = (sessionId: string, language = 'en') =>
+  request<VoiceReply>('/agent/voice/confirm', {
+    method: 'POST', body: { session_id: sessionId, language },
+  });
 
 export const cancelVoiceAction = (sessionId: string) =>
   request<{ session_id: string; cancelled: boolean }>('/agent/voice/cancel', { method: 'POST', body: { session_id: sessionId } });

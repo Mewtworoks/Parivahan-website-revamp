@@ -65,6 +65,12 @@ You are Saarthi, a warm, concise voice guide for an independent Parivahan
 learner-licence prototype. Help with the licence journey using the available
 tools. Keep each answer under three short spoken sentences.
 
+Saarthi is spoken of as a woman, so speak about yourself in the feminine when
+you are speaking Hindi: "मैं कर दूँगी", "मैं देख रही हूँ", "मैं भर सकती हूँ" —
+never "करूँगा", "रहा हूँ" or "सकता हूँ". Hindi marks the speaker's gender on the
+verb, so this is not a preference: the masculine form announces that a man is
+talking, in the middle of a service that presents itself otherwise.
+
 Answer in the language the citizen just used, and hold it. Hindi gets Hindi,
 English gets English, and mixed Hindi-English (Hinglish) gets Hinglish. Do not
 switch language between turns unless the citizen switches first — reading one
@@ -207,7 +213,10 @@ _PROMISED_ACTION = re.compile(
     r"\b(i(?:'| wi)?ll|i am going to|let me|main)\b[^.!?]{0,60}"
     r"\b(start|create|submit|appl(?:y|ying)|book|reserve|check(?:ing)? you in)\b"
     r"|\b(आवेदन|अर्ज़ी)\b[^।.!?]{0,40}\b(कर|बना|शुरू)"
-    r"|\b(बुक|चेक ?इन)\b[^।.!?]{0,30}\b(कर|कर्?ता|करूँ|करूंगा)",
+    # Both genders: Saarthi speaks of itself in the feminine, but the model is
+    # not perfectly consistent about it and a promise that slips through in the
+    # masculine is the same unqueued action.
+    r"|\b(बुक|चेक ?इन)\b[^।.!?]{0,30}\b(कर|कर्?ता|कर्?ती|करूँ|करूंगा|करूँगी|करूंगी)",
     re.IGNORECASE,
 )
 
@@ -247,6 +256,11 @@ class VoiceSession:
     # prakriya samjhaiye" is three alphabetic words and was briefly filed as
     # one. Knowing we just asked is the context that makes the guess safe.
     asked_field: str | None = None
+    # The field whose last answer could not be read. Asking again is fine;
+    # asking again in exactly the same words is what made "10 जनवरी" get the
+    # identical question three times running, with nothing ever saying that the
+    # year was the missing part.
+    unread_for: str | None = None
     # What Saarthi last put on the table: "days", "day", or "time:2026-08-27".
     # "Yes", "Thursday" and "the 9:30 one" mean nothing without it.
     offered: str | None = None
@@ -377,9 +391,13 @@ def start_session(citizen_ref: str, language: str = "en") -> VoiceSession:
     session.token_id = resumed.get("token_id") or session.token_id
     if not session.form_answers:
         session.form_answers = drafts.load(citizen_ref)
-    if session.language is None:
-        session.language = ("Reply in Hindi, in Devanagari script." if language == "hi"
-                            else "Reply in English.")
+    # The picker wins at open time, even on a resumed conversation. Filling this
+    # in only when it was blank meant somebody who opened Saarthi, closed it,
+    # switched the site to Hindi and opened it again was greeted in English —
+    # the language they had just changed away from. Mid-conversation the steer
+    # still comes from what the citizen actually says, which is the right rule
+    # once there is something to read it from.
+    set_language(session, language)
 
     session.last_seen = _now()
     _SESSIONS[session.id] = session
@@ -536,10 +554,33 @@ def _next_question(session: VoiceSession) -> str | None:
         session.asked_field = None
         return None
     item = missing[0]
+    # Only after a real failed attempt at this field — not merely because it is
+    # the outstanding one, which it is on the first ask too.
+    repeated = session.unread_for == item["field"]
     # Remembered so the answer that comes back can be read without the model.
     session.asked_field = item["field"]
     hindi = bool(session.language and "in Hindi" in session.language)
-    return item.get("ask_hi") if hindi and item.get("ask_hi") else item["ask"]
+    question = item.get("ask_hi") if hindi and item.get("ask_hi") else item["ask"]
+    # Asked twice for the same thing means the last answer was not readable, and
+    # repeating the identical sentence is how "10 जनवरी" was answered three
+    # times in a row with the same question — they had said the day and the
+    # month and were never told the year was what was missing.
+    return f"{question} {_why_again(session, item['field'], hindi)}" if repeated else question
+
+
+def _why_again(session: VoiceSession, field: str, hindi: bool) -> str:
+    """The extra sentence on a second attempt: what specifically is missing."""
+    if field == "dob":
+        return ("साल भी बताइए — जैसे 10 जनवरी 2001।" if hindi
+                else "The year as well, please — like 10 January 2001.")
+    if field == "full_name":
+        return ("सरनेम भी चाहिए।" if hindi else "The surname too, please.")
+    if field == "state":
+        return ("राज्य या शहर का नाम बता दीजिए।" if hindi
+                else "The name of the state or the city is fine.")
+    if field == "licence_classes":
+        return ("दोपहिया, कार, या दोनों।" if hindi else "Two-wheeler, car, or both.")
+    return ""
 
 
 def _form_steer(session: VoiceSession) -> str:
@@ -817,7 +858,7 @@ def opening_line(session: VoiceSession) -> str:
         "Hello, I am Saarthi. I can fill your learner-licence form for you — "
         "just answer four questions out loud. What is your full name, first "
         "name and surname?",
-        "नमस्ते, मैं सारथी हूँ। मैं आपका लर्नर लाइसेंस फ़ॉर्म भर सकता हूँ — बस चार "
+        "नमस्ते, मैं सारथी हूँ। मैं आपका लर्नर लाइसेंस फ़ॉर्म भर सकती हूँ — बस चार "
         "सवालों के जवाब बोलिए। आपका पूरा नाम क्या है — नाम और सरनेम?")
 
 
@@ -954,18 +995,18 @@ def _confirm_sentence(session: VoiceSession) -> str:
         f"{_office_name(office)}, for "
         f"{_spoken_classes(session, list(answers.get('licence_classes') or []))}. "
         "Press confirm and I will send it.",
-        f"मैं {answers.get('full_name', '')} के लिए आवेदन दर्ज करूँगा — जन्म "
+        f"मैं {answers.get('full_name', '')} के लिए आवेदन दर्ज करूँगी — जन्म "
         f"{_spoken_date(str(answers.get('dob') or ''), True)}, "
         f"{_office_name(office)}, "
         f"{_spoken_classes(session, list(answers.get('licence_classes') or []))} के लिए। "
-        "पुष्टि दबाइए और मैं भेज दूँगा।")
+        "पुष्टि दबाइए और मैं भेज दूँगी।")
 
 
 def _queue_application(session: VoiceSession) -> dict[str, Any]:
     """Every answer is in. Raise the confirmation button, saying what it will do."""
     args = _tool_arguments(session, "apply_for_licence", {})
     session.pending = PendingAction(tool="apply_for_licence", arguments=args,
-                                    label=_action_label("apply_for_licence"))
+                                    label=_action_label("apply_for_licence", session=session))
     return {
         "reply": _confirm_sentence(session),
         "tool_events": [{"tool": "apply_for_licence", "status": "awaiting_confirmation"}],
@@ -976,6 +1017,7 @@ def _queue_application(session: VoiceSession) -> dict[str, Any]:
 def _store_answers(session: VoiceSession, picked: dict[str, Any]) -> dict[str, Any]:
     """Keep what was just said, then ask the next question or offer to file."""
     session.form_answers.update(picked)
+    session.unread_for = None
     missing, answers = _form_state(session)
     asking = missing[0]["field"] if missing else None
     try:
@@ -1052,16 +1094,30 @@ def _fast_reply(session: VoiceSession, text: str) -> dict[str, Any] | None:
     if _WANTS_TO_APPLY.search(text):
         return {"reply": _next_question(session) or "", "tool_events": []}
 
-    # An answer we could not read, to a question we definitely asked. Note where
-    # it happened — a field people keep failing to answer is a badly worded
-    # question, and that is worth knowing — then let the model try.
-    if not looks_like_a_question(text) and session.asked_field:
-        # missing[0] rather than a local named `field`: this module imports
-        # dataclasses.field at the top, and the local that used to shadow it
-        # went away with the single-field version of this branch — leaving the
-        # function object itself being handed to json.dumps.
+    # They tried to answer the question we just asked, and it could not be read.
+    # Ask again here rather than paying the model to do it — the model asked
+    # "10 जनवरी" the identical question three times running, and it is the
+    # service that knows *which part* was missing. _next_question adds that on a
+    # repeat, so the second attempt says "the year as well, please".
+    #
+    # missing[0] rather than a local named `field`: this module imports
+    # dataclasses.field at the top, and the local that used to shadow it went
+    # away with the single-field version of this branch — leaving the function
+    # object itself being handed to json.dumps.
+    if not looks_like_a_question(text) and session.asked_field == missing[0]["field"]:
+        outstanding = missing[0]["field"]
         signals.record("form.unparsed", session.citizen_ref,
-                       field=missing[0]["field"], reason="not_understood")
+                       field=outstanding, reason="not_understood")
+        # The second consecutive miss on the same field, not the first. The
+        # model gets one attempt — an odd phrasing is exactly what it is for —
+        # and only takes it away once it has demonstrably failed, which is what
+        # happened to "10 जनवरी": asked, missed, asked again in the very same
+        # words, three times over.
+        if session.unread_for == outstanding:
+            again = _next_question(session)
+            if again:
+                return {"reply": again, "tool_events": []}
+        session.unread_for = outstanding
     return None
 
 
@@ -1087,7 +1143,13 @@ _ASKS_DAYS = re.compile(
     r"\b(show|list|which|what)\b[^.?!]{0,30}\b(day|days|date|dates)\b"
     r"|\b(book|schedule|reserve)\b[^.?!]{0,25}\b(slot|test|appointment|it)\b"
     r"|\b(free|available|open)\b[^.?!]{0,20}\b(day|days|slot|slots)\b"
-    r"|दिन[^।?]{0,15}(दिखा|बता)|स्लॉट[^।?]{0,15}(दिखा|बता)|टेस्ट\s*बुक",
+    # "मेरा स्लॉट बुक करो" is the plainest way to say this in Hindi and matched
+    # nothing, so it fell through to the model, which promised twice and called
+    # nothing — the citizen got "मैं अभी वह शुरू नहीं कर सकी" for a request the
+    # service could have answered instantly.
+    r"|(स्लॉट|टेस्ट|अपॉइंटमेंट)[^।?]{0,20}बुक"
+    r"|बुक[^।?]{0,20}(कर|करना|करो|कीजिए|करूँ)"
+    r"|दिन[^।?]{0,15}(दिखा|बता)|स्लॉट[^।?]{0,15}(दिखा|बता)",
     re.IGNORECASE)
 
 _WEEKDAYS = {d.lower(): i for i, d in enumerate(
@@ -1130,6 +1192,16 @@ def _read_day(text: str, days: list[dict]) -> str | None:
                 or re.search(rf"\b{when.day}(?:st|nd|rd|th)?\s+{month[:3]}", lowered)
                 or re.search(rf"\b{month[:3]}[a-z]*\s+{when.day}\b", lowered)):
             return day["date"]
+
+    # A bare day number — "28", "the 28th", "28 तारीख", "मेरा 28 का कर दो".
+    # It is how people actually pick a day, and inside a six-day window it can
+    # only mean one of them. Taken only when exactly one open day falls on that
+    # number, so an ambiguous one still goes to the model.
+    if not re.search(r"\d[:.]\d", lowered):          # not a clock time
+        said = {int(n) for n in re.findall(r"(?<!\d)(\d{1,2})(?:st|nd|rd|th)?(?!\d)", lowered)}
+        hits = [d for d in open_days if date.fromisoformat(d["date"]).day in said]
+        if len(hits) == 1:
+            return hits[0]["date"]
     return None
 
 
@@ -1201,7 +1273,7 @@ def _speak_times(session: VoiceSession, on: str) -> dict[str, Any]:
                               f"{found.get('day', on)} is full. Say another day and "
                               "I will look again.",
                               f"{found.get('day', on)} भरा हुआ है। दूसरा दिन बताइए, "
-                              "मैं फिर देखता हूँ।"),
+                              "मैं फिर देखती हूँ।"),
                 "tool_events": events}
 
     listed = ", ".join(t["time"] for t in times)
@@ -1219,14 +1291,14 @@ def _queue_booking(session: VoiceSession, slot_id: str) -> dict[str, Any] | None
     if details.get("unavailable"):
         return None                      # let the model explain; it has the case
     session.pending = PendingAction(tool="book_slot", arguments=args,
-                                    label=_action_label("book_slot", details))
+                                    label=_action_label("book_slot", details, session))
     session.offered = None
     return {
         "reply": _say(session,
                       f"I will book {details['day']} at {details['time']} with "
                       f"{details['tester']} at {details['office']}. Press confirm.",
                       f"मैं {details['day']} को {details['time']} बजे "
-                      f"{details['tester']} के साथ {details['office']} में बुक करूँगा। "
+                      f"{details['tester']} के साथ {details['office']} में बुक करूँगी। "
                       "पुष्टि दबाइए।"),
         "tool_events": [{"tool": "book_slot", "status": "awaiting_confirmation"}],
         "pending_confirmation": {"label": session.pending.label},
@@ -1477,10 +1549,27 @@ def _remember_ids(session: VoiceSession, result: dict[str, Any]) -> None:
         session.token_id = str(result["token_id"])
 
 
-def _action_label(tool: str, details: dict[str, Any] | None = None) -> str:
+def _action_label(tool: str, details: dict[str, Any] | None = None,
+                  session: VoiceSession | None = None) -> str:
+    """
+    What the confirmation button says it will do.
+
+    Takes the session so it can be written in the citizen's language. It was
+    English regardless, so a Hindi conversation ended at a button reading
+    "Create your learner-licence application" — the one sentence in the exchange
+    that has to be read and understood before anything is filed, and the only
+    one not translated.
+    """
+    hindi = bool(session and _hindi(session))
     if tool == "apply_for_licence":
-        return "Create your learner-licence application"
+        return ("आपका लर्नर-लाइसेंस आवेदन दर्ज करें" if hindi
+                else "Create your learner-licence application")
     if tool == "book_slot":
+        if hindi:
+            if details and details.get("time"):
+                return (f"{details['day']}, {details['time']} — {details['tester']}, "
+                        f"{details['office']} बुक करें")
+            return "चुना हुआ टेस्ट अपॉइंटमेंट बुक करें"
         # Name the appointment on the button too — the same four facts the
         # wizard's confirm card shows. "Book the selected test appointment"
         # gives the citizen nothing to check the spoken sentence against, which
@@ -1491,7 +1580,8 @@ def _action_label(tool: str, details: dict[str, Any] | None = None) -> str:
                     f"{details['tester']} at {details['office']}")
         return "Book the selected test appointment"
     if tool == "check_in":
-        return "Check in and issue your live queue token"
+        return ("चेक-इन करें और अपना लाइव कतार टोकन लें" if hindi
+                else "Check in and issue your live queue token")
     return tool.replace("_", " ").capitalize()
 
 
@@ -1521,34 +1611,26 @@ def _tool_message(call_id: str, result: dict[str, Any]) -> dict[str, Any]:
     return {"role": "tool", "tool_call_id": call_id, "content": json.dumps(result, ensure_ascii=False)}
 
 
-_ROMAN_HINDI = {
-    "mujhe", "mera", "meri", "mere", "main", "aap", "aapka", "kya", "kyu", "hai",
-    "hain", "ho", "hoon", "karo", "kar", "karna", "karni", "kijiye", "chahiye",
-    "kab", "kaise", "kahan", "kaun", "nahi", "haan", "jaldi", "batao", "bataiye",
-    "dikhao", "dikhaiye", "pahunch", "pahuncha", "gaya", "gayi", "banwana",
-    "chahta", "chahti", "theek", "acha", "phir", "abhi", "bhi", "aur", "wala",
-    "baari", "samay", "din", "paisa", "kitna", "kitne", "lena", "dena", "milega",
-}
-
-
-def _language_steer(text: str) -> str | None:
+def set_language(session: "VoiceSession", language: str) -> None:
     """
-    Pin the reply to the language of this message, decided here rather than
-    left to the model.
+    The site's language picker decides, and nothing else does.
 
-    Asked in English it kept answering in Hindi, and a prompt rule alone did not
-    hold it — the instruction sits far back in a long conversation while the
-    citizen's words are right there. Deciding per turn and restating it as the
-    last instruction before the reply is what actually holds.
+    This replaced a per-turn detector that read each message and chose. It was
+    wrong in both directions and the failures were not subtle. A conversation
+    held entirely in Hindi, answered "9:30", switched to English for the rest of
+    it — the booking sentence and the confirmation button included — because a
+    time contains no Devanagari and "not Hindi" was read as "English". Guarding
+    that with word counts and function-word lists made it less wrong without
+    making it right: every rule was a guess about what somebody meant by a
+    fragment.
+
+    There is no guessing here. The citizen picked a language at the top of the
+    page and every screen already obeys it; the panel is the last one that did
+    not. Someone who wants to switch does it with the picker, where they can see
+    what they chose.
     """
-    if any("ऀ" <= ch <= "ॿ" for ch in text):
-        return "Reply in Hindi, in Devanagari script."
-    words = {w.strip(".,!?;:").lower() for w in text.split()}
-    if words & _ROMAN_HINDI:
-        return ("Reply in Hinglish — romanised Hindi in Latin script, the way the "
-                "citizen just wrote. Do not use Devanagari and do not switch to "
-                "plain English.")
-    return "Reply in English."
+    session.language = ("Reply in Hindi, in Devanagari script." if language == "hi"
+                        else "Reply in English.")
 
 
 # Every line the service speaks itself, rather than getting from the model. They
@@ -1585,7 +1667,7 @@ _FALLBACKS: dict[str, dict[str, str]] = {
     "could_not_start": {
         "en": "Sorry — I could not start that just now, and nothing has been "
               "submitted. Please say it again, or use the form on screen.",
-        "hi": "क्षमा करें — मैं अभी वह शुरू नहीं कर सका, और कुछ भी जमा नहीं हुआ है। "
+        "hi": "क्षमा करें — मैं अभी वह शुरू नहीं कर सकी, और कुछ भी जमा नहीं हुआ है। "
               "कृपया दोबारा कहिए, या स्क्रीन पर दिए फ़ॉर्म का उपयोग कीजिए।",
     },
 }
@@ -1595,7 +1677,7 @@ def _fallback(key: str, language: str | None) -> str:
     """
     The service's own words, in the language this turn was decided to be in.
 
-    ``language`` is the steer sentence built by ``_language_steer``, so Hindi is
+    ``language`` is the steer sentence set by ``set_language``, so Hindi is
     the only one that names a script; Hinglish and English both take the Latin
     line, which is the right call for romanised Hindi too.
     """
@@ -1719,7 +1801,7 @@ def _run_tool_calls(session: VoiceSession, tool_calls: list[dict[str, Any]],
                 if details.get("unavailable"):
                     raise ValueError(_unbookable(details))
                 session.pending = PendingAction(tool=tool, arguments=args,
-                                                label=_action_label(tool, details))
+                                                label=_action_label(tool, details, session))
                 # The resolved appointment goes back to the model, not just the
                 # label: asked to turn a bare "requires_confirmation" into a
                 # spoken sentence it had nothing to read the date, time and
@@ -1747,9 +1829,6 @@ def _reply(session: VoiceSession, user_text: str,
         }
 
     session.messages.append({"role": "user", "content": user_text[:1000]})
-    # Restated on every turn, right after what the citizen said, so the language
-    # decision is the freshest instruction in the conversation.
-    session.language = _language_steer(user_text)
 
     # Everything the service already knows the answer to is answered here, with
     # no upstream call at all. That is the four form questions, the
@@ -1871,8 +1950,11 @@ def _qualify_verified(reply: str, session: VoiceSession) -> str:
     return _with_disclosure(reply, {"verification": "mocked"}, session.language)
 
 
-def turn(session_id: str, transcript: str, caller: str | None = None) -> dict[str, Any]:
+def turn(session_id: str, transcript: str, caller: str | None = None,
+         language: str | None = None) -> dict[str, Any]:
     session = _session_or_404(session_id)
+    if language:
+        set_language(session, language)
     # Only when a call will actually be made. A turn refused because an action
     # is awaiting confirmation costs nothing upstream, and neither does one the
     # service answers from the record — so neither eats the caller's budget.
@@ -1907,8 +1989,11 @@ def _applied_sentence(session: VoiceSession, result: dict[str, Any]) -> str:
         "अगला कदम है टेस्ट बुक करना। दिन दिखाऊँ?")
 
 
-def confirm(session_id: str, caller: str | None = None) -> dict[str, Any]:
+def confirm(session_id: str, caller: str | None = None,
+            language: str | None = None) -> dict[str, Any]:
     session = _session_or_404(session_id)
+    if language:
+        set_language(session, language)
     pending = session.pending
     if not pending:
         raise HTTPException(409, "There is no action awaiting confirmation.")

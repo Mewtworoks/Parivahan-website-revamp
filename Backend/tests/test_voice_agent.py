@@ -101,13 +101,19 @@ def test_voice_queues_mutation_until_visible_confirmation(monkeypatch):
         return {"content": "आपका आवेदन बन गया है। अब मैं स्लॉट दिखा सकता हूँ।"}
 
     monkeypatch.setattr(voice_agent, "_call_nvidia", fake_model)
-    session = client.post("/agent/voice/start", json={"citizen_ref": "voice-confirm-user"}).json()
+    session = client.post("/agent/voice/start",
+                          json={"citizen_ref": "voice-confirm-user", "language": "hi"}).json()
     first = client.post("/agent/voice/turn", json={
-        "session_id": session["session_id"], "transcript": "मुझे learner licence apply करना है",
+        "session_id": session["session_id"], "language": "hi",
+        "transcript": "मुझे learner licence apply करना है",
     })
     assert first.status_code == 200
     body = first.json()
-    assert body["pending_confirmation"]["label"] == "Create your learner-licence application"
+    # This used to assert the English string outright, on a conversation held
+    # entirely in Hindi. That was wrong: the label is what the citizen reads on
+    # the button before anything is filed, so it is the last string in the
+    # exchange that should be in a language they did not choose.
+    assert body["pending_confirmation"]["label"] == "आपका लर्नर-लाइसेंस आवेदन दर्ज करें"
     assert voice_agent._SESSIONS[session["session_id"]].application_id is None
 
     confirmed = client.post("/agent/voice/confirm", json={"session_id": session["session_id"]})
@@ -298,21 +304,29 @@ def test_empty_answer_never_leaves_the_citizen_with_nothing(monkeypatch):
 def test_the_services_own_words_follow_the_citizens_language(monkeypatch):
     """
     The fallbacks are the service speaking, not the model, and they used to be
-    hardcoded Hindi. Asked "I want a learner licence" in English, a citizen was
-    answered "कृपया स्क्रीन पर पुष्टि करें" — which defeats the whole point of
-    deciding the language per turn.
+    hardcoded Hindi. Asked in English, a citizen was answered "कृपया स्क्रीन पर
+    पुष्टि करें".
+
+    The language now comes from the site's picker rather than from the words in
+    the message, so that is what these send. Reading it off the transcript was
+    wrong in a way word lists could not fix: answering "9:30" in a Hindi
+    conversation switched the rest of it to English.
     """
     monkeypatch.setattr(voice_agent, "_call_nvidia",
                         lambda messages, tools=None, language=None, form='': {"content": "", "reasoning_content": "hmm"})
 
-    english = client.post("/agent/voice/start", json={"citizen_ref": "voice-en"}).json()
+    english = client.post("/agent/voice/start",
+                          json={"citizen_ref": "voice-en", "language": "en"}).json()
     reply_en = client.post("/agent/voice/turn", json={
-        "session_id": english["session_id"], "transcript": "I want a learner licence",
+        "session_id": english["session_id"], "language": "en",
+        "transcript": "tell me about the fee",
     }).json()["reply"]
 
-    hindi = client.post("/agent/voice/start", json={"citizen_ref": "voice-hi"}).json()
+    hindi = client.post("/agent/voice/start",
+                        json={"citizen_ref": "voice-hi", "language": "hi"}).json()
     reply_hi = client.post("/agent/voice/turn", json={
-        "session_id": hindi["session_id"], "transcript": "मुझे लाइसेंस चाहिए",
+        "session_id": hindi["session_id"], "language": "hi",
+        "transcript": "शुल्क कितना है",
     }).json()["reply"]
 
     assert reply_en.strip() and not _devanagari(reply_en), reply_en
@@ -370,15 +384,18 @@ def test_tool_call_markup_never_reaches_the_citizen(monkeypatch):
     assert "<call" not in reply and "functions." not in reply
 
 
-def test_the_reply_language_is_decided_from_the_message(monkeypatch):
+def test_the_reply_language_is_decided_by_the_picker(monkeypatch):
     """
-    Decided here, not left to the model: a prompt rule alone did not hold, and
-    English questions kept coming back in Hindi several turns into a call.
-    """
-    assert "English" in voice_agent._language_steer("how much time does it take?")
-    assert "Devanagari" in voice_agent._language_steer("टेस्ट के दिन क्या लाना होगा?")
-    assert "Hinglish" in voice_agent._language_steer("mujhe learner licence banwana hai")
+    This used to assert that the language was read out of the message itself —
+    Devanagari meant Hindi, roman-Hindi words meant Hinglish, anything else
+    meant English. That last clause is what made it wrong: a message with no
+    language in it is not English. Answering "9:30" in a conversation held
+    entirely in Hindi switched the booking sentence and the confirmation button
+    to English and left them there.
 
+    Guessing was replaced rather than tuned. The citizen chose a language at the
+    top of the page; every other screen already obeys it, and now so does this.
+    """
     seen: list[Any] = []
 
     def capture(messages, tools=None, language=None, form=''):
@@ -386,11 +403,23 @@ def test_the_reply_language_is_decided_from_the_message(monkeypatch):
         return {"content": "ok"}
 
     monkeypatch.setattr(voice_agent, "_call_nvidia", capture)
-    session = client.post("/agent/voice/start", json={"citizen_ref": "voice-lang"}).json()
+    session = client.post("/agent/voice/start",
+                          json={"citizen_ref": "voice-lang", "language": "hi"}).json()
+    # Devanagari in the message, English on the picker: the picker wins.
     client.post("/agent/voice/turn", json={
-        "session_id": session["session_id"], "transcript": "what documents do I bring?",
+        "session_id": session["session_id"], "language": "en",
+        "transcript": "टेस्ट के दिन क्या लाना होगा?",
     })
-    assert seen and "English" in seen[0]
+    assert seen and "English" in seen[0], seen
+
+    # And a bare time does not change anything, which is the reported failure.
+    seen.clear()
+    hi = client.post("/agent/voice/start",
+                     json={"citizen_ref": "voice-lang-hi", "language": "hi"}).json()
+    for said in ("टेस्ट बुक करना है", "9:30"):
+        client.post("/agent/voice/turn", json={
+            "session_id": hi["session_id"], "language": "hi", "transcript": said})
+    assert seen and all("Devanagari" in s for s in seen), seen
 
 
 def test_a_broad_question_still_gets_an_answer(monkeypatch):
@@ -432,8 +461,13 @@ def test_paid_turns_are_rate_limited(monkeypatch):
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-flood"}).json()
     sid = session["session_id"]
 
+    # Questions, because only turns that actually reach the model are charged
+    # now. "turn 0", "turn 1" … are unreadable answers to the outstanding form
+    # question, and the service asks those again itself without paying for it —
+    # which is right, and meant this test was counting free turns.
     codes = [client.post("/agent/voice/turn",
-                         json={"session_id": sid, "transcript": f"turn {i}"}).status_code
+                         json={"session_id": sid,
+                               "transcript": f"what does step {i} cost?"}).status_code
              for i in range(voice_agent.TURNS_PER_SESSION + 3)]
     assert codes[:voice_agent.TURNS_PER_SESSION] == [200] * voice_agent.TURNS_PER_SESSION
     assert set(codes[voice_agent.TURNS_PER_SESSION:]) == {429}
@@ -596,6 +630,7 @@ def test_the_model_is_told_what_day_it_is(monkeypatch):
     monkeypatch.setattr(voice_agent.httpx, "post", capture)
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-clock"}).json()
     client.post("/agent/voice/turn", json={"session_id": session["session_id"],
+                                           "language": "hi",
                                            "transcript": "25 तारीख का slot chahiye"})
     steer = sent[0]["messages"][-1]
     assert steer["role"] == "system"

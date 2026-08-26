@@ -108,10 +108,14 @@ class VoiceStartBody(BaseModel):
 class VoiceTurnBody(BaseModel):
     session_id: str
     transcript: str = Field(..., min_length=1, max_length=1000)
+    # Sent on every turn, not just at the start, so switching the picker
+    # mid-conversation takes effect on the next reply.
+    language: str = Field("en", max_length=8)
 
 
 class VoiceConfirmBody(BaseModel):
     session_id: str
+    language: str = Field("en", max_length=8)
 
 
 class ApplyBody(BaseModel):
@@ -533,13 +537,13 @@ def agent_voice_start(body: VoiceStartBody):
 @app.post("/agent/voice/turn", tags=["agent"])
 def agent_voice_turn(body: VoiceTurnBody, request: Request):
     """Send recognised speech to NVIDIA and return Saarthi's spoken reply."""
-    return voice_agent.turn(body.session_id, body.transcript, _caller(request))
+    return voice_agent.turn(body.session_id, body.transcript, _caller(request), body.language)
 
 
 @app.post("/agent/voice/confirm", tags=["agent"])
 def agent_voice_confirm(body: VoiceConfirmBody, request: Request):
     """Execute Saarthi's pending state-changing action after a citizen confirms."""
-    return voice_agent.confirm(body.session_id, _caller(request))
+    return voice_agent.confirm(body.session_id, _caller(request), body.language)
 
 
 @app.post("/agent/voice/cancel", tags=["agent"])

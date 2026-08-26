@@ -135,7 +135,14 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
   );
 }
 
-export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+/**
+ * A right-hand panel.
+ *
+ * `fill` hands the scrolling to the child instead of scrolling the panel: a
+ * conversation wants to sit at the bottom of the space it has and grow upward,
+ * which a panel that scrolls as a whole cannot do.
+ */
+export function Sheet({ title, onClose, children, fill }: { title: ReactNode; onClose: () => void; children: ReactNode; fill?: boolean }) {
   // Escape closes it. Until now the only ways out were the X and the backdrop,
   // both of which need a pointer — so anyone driving this from the keyboard was
   // shut inside a panel covering the page, with the rest of the site still
@@ -160,10 +167,12 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
   return (
     <div className="sheet-bg" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
-        <div className="row between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, background: 'var(--surface)' }}>
+        {/* No longer position:sticky — the panel is a column and the body
+            scrolls, so the header stays put by being outside the scroller. */}
+        <div className="row between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', flex: 'none', background: 'var(--surface)' }}>
           <h3>{title}</h3><button className="btn btn-g btn-sm" onClick={onClose} aria-label="Close">{Icon.x()}</button>
         </div>
-        <div style={{ padding: '22px' }}>{children}</div>
+        <div className={`sheet-body${fill ? ' fill' : ''}`}>{children}</div>
       </div>
     </div>
   );

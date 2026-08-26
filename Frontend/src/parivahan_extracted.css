@@ -137,7 +137,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 .doc-th{width:46px;height:46px;border-radius:9px;background:var(--line);flex:none;display:grid;place-items:center;color:var(--muted);overflow:hidden}
 .stripe{background-image:repeating-linear-gradient(45deg,var(--stripe-1) 0 4px,var(--stripe-2) 4px 8px)}
 .sheet-bg{position:fixed;inset:0;background:oklch(0.22 0.05 265/.5);z-index:60;display:flex;justify-content:flex-end;animation:fade .18s ease}
-.sheet{background:var(--surface);width:min(440px,100%);height:100%;overflow:auto;box-shadow:var(--sh-lg);animation:slide .22s cubic-bezier(.2,.8,.3,1)}
+/* A column, so a panel can hand its scrolling to one child instead of scrolling
+   as a whole. Saarthi's transcript was a 285px box with the rest of a
+   full-height sidebar left empty below it — the conversation scrolled inside a
+   third of the space available to it. */
+.sheet{background:var(--surface);width:min(440px,100%);height:100%;box-shadow:var(--sh-lg);animation:slide .22s cubic-bezier(.2,.8,.3,1);display:flex;flex-direction:column;overflow:hidden}
+.sheet-body{flex:1;min-height:0;overflow:auto;padding:22px}
+/* Fill mode: the child is a full-height column and owns its own scrolling. */
+.sheet-body.fill{overflow:hidden;display:flex;flex-direction:column}
+.sheet-body.fill>*{flex:1;min-height:0}
 @keyframes fade{from{opacity:0}}
 @keyframes slide{from{transform:translateX(24px);opacity:.6}}
 .fade{animation:up .28s cubic-bezier(.2,.8,.3,1)}
@@ -219,6 +227,21 @@ h1{font-size:1.68rem}h2{font-size:1.3rem}
 .modcard.dark .idx{color:oklch(1 0 0/.07)}
 .modcard.dark .hr{background:oklch(1 0 0/.14)}
 .modcard.dark .sub,.modcard.dark p{color:oklch(0.88 0.035 262)}
+/* The one-line disclosure at the top of the voice panel. Hover opens it, click
+   opens it, Enter opens it — the marker is hidden because the whole summary row
+   is the affordance. */
+/* One word that opens onto the whole notice, floated over the conversation
+   rather than pushing it down — the text matters once, on a first visit, and
+   should not cost five lines of the panel on every turn after that. */
+.disclose{position:relative;flex:none}
+.disclose>summary{display:inline-flex;align-items:center;gap:6px;cursor:help;list-style:none;
+  color:var(--muted);padding:6px 9px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
+.disclose>summary::-webkit-details-marker{display:none}
+.disclose>summary:hover,.disclose[open]>summary{color:var(--ink);border-color:var(--brand-line)}
+.disclose-body{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:min(320px,78vw);
+  padding:12px 14px;background:var(--surface);border-color:var(--brand-line);box-shadow:var(--sh-lg);
+  font-size:.86rem;line-height:1.5}
+
 /* Inspector lanes. 340px is the width below which the "Next up" row and the
    Call next button stop fitting on one line, so that is where it wraps rather
    than at a guessed breakpoint. */
