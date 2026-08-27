@@ -16,7 +16,7 @@ import { useT } from '../lib/language';
  * tracker makes the claim watchable — call the next token here, and the wait
  * on the citizen's screen changes.
  */
-export function Desk({ state }: PageProps) {
+export function Desk({ go, state }: PageProps) {
   const t = useT();
   const { offices } = useOffices(state.form?.state);
   const [rtoId, setRtoId] = useState(state.form?.rto || 'mh01');
@@ -47,6 +47,7 @@ export function Desk({ state }: PageProps) {
        board. Held at 860 the lanes could never sit side by side however wide
        the monitor was. */
     <div className="wrap fade" style={{ padding: '48px 24px 64px' }}>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} {t('Home', 'होम', 'होम')}</button>
       {/* The heading and the sentence under it are still prose, so they keep a
           reading width of their own inside the wider board. */}
       <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26, maxWidth: 720 }}>

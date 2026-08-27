@@ -22,6 +22,7 @@ export function Report({ go, state, update }: PageProps) {
       // refresh — this was a lone sentence with nothing saying which screen it
       // was or what it would have shown.
       <div className="narrow fade" style={{ padding: '60px 24px' }}>
+        <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
         <div className="col g10">
           <span className="eyebrow">Practice</span>
           <h1>Readiness report</h1>
@@ -50,6 +51,7 @@ export function Report({ go, state, update }: PageProps) {
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
       <div className="col g10" style={{ marginBottom: 24 }}>
         <span className="eyebrow">Practice round complete</span>
         <h1>Readiness report</h1>

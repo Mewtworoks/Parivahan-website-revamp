@@ -50,6 +50,7 @@ export function Issued({ go, state }: PageProps) {
 
   return (
     <div className="narrow fade" style={{ padding: '48px 24px 0' }}>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
       <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26 }}>
         <Pill tone="ok">{Icon.check()} Passed · {state.score ?? 0} of {state.scoreTotal ?? 10}</Pill>
         <h1>Your learner's licence is issued.</h1>

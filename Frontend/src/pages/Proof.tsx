@@ -75,7 +75,7 @@ function Chain({ rows }: { rows: api.LedgerRow[] }) {
   );
 }
 
-export function Proof(_props: PageProps) {
+export function Proof({ go }: PageProps) {
   const t = useT();
   const [busy, setBusy] = useState<Which | 'reset' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +105,7 @@ export function Proof(_props: PageProps) {
 
   return (
     <div className="narrow fade" style={{ padding: '48px 24px 64px' }}>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} {t('Home', 'होम', 'होम')}</button>
       <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26 }}>
         <Pill tone="brand">{Icon.dot()} {t('Under the hood', 'भीतर से')}</Pill>
         <h1>{t('Three things that cannot go wrong', 'तीन चीज़ें जो गलत नहीं हो सकतीं')}</h1>

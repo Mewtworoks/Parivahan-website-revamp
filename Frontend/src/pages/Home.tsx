@@ -7,77 +7,65 @@ import { Icon } from '../ui/Icon';
 import { LicenceCard } from '../ui/LicenceCard';
 import { Pill } from '../ui/SharedUI';
 
-interface ServiceCard {
-  id: string;
-  icon: ReturnType<typeof Icon.card>;
-  tag: string;
-  title: string;
-  desc: string;
-  meta: string[];
-  cta: string;
-  targetRoute: string;
-}
-
 // A verb code, not a translated label — it reads as a system/step marker (like the "n" it sits
 // beside), the same register as the mono application-number placeholder further down the page.
-const JOURNEY_STEPS: [verb: string, heading: string, headingHi: string, headingMr: string, body: string][] = [
-  ['CHECK', 'Are you eligible', 'क्या आप पात्र हैं', 'तुम्ही पात्र आहात का', 'Three questions tell you if you qualify, before any fee is paid.'],
-  ['APPLY', 'Fill the form once', 'फ़ॉर्म एक बार भरें', 'फॉर्म एकदा भरा', 'Details arrive from documents you already hold. Photos are checked as you take them.'],
-  ['BOOK', 'Pick a real slot', 'एक असली स्लॉट चुनें', 'खरा स्लॉट निवडा', 'Choose an office by distance and remaining capacity, not by luck.'],
-  ['TEST', 'Ten questions', 'दस सवाल', 'दहा प्रश्न', 'Each answer explained. Pass, and the licence is issued at once.'],
+const JOURNEY_STEPS: [verb: string, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string][] = [
+  ['CHECK', 'Are you eligible', 'क्या आप पात्र हैं', 'तुम्ही पात्र आहात का',
+    'Three questions tell you if you qualify, before any fee is paid.',
+    'शुल्क देने से पहले, तीन सवालों से पता चलता है कि आप पात्र हैं या नहीं।',
+    'शुल्क भरण्याआधी, तीन प्रश्नांवरून तुम्ही पात्र आहात का हे कळते.'],
+  ['APPLY', 'Fill the form once', 'फ़ॉर्म एक बार भरें', 'फॉर्म एकदा भरा',
+    'Details arrive from documents you already hold. Photos are checked as you take them.',
+    'विवरण उन दस्तावेज़ों से आते हैं जो आपके पास पहले से हैं। फ़ोटो लेते ही जांची जाती है।',
+    'तपशील तुमच्याकडे आधीच असलेल्या कागदपत्रांमधून येतो. फोटो घेताच तपासला जातो.'],
+  ['BOOK', 'Pick a real slot', 'एक असली स्लॉट चुनें', 'खरा स्लॉट निवडा',
+    'Choose an office by distance and remaining capacity, not by luck.',
+    'दफ़्तर दूरी और बची हुई क्षमता के आधार पर चुनें, किस्मत के आधार पर नहीं।',
+    'कार्यालय अंतर आणि उरलेल्या क्षमतेनुसार निवडा, नशिबावर नाही.'],
+  ['TEST', 'Ten questions', 'दस सवाल', 'दहा प्रश्न',
+    'Each answer explained. Pass, and the licence is issued at once.',
+    'हर जवाब समझाया गया है। पास होने पर लाइसेंस तुरंत जारी होता है।',
+    'प्रत्येक उत्तर समजावलेले आहे. उत्तीर्ण झाल्यास लायसन्स लगेच दिले जाते.'],
 ];
 
-const DIFFERENTIATORS: [icon: ReturnType<typeof Icon.doc>, heading: string, headingHi: string, headingMr: string, body: string][] = [
-  [Icon.doc({ width: 14, height: 14 }), 'The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे', 'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.'],
+const DIFFERENTIATORS: [icon: ReturnType<typeof Icon.doc>, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string][] = [
+  [Icon.doc({ width: 14, height: 14 }), 'The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे',
+    'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.',
+    'शुरू करने से पहले आपकी श्रेणी का हर शुल्क सूचीबद्ध है, और रसीद में हर एक का नाम है। बाद में काउंटर पर कुछ भी नहीं लिया जाता।',
+    'सुरुवात करण्याआधी तुमच्या वर्गाचे प्रत्येक शुल्क नोंदवलेले असते, आणि पावतीवर प्रत्येकाचे नाव असते. नंतर काउंटरवर काहीही घेतले जात नाही.'],
   // Both of these used to claim something the build did not do. The first
   // promised a cross-device resume off a mobile number, with nothing behind it
   // at all — the application lived in memory and a refresh threw it away. The
   // browser keeps it now, so the claim is scoped to what is actually true.
-  [Icon.clock({ width: 14, height: 14 }), 'You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता', 'The application saves as you go and survives closing the tab, so a dropped connection costs you one step and not the whole form. Once it is submitted, the number and your date of birth open it from anywhere.'],
+  [Icon.clock({ width: 14, height: 14 }), 'You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता',
+    'The application saves as you go and survives closing the tab, so a dropped connection costs you one step and not the whole form. Once it is submitted, the number and your date of birth open it from anywhere.',
+    'आवेदन अपने-आप सहेजा जाता रहता है और टैब बंद करने पर भी बना रहता है, इसलिए कनेक्शन टूटने पर सिर्फ़ एक चरण गंवाना पड़ता है, पूरा फ़ॉर्म नहीं। जमा होने के बाद, नंबर और जन्मतिथि से इसे कहीं से भी खोला जा सकता है।',
+    'अर्ज आपोआप जतन होत राहतो आणि टॅब बंद केल्यावरही टिकतो, त्यामुळे कनेक्शन तुटल्यास फक्त एक टप्पा गमवावा लागतो, संपूर्ण फॉर्म नाही. सादर झाल्यानंतर, क्रमांक आणि जन्मतारखेने तो कुठूनही उघडता येतो.'],
   // The second said a booking is "an appointment rather than a token", which
   // reads as a dig at the queue token this build issues and spends a whole
   // screen making meaningful. The two are not rivals: the appointment is the
   // time you were given, the token is your place on the day — and it is now
   // ordered by appointment, which is the thing worth claiming.
-  [Icon.pin({ width: 14, height: 14 }), 'A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच', 'Each RTO publishes what is genuinely left and the average wait once you arrive. On the day, the queue is called in appointment order — so turning up at dawn earns nothing, and the time you booked is the time you are seen.'],
+  [Icon.pin({ width: 14, height: 14 }), 'A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच',
+    'Each RTO publishes what is genuinely left and the average wait once you arrive. On the day, the queue is called in appointment order — so turning up at dawn earns nothing, and the time you booked is the time you are seen.',
+    'हर आरटीओ बताता है कि सच में कितनी जगह बची है और पहुंचने पर औसत इंतज़ार कितना है। दिन में, कतार अपॉइंटमेंट के क्रम में बुलाई जाती है — इसलिए भोर में पहुंचने से कुछ फ़ायदा नहीं, और आपने जो समय बुक किया वही समय आपको मिलता है।',
+    'प्रत्येक आरटीओ खरोखर किती जागा उरली आहे आणि पोहोचल्यावर सरासरी किती वाट पाहावी लागेल हे सांगतो. त्या दिवशी, रांग अपॉइंटमेंटच्या क्रमाने बोलावली जाते — त्यामुळे पहाटे पोहोचण्याचा काही फायदा नाही, आणि तुम्ही बुक केलेली वेळ हीच तुम्हाला भेटीची वेळ असते.'],
 ];
 
 // The learner's-licence facts strip, on the one "start here" panel. With the DL journey parked
 // (see the note in types.ts) there is only ever one service, so this no longer needs to be a
 // mapped list of cards — a fixed panel says so plainly instead of looping over an array of one.
-const LL_FACTS = ['Eight stages, about 14 minutes', '₹150 per class plus one ₹50 test fee', 'With Aadhaar: no RTO visit at all', '10 questions, 6 to pass'];
+const LL_FACTS: [en: string, hi: string, mr: string][] = [
+  ['Eight stages, about 14 minutes', 'आठ चरण, लगभग 14 मिनट', 'आठ टप्पे, सुमारे 14 मिनिटे'],
+  ['₹150 per class plus one ₹50 test fee', 'प्रति श्रेणी ₹150 और एक बार ₹50 टेस्ट शुल्क', 'प्रति वर्ग ₹150 आणि एकदा ₹50 टेस्ट शुल्क'],
+  ['With Aadhaar: no RTO visit at all', 'आधार के साथ: आरटीओ जाने की ज़रूरत नहीं', 'आधारसह: आरटीओला जाण्याची गरज नाही'],
+  ['10 questions, 6 to pass', '10 प्रश्न, पास होने के लिए 6', '10 प्रश्न, उत्तीर्ण होण्यासाठी 6'],
+];
 
 export function Home({ go, update }: PageProps) {
   const [applicationLookup, setApplicationLookup] = useState('');
   const t = useT();
   const { lang } = useLanguage();
-
-  const _services: ServiceCard[] = [
-    {
-      id: 'll', icon: Icon.card({ width: 22, height: 22 }), tag: t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा'), title: t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स'),
-      desc: t('Your first licence. Apply online, then visit the RTO once for the test.',
-        'आपका पहला लाइसेंस। ऑनलाइन आवेदन कीजिए, फिर टेस्ट के लिए एक बार आरटीओ जाइए।',
-        'तुमचे पहिले लायसन्स. ऑनलाइन अर्ज करा, नंतर टेस्टसाठी एकदा आरटीओला जा.'),
-      meta: [
-        t('Eight stages, about 14 minutes', 'आठ चरण, लगभग 14 मिनट', 'आठ टप्पे, सुमारे 14 मिनिटे'),
-        t('₹150 per class plus one ₹50 test fee', 'प्रति श्रेणी ₹150 और एक बार ₹50 टेस्ट शुल्क', 'प्रति वर्ग ₹150 आणि एकदा ₹50 टेस्ट शुल्क'),
-        t('With Aadhaar: no RTO visit at all', 'आधार के साथ: आरटीओ जाने की ज़रूरत नहीं', 'आधारसह: आरटीओला जाण्याची गरज नाही'),
-        t('10 questions, 6 to pass', '10 प्रश्न, पास होने के लिए 6', '10 प्रश्न, उत्तीर्ण होण्यासाठी 6'),
-      ],
-      // Straight into the wizard. The eligibility check is a separate question
-      // with its own button in the hero — routing "Start" through it made
-      // someone who already knows they qualify answer three questions before
-      // they were allowed to begin. Stage one's Back still goes to the
-      // checklist, so what you need to have ready stays one press away.
-      cta: t("Start learner's licence", 'लर्नर लाइसेंस शुरू करें', 'लर्नर लायसन्स सुरू करा'), targetRoute: 'apply'
-    },
-    // DL journey parked — the wizard exists but has no service behind it, and a
-    // card here is an invitation to find that out. See the note in types.ts.
-    // { id: 'dl', icon: Icon.wheel({ width: 22, height: 22 }), tag: t('You already have an LL', 'आपके पास पहले से LL है', 'तुमच्याकडे आधीच LL आहे'), title: t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स'),
-    //   desc: 'Convert a valid learner\'s licence into a permanent driving licence.',
-    //   meta: ['Starts from your LL number', '₹500 — ₹200 grant + ₹300 test', 'LL must be 30 to 180 days old', 'You bring the vehicle to the test'],
-    //   cta: t('Start driving licence', 'ड्राइविंग लाइसेंस शुरू करें', 'ड्रायव्हिंग लायसन्स सुरू करा'), targetRoute: 'dl' },
-  ];
 
   return (
     <div className="fade">
@@ -142,11 +130,15 @@ export function Home({ go, update }: PageProps) {
             </div>
             <div className="col g8">
               <h2>{t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स')}</h2>
-              <p className="sub" style={{ maxWidth: '52ch' }}>Your first licence. Apply online, then visit the RTO once for the test — or not at all, if you authenticate with Aadhaar.</p>
+              <p className="sub" style={{ maxWidth: '52ch' }}>
+                {t('Your first licence. Apply online, then visit the RTO once for the test — or not at all, if you authenticate with Aadhaar.',
+                  'आपका पहला लाइसेंस। ऑनलाइन आवेदन कीजिए, फिर टेस्ट के लिए एक बार आरटीओ जाइए — या आधार से प्रमाणीकरण करने पर बिल्कुल भी नहीं।',
+                  'तुमचे पहिले लायसन्स. ऑनलाइन अर्ज करा, नंतर टेस्टसाठी एकदा आरटीओला जा — किंवा आधारने प्रमाणीकरण केल्यास अजिबात जाऊ नका.')}
+              </p>
             </div>
             <ul className="facts">
-              {LL_FACTS.map(line => (
-                <li key={line}>{Icon.check()} {line}</li>
+              {LL_FACTS.map(([en, hi, mr]) => (
+                <li key={en}>{Icon.check()} {t(en, hi, mr)}</li>
               ))}
             </ul>
           </div>
@@ -167,11 +159,11 @@ export function Home({ go, update }: PageProps) {
             <span className="tiny">{t('About 14 minutes, plus one RTO visit', 'लगभग 14 मिनट, साथ में एक आरटीओ यात्रा', 'साधारण 14 मिनिटे, अधिक एक आरटीओ भेट')}</span>
           </div>
           <div className="steps">
-            {JOURNEY_STEPS.map(([verb, heading, headingHi, headingMr, body], n) => (
+            {JOURNEY_STEPS.map(([verb, heading, headingHi, headingMr, body, bodyHi, bodyMr], n) => (
               <div key={heading}>
                 <span className="n"><i>{n + 1}</i> {verb}</span>
                 <h3>{t(heading, headingHi, headingMr)}</h3>
-                <p>{body}</p>
+                <p>{t(body, bodyHi, bodyMr)}</p>
               </div>
             ))}
           </div>
@@ -186,10 +178,14 @@ export function Home({ go, update }: PageProps) {
               {/* Says "practice", not "the test". Sitting directly under a card
                   that reads "10 questions, 6 to pass", a bare count of road
                   situations looked like a second, contradictory test length. */}
-              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>{spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations to practise on, {DECISION_LIMIT_MS / 1000} seconds each — not the test itself. You are scored on the decision and on how long it took, which is what the real test measures. The report card names the two habits to fix.</p>
+              <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>
+                {t(`${spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations to practise on, ${DECISION_LIMIT_MS / 1000} seconds each — not the test itself. You are scored on the decision and on how long it took, which is what the real test measures. The report card names the two habits to fix.`,
+                  `${SCENARIOS.length} सड़क स्थितियों पर अभ्यास करें, हर एक ${DECISION_LIMIT_MS / 1000} सेकंड में — यह असली टेस्ट नहीं है। आपका मूल्यांकन फैसले पर और उसमें लगे समय पर होता है, जो असली टेस्ट भी मापता है। रिपोर्ट कार्ड सुधारने योग्य दो आदतें बताता है।`,
+                  `${SCENARIOS.length} रस्ता परिस्थितींवर सराव करा, प्रत्येक ${DECISION_LIMIT_MS / 1000} सेकंदांत — ही खरी टेस्ट नाही. तुमचे मूल्यमापन निर्णयावर आणि त्यासाठी लागलेल्या वेळेवर होते, जे खरी टेस्टही मोजते. रिपोर्ट कार्ड सुधारण्यासारख्या दोन सवयी सांगते.`)}
+              </p>
               <div className="row g10 wrapf">
                 <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} {t('Play the road', 'सड़क खेलें', 'रस्ता खेळा')}</button>
-                <span className="tiny" style={{ alignSelf: 'center' }}>No download · works offline</span>
+                <span className="tiny" style={{ alignSelf: 'center' }}>{t('No download · works offline', 'डाउनलोड की ज़रूरत नहीं · ऑफ़लाइन भी काम करता है', 'डाउनलोड करण्याची गरज नाही · ऑफलाइनही काम करते')}</span>
               </div>
             </div>
             <div style={{ minHeight: 230 }}><PixelScene map={SCENARIOS[4].map} art={SCENARIOS[4].art} /></div>
@@ -202,11 +198,11 @@ export function Home({ go, update }: PageProps) {
           <h2>{t('Three promises, and a way to check each', 'तीन वादे, और हर एक जांचने का एक तरीका', 'तीन आश्वासने, आणि प्रत्येक तपासण्याचा मार्ग')}</h2>
         </div>
         <div className="claims">
-          {DIFFERENTIATORS.map(([icon, heading, headingHi, headingMr, body]) => (
+          {DIFFERENTIATORS.map(([icon, heading, headingHi, headingMr, body, bodyHi, bodyMr]) => (
             <div key={heading}>
               <span className="claim-ic">{icon}</span>
               <h3>{t(heading, headingHi, headingMr)}</h3>
-              <p>{body}</p>
+              <p>{t(body, bodyHi, bodyMr)}</p>
             </div>
           ))}
         </div>
@@ -242,7 +238,7 @@ export function Home({ go, update }: PageProps) {
       </section>
       <section className="wrap" style={{ marginTop: 44 }}>
         <div className="lookup">
-          <div className="col g4"><h3>{t('Already applied?', 'पहले से आवेदन किया है?', 'आधीच अर्ज केला आहे का?')}</h3><span className="sub">Enter your application number to see where it is stuck and what to do about it.</span></div>
+          <div className="col g4"><h3>{t('Already applied?', 'पहले से आवेदन किया है?', 'आधीच अर्ज केला आहे का?')}</h3><span className="sub">{t('Enter your application number to see where it is stuck and what to do about it.', 'अपना आवेदन नंबर डालें, यह देखने के लिए कि वह कहां अटका है और आगे क्या करना है।', 'तुमचा अर्ज क्रमांक टाका, तो कुठे अडकला आहे आणि पुढे काय करायचे हे पाहण्यासाठी.')}</span></div>
           <div className="row g10 wrapf">
             <input className="input mono" style={{ width: 210 }} placeholder="SS-2026-004182" value={applicationLookup} onChange={e => setApplicationLookup(e.target.value)} />
             <button className="btn btn-s" onClick={() => go('status')}>{Icon.search()} {t('Find', 'खोजें', 'शोधा')}</button>
