@@ -1,0 +1,34 @@
+# Netlify — the static Vite build.
+#
+# Cloudflare Pages needs no file: set Root directory `Frontend`, build command
+# `npm run build`, output directory `dist`, and the same two environment
+# variables in the dashboard.
+
+[build]
+  base = "Frontend"
+  command = "npm run build"
+  publish = "dist"          # relative to `base`, so Frontend/dist
+
+[build.environment]
+  NODE_VERSION = "22"
+  # VITE_API_BASE is set in the dashboard, not here — it differs per deploy and
+  # is baked into the bundle at build time, so changing it needs a rebuild.
+
+# Routing is by hash (`#/route`), so every request already lands on `/`. This
+# redirect only covers someone typing a path directly, which would otherwise
+# 404 on a static host.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The bundle is content-hashed by Vite; index.html must not be.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
