@@ -1,8 +1,8 @@
 import * as api from '../api';
-import { feeRows, feeTotal, inWords } from '../data/fees';
+import { feeRows, feeTotal, inWords, inWordsHi } from '../data/fees';
 import { rtosFor } from '../data/rtoOffices';
 import { formatDayTime } from '../lib/format';
-import { useT } from '../lib/language';
+import { useLanguage, useT } from '../lib/language';
 import { useApi } from '../lib/useApi';
 import type { PageProps } from '../types';
 import { DocLinks } from '../ui/DocLinks';
@@ -12,6 +12,7 @@ import { Note, Pill } from '../ui/SharedUI';
 /** e-Receipt shown right after a (mock) payment confirms. */
 export function Receipt({ go, state, update }: PageProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const form = state.form || {};
   const classIds = form.classes || ['MCWG'];
   const isAadhaar = form.route === 'aadhaar';
@@ -39,13 +40,13 @@ export function Receipt({ go, state, update }: PageProps) {
       <div className="card card-p col g14" style={{ marginTop: 26 }}>
         <div className="row between g12 wrapf"><h3>{t('e-Receipt', 'ई-रसीद', 'ई-पावती')}</h3><Pill tone="ok">{t('Confirmed by the bank', 'बैंक द्वारा पुष्टि की गई', 'बँकेने पुष्टी केली')}</Pill></div>
         <dl className="kv"><dt>{t('Receipt number', 'रसीद नंबर', 'पावती क्रमांक')}</dt><dd className="mono">{applicationNo.replace(/^SS-\d{4}-/, 'SS-RCPT-')}</dd><dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{applicationNo}</dd>
-          <dt>{t('Paid on', 'भुगतान तिथि', 'पैसे भरल्याची तारीख')}</dt><dd>{formatDayTime(state.app?.submittedAt)}</dd><dt>{t('Gateway', 'गेटवे', 'गेटवे')}</dt><dd>{t('Multi-bank · mock', 'मल्टी-बैंक · नकली', 'मल्टी-बँक · नकली')}</dd>
+          <dt>{t('Paid on', 'भुगतान तिथि', 'पैसे भरल्याची तारीख')}</dt><dd>{formatDayTime(state.app?.submittedAt, lang)}</dd><dt>{t('Gateway', 'गेटवे', 'गेटवे')}</dt><dd>{t('Multi-bank · mock', 'मल्टी-बैंक · नकली', 'मल्टी-बँक · नकली')}</dd>
           <dt>{t('Office', 'कार्यालय', 'कार्यालय')}</dt><dd>{office.name}</dd></dl>
         <hr className="hr" />
-        {rows.map((row, i) => <div key={i} className="row between g16"><span className="sub">{row.k}</span><b className="mono" style={{ fontWeight: 600 }}>₹{row.v}</b></div>)}
+        {rows.map((row, i) => <div key={i} className="row between g16"><span className="sub">{t(row.k, row.kHi, row.kMr)}</span><b className="mono" style={{ fontWeight: 600 }}>₹{row.v}</b></div>)}
         <hr className="hr" />
         <div className="row between g16"><b>{t('Total', 'कुल', 'एकूण')}</b><b className="mono" style={{ fontSize: '1.1rem' }}>₹{total}</b></div>
-        <span className="tiny">{inWords(total)}</span>
+        <span className="tiny">{lang === 'en' ? inWords(total) : inWordsHi(total)}</span>
         <hr className="hr" />
         <div className="row g10 wrapf"><button className="btn btn-s btn-sm">{Icon.doc()} {t('Download e-receipt', 'ई-रसीद डाउनलोड करें', 'ई-पावती डाउनलोड करा')}</button><button className="btn btn-s btn-sm">{t('Email to me', 'मुझे ईमेल करें', 'मला ईमेल करा')}</button></div>
         <hr className="hr" />

@@ -21,7 +21,8 @@ export function useOffices(state: string | undefined) {
   const live = Boolean(data && !error);
   const offices: RtoOffice[] = live
     ? data!.rtos.map(o => ({
-        id: o.id, name: o.name, area: o.area, km: o.km, wait: o.wait, load: o.load,
+        id: o.id, name: o.name, area: o.area, km: o.km,
+        wait: o.wait, waitMinutes: o.wait_minutes, load: o.load,
       }))
     : rtosFor(stateName);
 

@@ -429,8 +429,8 @@ export function VehicleClasses({ form, updateForm, classIds, totalFee }: StepPro
             <button key={cls.id} className="tile" aria-checked={selected} role="checkbox" disabled={locked} onClick={() => toggleClass(cls.id)} style={locked ? { opacity: 0.55 } : undefined}>
               <span className="tick" style={{ borderRadius: 6 }}>{selected ? Icon.check() : null}</span>
               <span className="col g4 grow">
-                <span className="row g8 wrapf"><b style={{ fontWeight: 600 }}>{cls.name}</b><span className="pill mono" style={{ fontSize: '.68rem' }}>{cls.code}</span>{cls.medical && <Pill tone="warn">Form 1A</Pill>}</span>
-                <span className="sub">{locked ? t(`You are ${age}. This class opens at ${cls.min}.`, `आपकी आयु ${age} है। यह श्रेणी ${cls.min} पर खुलती है।`, `तुमचे वय ${age} आहे. हा वर्ग ${cls.min} व्या वर्षी उघडतो.`) : cls.note}</span>
+                <span className="row g8 wrapf"><b style={{ fontWeight: 600 }}>{t(cls.name, cls.nameHi, cls.nameMr)}</b><span className="pill mono" style={{ fontSize: '.68rem' }}>{cls.code}</span>{cls.medical && <Pill tone="warn">Form 1A</Pill>}</span>
+                <span className="sub">{locked ? t(`You are ${age}. This class opens at ${cls.min}.`, `आपकी आयु ${age} है। यह श्रेणी ${cls.min} पर खुलती है।`, `तुमचे वय ${age} आहे. हा वर्ग ${cls.min} व्या वर्षी उघडतो.`) : t(cls.note, cls.noteHi, cls.noteMr)}</span>
               </span>
               <span className="col g4" style={{ alignItems: 'flex-end', flex: 'none' }}><b style={{ fontWeight: 600 }}>₹{cls.fee}</b><span className="tiny">{t('grant fee', 'अनुदान शुल्क', 'अनुदान फी')}</span></span>
             </button>
@@ -470,11 +470,11 @@ export function Form1Declaration({ form, updateForm, needsMedicalCert, form1Answ
         why={t('Knowing the consequence before you answer means an honest answer never feels risky.', 'जवाब देने से पहले परिणाम जानना मतलब है कि एक सच्चा जवाब कभी जोखिम भरा नहीं लगता।', 'उत्तर देण्यापूर्वी परिणाम माहीत असणे म्हणजे एक खरे उत्तर कधीही धोकादायक वाटत नाही.')} />
       <div className="card card-p col g16">
         <div className="row between g12 wrapf"><h3>{t('Form 1 — declaration as to physical fitness', 'फॉर्म 1 — शारीरिक फिटनेस घोषणा', 'फॉर्म 1 — शारीरिक तंदुरुस्ती घोषणा')}</h3><span className="tiny mono">See Rule 5(2)</span></div>
-        {FORM1.map(([key, question, safeAnswer]) => (
+        {FORM1.map(([key, question, safeAnswer, questionHi]) => (
           <div key={key} className="col g8">
             <div className="row g10" style={{ alignItems: 'flex-start' }}>
               <span className="mono tiny" style={{ marginTop: 4, color: 'var(--muted)', flex: 'none' }}>({key})</span>
-              <span style={{ fontSize: '.95rem', lineHeight: 1.5 }}>{question}</span>
+              <span style={{ fontSize: '.95rem', lineHeight: 1.5 }}>{t(question, questionHi)}</span>
             </div>
             <div className="row g10 wrapf" style={{ paddingLeft: 26 }}>
               {(['Yes', 'No'] as const).map(o => (

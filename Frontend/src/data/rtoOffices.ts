@@ -2,16 +2,16 @@ import type { RtoOffice } from '../types';
 
 export const RTO_BY_STATE: Record<string, RtoOffice[]> = {
   Bihar: [
-    { id: 'br33', name: 'DTO, Samastipur (BR-33)', area: 'Samastipur, Bihar', km: 4.1, wait: 'Avg wait once you arrive: 30 min', load: 'light' },
-    { id: 'br06', name: 'DTO, Darbhanga (BR-06)', area: 'Darbhanga, Bihar', km: 38.5, wait: 'Avg wait once you arrive: 50 min', load: 'busy' },
-    { id: 'br01', name: 'DTO, Patna (BR-01)', area: 'Patna, Bihar', km: 92.0, wait: 'Avg wait once you arrive: 65 min', load: 'busy' },
+    { id: 'br33', name: 'DTO, Samastipur (BR-33)', area: 'Samastipur, Bihar', km: 4.1, wait: 'Avg wait once you arrive: 30 min', waitMinutes: 30, load: 'light' },
+    { id: 'br06', name: 'DTO, Darbhanga (BR-06)', area: 'Darbhanga, Bihar', km: 38.5, wait: 'Avg wait once you arrive: 50 min', waitMinutes: 50, load: 'busy' },
+    { id: 'br01', name: 'DTO, Patna (BR-01)', area: 'Patna, Bihar', km: 92.0, wait: 'Avg wait once you arrive: 65 min', waitMinutes: 65, load: 'busy' },
   ],
 };
 
 export const RTOS: RtoOffice[] = [
-  { id: 'mh01', name: 'Andheri RTO (MH-01)', area: 'Andheri West, Mumbai', km: 3.2, wait: 'Avg wait once you arrive: 25 min', load: 'light' },
-  { id: 'mh02', name: 'Wadala RTO (MH-02)', area: 'Wadala East, Mumbai', km: 8.6, wait: 'Avg wait once you arrive: 55 min', load: 'busy' },
-  { id: 'mh03', name: 'Borivali RTO (MH-47)', area: 'Borivali East, Mumbai', km: 14.1, wait: 'Avg wait once you arrive: 20 min', load: 'light' },
+  { id: 'mh01', name: 'Andheri RTO (MH-01)', area: 'Andheri West, Mumbai', km: 3.2, wait: 'Avg wait once you arrive: 25 min', waitMinutes: 25, load: 'light' },
+  { id: 'mh02', name: 'Wadala RTO (MH-02)', area: 'Wadala East, Mumbai', km: 8.6, wait: 'Avg wait once you arrive: 55 min', waitMinutes: 55, load: 'busy' },
+  { id: 'mh03', name: 'Borivali RTO (MH-47)', area: 'Borivali East, Mumbai', km: 14.1, wait: 'Avg wait once you arrive: 20 min', waitMinutes: 20, load: 'light' },
 ];
 
 /** Returns the RTO list for a state, falling back to the Maharashtra list (the only other one modelled). */

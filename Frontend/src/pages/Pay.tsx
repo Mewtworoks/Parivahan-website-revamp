@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { PRE_BASE } from '../data/applicant';
-import { feeRows, feeTotal, inWords } from '../data/fees';
+import { feeRows, feeTotal, inWords, inWordsHi } from '../data/fees';
 import { rtosFor } from '../data/rtoOffices';
-import { useT } from '../lib/language';
+import { useLanguage, useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { Field, Input, Note, Tile, Timeline } from '../ui/SharedUI';
 import { Icon } from '../ui/Icon';
@@ -18,6 +18,7 @@ const PAYMENT_METHODS: [value: 'upi' | 'card' | 'net', title: [string, string, s
 /** Fee payment — itemised total, a mock payment method picker, then a simulated bank confirmation. */
 export function Pay({ go, state, update }: PageProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const form = state.form || {};
   const classIds = form.classes || ['MCWG'];
   const stateName = form.state || 'Maharashtra';
@@ -60,13 +61,13 @@ export function Pay({ go, state, update }: PageProps) {
         <hr className="hr" />
         {rows.map((row, i) => (
           <div key={i} className="col g4">
-            <div className="row between g16"><span style={{ color: 'var(--ink2)' }}>{row.k}{row.state && <span className="pill" style={{ marginLeft: 8, fontSize: '.66rem' }}>{stateName}</span>}</span><b className="mono" style={{ fontWeight: 600 }}>₹{row.v}</b></div>
-            <span className="tiny mono">{row.rule}</span>
+            <div className="row between g16"><span style={{ color: 'var(--ink2)' }}>{t(row.k, row.kHi, row.kMr)}{row.state && <span className="pill" style={{ marginLeft: 8, fontSize: '.66rem' }}>{stateName}</span>}</span><b className="mono" style={{ fontWeight: 600 }}>₹{row.v}</b></div>
+            <span className="tiny mono">{t(row.rule, row.ruleHi, row.ruleMr)}</span>
           </div>
         ))}
         <hr className="hr" />
         <div className="row between g16"><b style={{ fontSize: '1.1rem' }}>{t('Grand total', 'कुल योग', 'एकूण रक्कम')}</b><b style={{ fontSize: '1.35rem', fontFamily: 'var(--disp)' }}>₹{total}</b></div>
-        <span className="tiny">{inWords(total)}</span>
+        <span className="tiny">{lang === 'en' ? inWords(total) : inWordsHi(total)}</span>
         {rows.some(r => r.state) && <Note tone="warn"><b>{t(`${stateName}'s own charges are in this total.`, `${stateName} के अपने शुल्क इस योग में हैं।`, `${stateName}चे स्वतःचे शुल्क या एकूण रकमेत आहेत.`)}</b> {t('You saw them on the classes screen too, not for the first time here. That is the only difference between this page and the official one.', 'आपने इन्हें श्रेणियों वाली स्क्रीन पर भी देखा था, यहां पहली बार नहीं। यही इस पेज और आधिकारिक पेज के बीच का इकलौता अंतर है।', 'तुम्ही हे वर्गांच्या स्क्रीनवरही पाहिले होते, इथे पहिल्यांदा नाही. हाच या पानाचा आणि अधिकृत पानाचा एकमेव फरक आहे.')}</Note>}
       </div>
       <div className="card card-p col g16" style={{ marginTop: 16 }}>

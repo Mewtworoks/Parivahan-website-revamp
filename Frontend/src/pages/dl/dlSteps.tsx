@@ -76,11 +76,11 @@ export function Form1Again({ dl, updateDl }: DlStepProps) {
         why={t('You find out you need Form 1A now, not on test day, giving you time to actually get it signed.', 'आपको अभी पता चल जाता है कि आपको फॉर्म 1A चाहिए, टेस्ट के दिन नहीं, जिससे इसे साइन कराने का समय मिल जाता है।', 'तुम्हाला आताच कळते की तुम्हाला फॉर्म 1A हवा आहे, टेस्टच्या दिवशी नाही, ज्यामुळे तो स्वाक्षरी करून घ्यायला वेळ मिळतो.')} />
       <div className="card card-p col g16">
         <div className="row between g12 wrapf"><h3>Form 1 — declaration as to physical fitness</h3><span className="tiny mono">See Rule 5(2)</span></div>
-        {FORM1.map(([key, question]) => (
+        {FORM1.map(([key, question, , questionHi]) => (
           <div key={key} className="col g8">
             <div className="row g10" style={{ alignItems: 'flex-start' }}>
               <span className="mono tiny" style={{ marginTop: 4, color: 'var(--muted)', flex: 'none' }}>({key})</span>
-              <span style={{ fontSize: '.95rem', lineHeight: 1.5 }}>{question}</span>
+              <span style={{ fontSize: '.95rem', lineHeight: 1.5 }}>{t(question, questionHi)}</span>
             </div>
             <div className="row g10 wrapf" style={{ paddingLeft: 26 }}>
               {(['Yes', 'No'] as const).map(o => (

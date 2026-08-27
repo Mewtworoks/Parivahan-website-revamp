@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as api from '../api';
-import { useT } from '../lib/language';
+import { formatDayLabel, formatOfficeWait } from '../lib/format';
+import { useLanguage, useT } from '../lib/language';
 import { useApi, useAction } from '../lib/useApi';
 import { useOffices } from '../lib/useOffices';
 import type { PageProps } from '../types';
@@ -18,6 +19,7 @@ import { Note, Pill, Tile } from '../ui/SharedUI';
  */
 export function Slot({ go, state, update }: PageProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const form = state.form || {};
   const { offices, live } = useOffices(form.state);
   const [officeId, setOfficeId] = useState(form.rto || '');
@@ -95,7 +97,7 @@ export function Slot({ go, state, update }: PageProps) {
           {offices.map(o => (
             <Tile key={o.id} checked={officeId === o.id} onClick={() => { setOfficeId(o.id); setDay(null); setTime(null); setTaken(false); }} title={o.name}
               desc={`${o.area} · ${o.km} km away`}
-              right={<span className="col g6" style={{ alignItems: 'flex-end', flex: 'none' }}><Pill tone={o.load === 'light' ? 'ok' : 'warn'}>{o.load === 'light' ? t('Light day', 'हल्का दिन', 'कमी दिवस') : t('Busy', 'व्यस्त', 'व्यग्र')}</Pill><span className="tiny">{o.wait}</span></span>} />
+              right={<span className="col g6" style={{ alignItems: 'flex-end', flex: 'none' }}><Pill tone={o.load === 'light' ? 'ok' : 'warn'}>{o.load === 'light' ? t('Light day', 'हल्का दिन', 'कमी दिवस') : t('Busy', 'व्यस्त', 'व्यग्र')}</Pill><span className="tiny">{formatOfficeWait(o.waitMinutes, o.wait, lang)}</span></span>} />
           ))}
           {live && <span className="tiny">{t('Waiting times are read from each office as it stands now.', 'प्रतीक्षा समय हर कार्यालय से इस समय की स्थिति के अनुसार पढ़ा गया है।')}</span>}
         </div>
@@ -105,7 +107,7 @@ export function Slot({ go, state, update }: PageProps) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(104px,1fr))', gap: 10 }}>
             {days.map(d => (
               <button key={d.date} className="slot" aria-pressed={day === d.date} disabled={!d.left} onClick={() => { setDay(d.date); setTime(null); setTaken(false); }}>
-                <span className="col g4"><b style={{ fontWeight: 600, fontSize: '.92rem' }}>{d.label}</b><span className="tiny" style={{ color: day === d.date ? 'oklch(0.92 0.03 262)' : undefined }}>{d.left ? t(`${d.left} left`, `${d.left} बचे`, `${d.left} शिल्लक`) : t('Full', 'भरा हुआ', 'भरलेले')}</span></span>
+                <span className="col g4"><b style={{ fontWeight: 600, fontSize: '.92rem' }}>{formatDayLabel(d.date, d.label, lang)}</b><span className="tiny" style={{ color: day === d.date ? 'oklch(0.92 0.03 262)' : undefined }}>{d.left ? t(`${d.left} left`, `${d.left} बचे`, `${d.left} शिल्लक`) : t('Full', 'भरा हुआ', 'भरलेले')}</span></span>
               </button>
             ))}
             {days.length === 0 && <span className="tiny">{t('No dates available from the service.', 'सेवा से कोई तारीख उपलब्ध नहीं।')}</span>}
@@ -127,13 +129,13 @@ export function Slot({ go, state, update }: PageProps) {
         {time && chosenDay && (
           <div className="card card-p col g14 fade">
             <Pill tone="brand">{t('Ready to confirm', 'पुष्टि के लिए तैयार', 'पुष्टीसाठी तयार')}</Pill>
-            <h2>{chosenDay.label}, {time.time} · {office.name}</h2>
+            <h2>{formatDayLabel(chosenDay.date, chosenDay.label, lang)}, {time.time} · {office.name}</h2>
             {/* Two lines, not one run-on. The office's wait is its own sentence
                 already ("Avg wait once you arrive: 10 min"), and splicing it
                 lowercased onto the end of another one read as
                 "…ten minutes early. avg wait once you arrive: 10 min." */}
             <p className="sub">{t('Bring the originals of your age and address proof, a print of the e-receipt and this appointment letter. Arrive ten minutes early.', 'अपने आयु और पता प्रमाण की मूल प्रति, ई-रसीद का प्रिंट और यह अपॉइंटमेंट लेटर लाएं। दस मिनट पहले पहुंचें।', 'तुमच्या वय आणि पत्ता पुराव्याची मूळ प्रत, ई-पावतीची प्रिंट आणि हे अपॉइंटमेंट लेटर आणा. दहा मिनिटे आधी पोहोचा.')}</p>
-            <span className="tiny row g6">{Icon.clock()} {office.wait}</span>
+            <span className="tiny row g6">{Icon.clock()} {formatOfficeWait(office.waitMinutes, office.wait, lang)}</span>
             <div className="row g12 wrapf">
               <button className="btn btn-p" disabled={!state.applicationId || pending === 'book'} onClick={() => void confirm('tutorial')}>{pending === 'book' ? t('Holding the slot…', 'स्लॉट रखा जा रहा है…') : t('Confirm and prepare for the test', 'पुष्टि करें और टेस्ट की तैयारी करें', 'पुष्टी करा आणि टेस्टची तयारी करा')} {Icon.right()}</button>
               <button className="btn btn-s" disabled={!state.applicationId || pending === 'book'} onClick={() => void confirm('status')}>{t('Confirm only', 'केवल पुष्टि करें', 'फक्त पुष्टी करा')}</button>

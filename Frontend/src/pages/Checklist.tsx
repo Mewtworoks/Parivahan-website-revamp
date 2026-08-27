@@ -5,14 +5,10 @@ import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
 import { Note, Pill } from '../ui/SharedUI';
 
-const DOC_NAME: Record<string, { hi: string; mr: string }> = {
-  id: { hi: 'पहचान प्रमाण', mr: 'ओळख पुरावा' },
-  addr: { hi: 'पता प्रमाण', mr: 'पत्ता पुरावा' },
-  dob: { hi: 'जन्म तिथि प्रमाण', mr: 'जन्मतारीख पुरावा' },
-  photo: { hi: 'पासपोर्ट फोटो', mr: 'पासपोर्ट फोटो' },
-  sign: { hi: 'हस्ताक्षर', mr: 'स्वाक्षरी' },
-  form1: { hi: 'फॉर्म 1 — स्वयं फिटनेस घोषणा', mr: 'फॉर्म 1 — स्वयं तंदुरुस्ती घोषणा' },
-};
+// The document names and their translations used to live here, keyed by id.
+// They now sit on the records themselves in data/documents.ts, so the name and
+// its Hindi cannot drift apart — and every other screen that shows a document
+// gets the translation for free rather than needing its own copy of this map.
 
 const DOC_NOTE: Record<string, { en: string; hi: string; mr: string }> = {
   photo: {
@@ -65,10 +61,10 @@ export function Checklist({ go }: PageProps) {
             <div key={doc.id} className="flat" style={{ padding: '16px 18px' }}>
               <div className="row between g16 wrapf">
                 <div className="col g4 grow" style={{ minWidth: 220 }}>
-                  <div className="row g10 wrapf"><b style={{ fontWeight: 600 }}>{t(doc.name, DOC_NAME[doc.id]?.hi, DOC_NAME[doc.id]?.mr)}</b>{doc.auto && <Pill tone="brand">{t('Auto', 'ऑटो', 'ऑटो')}</Pill>}</div>
-                  <span className="sub">{doc.need}</span>
+                  <div className="row g10 wrapf"><b style={{ fontWeight: 600 }}>{t(doc.name, doc.nameHi, doc.nameMr)}</b>{doc.auto && <Pill tone="brand">{t('Auto', 'ऑटो', 'ऑटो')}</Pill>}</div>
+                  <span className="sub">{t(doc.need, doc.needHi, doc.needMr)}</span>
                 </div>
-                <div className="seg" role="group" aria-label={doc.name}>
+                <div className="seg" role="group" aria-label={t(doc.name, doc.nameHi, doc.nameMr)}>
                   <button aria-pressed={have[doc.id] === 'yes'} onClick={() => setHave({ ...have, [doc.id]: 'yes' })}>{t('I have it', 'मेरे पास है', 'माझ्याकडे आहे')}</button>
                   <button aria-pressed={have[doc.id] === 'no'} onClick={() => setHave({ ...have, [doc.id]: 'no' })}>{t("I don't", 'नहीं है', 'नाही')}</button>
                 </div>

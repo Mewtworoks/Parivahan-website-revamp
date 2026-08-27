@@ -167,7 +167,14 @@ export interface RtoOffice {
   name: string;
   area: string;
   km: number;
+  /** The service's own English sentence. Kept as a fallback only. */
   wait: string;
+  /**
+   * The same wait as a number, which is what screens should render. The English
+   * sentence above is composed server-side and cannot be translated in the
+   * browser; the minutes can be, so a Hindi reader gets Hindi either way.
+   */
+  waitMinutes?: number;
   load: 'light' | 'busy';
 }
 
@@ -175,7 +182,11 @@ export interface VehicleClass {
   id: string;
   code: string;
   name: string;
+  nameHi?: string;
+  nameMr?: string;
   note: string;
+  noteHi?: string;
+  noteMr?: string;
   min: number;
   fee: number;
   medical?: boolean;
@@ -183,17 +194,27 @@ export interface VehicleClass {
 
 export interface FeeLine {
   k: string;
+  kHi?: string;
+  kMr?: string;
   v: number;
   per?: 'once' | 'class';
   rule: string;
+  ruleHi?: string;
+  ruleMr?: string;
   state?: boolean;
 }
 
 export interface DocumentRequirement {
   id: string;
   name: string;
+  nameHi?: string;
+  nameMr?: string;
   need: string;
+  needHi?: string;
+  needMr?: string;
   via: string;
+  viaHi?: string;
+  viaMr?: string;
   auto: boolean;
 }
 
