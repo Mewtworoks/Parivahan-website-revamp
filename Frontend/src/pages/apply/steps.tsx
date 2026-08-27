@@ -666,7 +666,7 @@ export function ReviewAndSubmit({ form, updateForm, classIds, totalFee, goToStep
         ))}
         <div className="row between g12 wrapf">
           <span className="col g4"><span className="sub">{t('Fee payable next', 'अगली फीस देय', 'पुढील देय फी')}</span><b style={{ fontSize: '1.5rem', fontFamily: 'var(--disp)' }}>₹{totalFee}</b></span>
-          <span className="tiny" style={{ maxWidth: 290, textAlign: 'right' }}>{t('Government fee only. No agent charge, no service charge, nothing collected at the office.', 'केवल सरकारी फीस। कोई एजेंट चार्ज नहीं, कोई सेवा शुल्क नहीं, कार्यालय में कुछ भी नहीं लिया जाता।', 'फक्त सरकारी फी. एजंट शुल्क नाही, सेवा शुल्क नाही, कार्यालयात काहीही घेतले जात नाही.')}</span>
+          <span className="tiny" style={{ maxWidth: 290, textAlign: 'right' }}>{t('The government fee, itemised in full and paid online. Nothing further to settle at the office.', 'सरकारी शुल्क, पूरा ब्यौरे के साथ, ऑनलाइन ही भरा गया। कार्यालय में और कुछ नहीं भरना है।', 'सरकारी शुल्क, संपूर्ण तपशिलासह, ऑनलाइनच भरलेले. कार्यालयात आणखी काही भरायचे नाही.')}</span>
         </div>
       </div>
       <div className="card card-p col g14">

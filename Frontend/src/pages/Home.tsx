@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useLanguage, useT } from '../lib/language';
 import { PixelScene } from '../practice/PixelScene';
 import { DECISION_LIMIT_MS, SCENARIOS, spelledOut } from '../practice/scenarios';
@@ -63,7 +62,6 @@ const LL_FACTS: [en: string, hi: string, mr: string][] = [
 ];
 
 export function Home({ go, update }: PageProps) {
-  const [applicationLookup, setApplicationLookup] = useState('');
   const t = useT();
   const { lang } = useLanguage();
 
@@ -109,15 +107,6 @@ export function Home({ go, update }: PageProps) {
                 addressLine1="•••••••••••••••••••••••••" addressLine2="•••••••••••••••••"
                 classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
             </div>
-          </div>
-          {/* All three figures are things the journey actually commits to: 14 minutes is the
-              wizard's own step count, ₹350 is two classes at ₹150 each plus the one ₹50 test fee
-              (see data/fees.ts), and 0 visits is what the Aadhaar route explicitly exempts —
-              docs, photo and slot booking — in the identity step of the wizard itself. */}
-          <div className="floor">
-            <div><b>14 min</b><span>{t('to apply, start to end', 'शुरू से अंत तक, आवेदन करने में', 'सुरुवातीपासून शेवटपर्यंत, अर्ज करण्यास')}</span></div>
-            <div><b>0 {t('visits', 'यात्राएं', 'भेटी')}</b><span>{t('to the RTO, with Aadhaar', 'आधार के साथ, आरटीओ की', 'आधारसह, आरटीओला')}</span></div>
-            <div><b>₹350</b><span>{t('two classes, itemised up front', 'दो श्रेणियां, पहले से मदवार बताई गई', 'दोन वर्ग, आधीच तपशीलवार सांगितलेले')}</span></div>
           </div>
         </div>
       </section>
@@ -233,15 +222,6 @@ export function Home({ go, update }: PageProps) {
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
             </div>
-          </div>
-        </div>
-      </section>
-      <section className="wrap" style={{ marginTop: 44 }}>
-        <div className="lookup">
-          <div className="col g4"><h3>{t('Already applied?', 'पहले से आवेदन किया है?', 'आधीच अर्ज केला आहे का?')}</h3><span className="sub">{t('Enter your application number to see where it is stuck and what to do about it.', 'अपना आवेदन नंबर डालें, यह देखने के लिए कि वह कहां अटका है और आगे क्या करना है।', 'तुमचा अर्ज क्रमांक टाका, तो कुठे अडकला आहे आणि पुढे काय करायचे हे पाहण्यासाठी.')}</span></div>
-          <div className="row g10 wrapf">
-            <input className="input mono" style={{ width: 210 }} placeholder="SS-2026-004182" value={applicationLookup} onChange={e => setApplicationLookup(e.target.value)} />
-            <button className="btn btn-s" onClick={() => go('status')}>{Icon.search()} {t('Find', 'खोजें', 'शोधा')}</button>
           </div>
         </div>
       </section>

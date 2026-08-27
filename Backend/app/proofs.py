@@ -138,9 +138,11 @@ def ledger_tamper() -> dict[str, Any]:
     """
     Alter one recorded event and show the chain refusing to verify.
 
-    This is the anti-corruption claim: a pass cannot be quietly turned into a
-    fail, and a fail cannot be quietly turned into a pass, without the citizen's
-    own receipt showing that the record was edited.
+    This is the integrity claim: a pass cannot be quietly turned into a fail,
+    and a fail cannot be quietly turned into a pass, without the citizen's own
+    receipt showing that the record was edited. That cuts both ways — it also
+    means an office can point at the chain instead of defending a result it
+    recorded correctly.
     """
     ref = _scratch_ref("ledger")
     app = be.apply(ref, LicenceKind.LL, "mh01", f"ledger-{uuid.uuid4().hex[:8]}")

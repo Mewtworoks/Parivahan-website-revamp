@@ -63,8 +63,8 @@ export const INFO_PANELS: Record<string, InfoPanel> = {
       },
       {
         h: 'What is never charged', hHi: 'जो कभी नहीं लिया जाता',
-        p: 'There is no service charge, no portal charge, no facilitation fee and no agent fee. If somebody at an office asks for money outside these lines, it is not a fee.',
-        pHi: 'कोई सेवा शुल्क नहीं, कोई पोर्टल शुल्क नहीं, कोई सुविधा शुल्क नहीं और कोई एजेंट शुल्क नहीं। अगर कार्यालय में कोई इन पंक्तियों से बाहर पैसे माँगे, तो वह शुल्क नहीं है।',
+        p: 'No service charge, no portal charge, no facilitation fee. The lines above are the complete schedule, published up front so you can check any amount against it and pay the exact sum yourself, directly.',
+        pHi: 'कोई सेवा शुल्क नहीं, कोई पोर्टल शुल्क नहीं, कोई सुविधा शुल्क नहीं। ऊपर दी गई पंक्तियाँ ही पूरी अनुसूची हैं, पहले से प्रकाशित — ताकि आप किसी भी राशि को इससे मिलाकर देख सकें और सही रकम खुद, सीधे भर सकें।',
       },
     ],
   },

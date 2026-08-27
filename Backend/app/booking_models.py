@@ -42,8 +42,10 @@ class JourneyEvent(BaseModel):
     Append-only, hash-chained transparency ledger row. Each event carries the
     hash of the one before it, so altering, inserting, or deleting any event
     breaks every hash after it — the receipt becomes verifiably tampered.
-    This is the anti-corruption core: proof a pass was earned and recorded,
-    that no middleman could quietly rewrite.
+    The point is a record that stands on its own: proof a pass was earned and
+    recorded, which nobody has to be trusted to vouch for — the applicant holds
+    a receipt that verifies itself, and the office is equally protected by it,
+    since a disputed result can be checked rather than argued about.
     """
     seq: int                              # position in the chain (0-based)
     at: datetime

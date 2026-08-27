@@ -191,8 +191,8 @@ export function Proof({ go }: PageProps) {
           <div className="col g4">
             <h3>{t('Rewrite a record', 'रिकॉर्ड बदलें')}</h3>
             <span className="sub">
-              {t('Somebody with database access edits what an office recorded. This is the corruption the ledger exists to catch, so it is worth watching it get caught.',
-                'डेटाबेस पहुँच वाला कोई व्यक्ति दर्ज बात बदल देता है। यही भ्रष्टाचार पकड़ने के लिए यह लेजर है।')}
+              {t('Something with database access changes a step after it was recorded. A record that can be edited afterwards is one nobody can rely on — the applicant, and equally the office that wrote it. Watch the change announce itself.',
+                'डेटाबेस तक पहुँच रखने वाली कोई चीज़ दर्ज हो चुके चरण को बाद में बदल देती है। जो रिकॉर्ड बाद में बदला जा सके, उस पर कोई भरोसा नहीं कर सकता — न आवेदक, न वह कार्यालय जिसने उसे लिखा। देखिए कि बदलाव खुद ही सामने आ जाता है।')}
             </span>
           </div>
           <button className="btn btn-p btn-sm" disabled={busy === 'ledger'}

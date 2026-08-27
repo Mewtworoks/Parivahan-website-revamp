@@ -57,7 +57,7 @@ export function Receipt({ go, state, update }: PageProps) {
               <Pill tone={receipt.chain_valid ? 'ok' : 'warn'}>{receipt.chain_valid ? t('Record intact', 'रिकॉर्ड सुरक्षित') : t('Record altered', 'रिकॉर्ड बदला गया')}</Pill>
             </div>
             <span className="sub">{t(`All ${receipt.events.length} steps of this application are sealed in order, each one carrying the fingerprint of the step before it.`, `इस आवेदन के सभी ${receipt.events.length} चरण क्रम में सील किए गए हैं, हर एक अपने पिछले चरण की पहचान लिए हुए।`)}</span>
-            <span className="sub">{t('If anyone edits, inserts or removes a step later, this check stops matching and you can prove it. Nobody can quietly rewrite what happened — not a clerk, not an agent.', 'यदि कोई बाद में कोई चरण बदलता, जोड़ता या हटाता है, तो यह जांच मेल नहीं खाएगी और आप साबित कर सकते हैं। कोई चुपचाप इतिहास नहीं बदल सकता — न क्लर्क, न एजेंट।')}</span>
+            <span className="sub">{t('If a step is edited, inserted or removed later, this check stops matching and you can prove it. The record verifies itself, so what happened cannot be changed quietly — by anyone, at any point.', 'यदि बाद में कोई चरण बदला, जोड़ा या हटाया जाता है, तो यह जांच मेल नहीं खाएगी और आप उसे साबित कर सकते हैं। रिकॉर्ड खुद अपनी जांच करता है, इसलिए जो हुआ उसे चुपचाप नहीं बदला जा सकता — कोई भी, कभी भी।')}</span>
             <span className="mono tiny" style={{ overflowWrap: 'anywhere' }}>{receipt.chain_head.slice(0, 32)}…</span>
           </div>
         )}
