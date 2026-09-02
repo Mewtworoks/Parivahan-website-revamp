@@ -205,9 +205,9 @@ export function Home({ go, update }: PageProps) {
         <div className="col g16">
           <div className="row between g16 wrapf">
             <div className="col g8"><span className="eyebrow">{t('Do not take our word', 'हमारी बात न मानें', 'आमचा शब्द मानू नका')}</span><h2>{t('Or check the claims yourself', 'या फिर दावों को खुद जांचें', 'किंवा दावे स्वतः तपासा')}</h2></div>
-            <span className="sub">{t('Two screens, both reading the live service', 'दो स्क्रीन, दोनों लाइव सेवा से पढ़ रही हैं', 'दोन स्क्रीन, दोन्ही लाइव्ह सेवेतून वाचत आहेत')}</span>
+            <span className="sub">{t('Three screens, all reading the live service', 'तीन स्क्रीन, सभी लाइव सेवा से पढ़ रही हैं', 'तीन स्क्रीन, सर्व लाइव्ह सेवेतून वाचत आहेत')}</span>
           </div>
-          <div className="grid2" style={{ gap: 20 }}>
+          <div className="grid3" style={{ gap: 20 }}>
             <div className="card card-p col g12">
               <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
               <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
@@ -221,6 +221,13 @@ export function Home({ go, update }: PageProps) {
               <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit. Each one is fired at the live service from this page — two people race for one slot, the same application is submitted twice, a record is tampered with — and you are shown what came back.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव। हर एक इसी पेज से लाइव सेवा पर चलाया जाता है — दो लोग एक ही स्लॉट के लिए दौड़ते हैं, एक ही आवेदन दो बार जमा होता है, एक रिकॉर्ड से छेड़छाड़ की जाती है — और जो जवाब आया वह आपको दिखाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही. प्रत्येक याच पानावरून लाइव्ह सेवेवर चालवली जाते — दोन माणसे एकाच स्लॉटसाठी धावतात, एकच अर्ज दोनदा सादर होतो, एका नोंदीत फेरफार केला जातो — आणि काय उत्तर आले ते तुम्हाला दाखवले जाते.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
+            </div>
+            <div className="card card-p col g12">
+              <Pill>{t('Aggregate', 'समग्र', 'एकत्रित')}</Pill>
+              <h3>{t('Where people actually fail', 'लोग असल में कहाँ अटकते हैं', 'लोक खरोखर कुठे अडतात')}</h3>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The only screen here with no name on it anywhere. Which road rule the most people get wrong, and which form field loses them — both worth knowing, neither needing to know who any of them were.', 'यही इकलौता पन्ना है जिस पर कहीं कोई नाम नहीं। कौन-सा नियम सबसे ज़्यादा लोग गलत करते हैं, और कौन-सी फ़ील्ड उन्हें खो देती है — दोनों जानने लायक हैं, और दोनों के लिए यह जानना ज़रूरी नहीं कि वे कौन थे।', 'हेच एकमेव पान आहे ज्यावर कुठेही नाव नाही. कोणता नियम सर्वाधिक लोक चुकतात, आणि कोणते फील्ड त्यांना गमावते — दोन्ही जाणून घेण्यासारखे, आणि दोन्हीसाठी ते कोण होते हे कळण्याची गरज नाही.')}</p>
+              <div className="grow" />
+              <div><button className="btn btn-s" onClick={() => go('learning')}>{t('See what it learns', 'देखें यह क्या सीखती है', 'ती काय शिकते ते पहा')} {Icon.right()}</button></div>
             </div>
           </div>
         </div>

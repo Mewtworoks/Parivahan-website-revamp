@@ -121,3 +121,128 @@ def test_the_summary_answers_the_two_questions_it_exists_for(monkeypatch):
     assert hardest["right_of_way"] >= 3
     assert hardest["right_of_way"] > hardest.get("signals", 0)
     assert any(f["name"] == "dob" for f in out["stalling_fields"])
+
+
+# --- the call sites ----------------------------------------------------------
+#
+# The table, the allowlist and the HMAC were all built and tested before
+# anything wrote to them, so for a while the service collected two of the eight
+# kinds it declares and the dashboard would have been honest and empty. These
+# assert that the wiring exists, because a signal nobody records is a comment.
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from conftest import applicant  # noqa: E402
+from app.agent_tools import dispatch_tool  # noqa: E402
+from app.main import app  # noqa: E402
+from app.seed_scenarios import scenario_by_id  # noqa: E402
+
+client = TestClient(app)
+
+
+def test_a_wrong_practice_answer_is_counted_against_its_competency(monkeypatch):
+    """
+    The one signal with a syllabus behind it. Which competency the most people
+    get wrong is what a road-safety curriculum should be reading.
+    """
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    attempt_id = client.post("/test/start",
+                             json={"citizen_id": "sig-test"}).json()["attempt_id"]
+    served = client.get(f"/test/{attempt_id}/next").json()["scenario"]
+    scenario = scenario_by_id(served["id"])
+    wrong = next(o["id"] for o in served["options"]
+                 if o["id"] != scenario.correct_option_id)
+
+    before = len(_rows("test.wrong"))
+    client.post(f"/test/{attempt_id}/answer",
+                json={"scenario_id": served["id"],
+                      "chosen_option_id": wrong, "time_taken_s": 1.0})
+
+    rows = _rows("test.wrong")
+    assert len(rows) == before + 1
+    detail = json.loads(rows[-1]["detail"])
+    assert detail["competency"] == scenario.competency.value
+    assert detail["chosen_option_id"] == wrong
+    # The scenario text and the citizen's own id are not in here.
+    assert set(detail) <= {"competency", "scenario_id", "chosen_option_id"}
+
+
+def test_a_correct_answer_records_nothing():
+    """The table is a failure log. A pass is not a failure."""
+    attempt_id = client.post("/test/start",
+                             json={"citizen_id": "sig-right"}).json()["attempt_id"]
+    served = client.get(f"/test/{attempt_id}/next").json()["scenario"]
+    scenario = scenario_by_id(served["id"])
+
+    before = len(_rows("test.wrong"))
+    client.post(f"/test/{attempt_id}/answer",
+                json={"scenario_id": served["id"],
+                      "chosen_option_id": scenario.correct_option_id,
+                      "time_taken_s": 1.0})
+    assert len(_rows("test.wrong")) == before
+
+
+def test_the_losing_side_of_a_slot_race_is_recorded(monkeypatch):
+    """
+    An office that keeps losing races is an office short an inspector. That is
+    only visible from the losing side, which is the side nobody is looking at.
+    """
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    first = dispatch_tool("apply_for_licence", applicant("sig-race-a"))
+    second = dispatch_tool("apply_for_licence", applicant("sig-race-b"))
+    days = dispatch_tool("find_slot_days", {"rto_id": "mh01"})["days"]
+    day = next(d for d in days if d["left"])["date"]
+    slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": day})["slots"][0]
+
+    before = len(_rows("slot.lost"))
+    assert client.post("/book", json={"application_id": first["application_id"],
+                                      "slot_id": slot["slot_id"]}).status_code == 200
+    lost = client.post("/book", json={"application_id": second["application_id"],
+                                      "slot_id": slot["slot_id"]})
+    assert lost.status_code == 409
+
+    rows = _rows("slot.lost")
+    assert len(rows) == before + 1
+    detail = json.loads(rows[-1]["detail"])
+    assert detail == {"rto_id": "mh01", "day": day, "reason": "taken"}
+
+
+def test_a_tool_that_raises_is_recorded_and_still_raises(monkeypatch):
+    """
+    Wrapped once around dispatch rather than added at each of the twelve call
+    sites, so the thirteenth is covered by construction. The exception's class
+    name is stored and its message is not — messages carry slot ids and
+    application numbers, and on a bad day whatever the citizen typed.
+    """
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    before = len(_rows("tool.error"))
+    try:
+        dispatch_tool("no_such_tool", {"citizen_id": "sig-tool"})
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("the failure was swallowed instead of re-raised")
+
+    rows = _rows("tool.error")
+    assert len(rows) == before + 1
+    assert json.loads(rows[-1]["detail"]) == {"tool": "no_such_tool",
+                                              "error": "KeyError"}
+
+
+def test_the_summary_endpoint_is_aggregate_only(monkeypatch):
+    """
+    Deliberately unauthenticated, so it must carry nothing that needs
+    protecting: counts and names, never a row and never a reference.
+    """
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    signals.record("test.wrong", "9820011021", competency="roundabout",
+                   scenario_id="sc-9", chosen_option_id="c")
+
+    body = client.get("/signals/summary").json()
+    assert body["total"] >= 1
+    assert {"kind", "count"} == set(body["by_kind"][0])
+    assert any(c["name"] == "roundabout" for c in body["hardest_competencies"])
+
+    flat = json.dumps(body)
+    assert "citizen_hash" not in flat and "9820011021" not in flat
+    assert "detail" not in flat

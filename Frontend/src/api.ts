@@ -107,6 +107,49 @@ export interface IdempotencyProof {
   verdict: string;
 }
 
+/**
+ * The same guarantee as the race, priced.
+ *
+ * Eight threads at one slot answers "can this be got wrong?". This answers the
+ * question an office actually has: a hundred people on a grid of eighteen, all
+ * pressing together. `slots_sold` and `double_booked` are read back off the
+ * rows after the fact, not reported by the threads about themselves.
+ */
+export interface BookingLoadProof {
+  guarantee: string;
+  applicants: number;
+  slots_offered: number;
+  slots_sold: number;
+  expected_sold: number;
+  sold_to_one_person_each: boolean;
+  double_booked: number;
+  lost_writes: number;
+  won: number;
+  rejected: number;
+  errors: number;
+  wall_ms: number;
+  throughput_per_s: number | null;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  verdict: string;
+  error?: string;
+}
+
+/**
+ * Where people fail, in aggregate.
+ *
+ * Every row behind this is an HMAC of a citizen reference and an allowlisted
+ * handful of fields, so there is nothing here to protect — which is why the
+ * endpoint needs no key. Counts and names only; never a row, never a reference.
+ */
+export interface SignalsSummary {
+  total: number;
+  by_kind: { kind: string; count: number }[];
+  hardest_competencies: { name: string; count: number }[];
+  stalling_fields: { name: string; count: number }[];
+}
+
 export interface SlotRaceProof {
   guarantee: string;
   contenders: number;
@@ -355,8 +398,15 @@ export const proveIdempotentApply = () =>
 export const proveSlotRace = (contenders = 8) =>
   request<SlotRaceProof>(`/proof/slot-race?contenders=${contenders}`, { method: 'POST' });
 
+export const proveBookingLoad = (applicants = 120) =>
+  request<BookingLoadProof>(`/proof/booking-load?applicants=${applicants}`, { method: 'POST' });
+
 export const proveLedgerTamper = () =>
   request<TamperProof>('/proof/ledger-tamper', { method: 'POST' });
+
+/** Read-only and unauthenticated on purpose — see SignalsSummary. */
+export const signalsSummary = (signal?: AbortSignal) =>
+  request<SignalsSummary>('/signals/summary', { signal });
 
 export const resetDemo = () =>
   request<{ reset: boolean; offices: number }>('/demo/reset', { method: 'POST' });

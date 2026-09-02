@@ -48,6 +48,7 @@ from . import booking_engine as be
 from . import engine
 from . import identity
 from . import proofs
+from . import signals
 from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
 from . import voice_agent
 from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
@@ -294,16 +295,42 @@ def free_slots(rto_id: str = DEFAULT_RTO, on: date | None = None):
                        "tester_id": s.tester_id} for s in slots[:50]]}
 
 
+def _note_lost_slot(application_id: str, slot_id: str, reason: str) -> None:
+    """
+    Note that somebody reached a slot and did not get it.
+
+    Reads the office and day back off the slot rather than trusting the caller,
+    and stays silent if either lookup fails — a citizen who has just lost a slot
+    is the worst possible person to hand a second error to.
+    """
+    try:
+        slot = be.get_slot(slot_id)
+        app_obj = be.get_application(application_id)
+        signals.record("slot.lost", app_obj.citizen_ref if app_obj else "",
+                       rto_id=slot.rto_id if slot else None,
+                       day=str(slot.slot_date) if slot else None,
+                       reason=reason)
+    except Exception:  # noqa: BLE001 - telemetry must not break the reply
+        pass
+
+
 @app.post("/book", tags=["journey"])
 def book(body: BookBody):
     """Atomically hold a fixed time-slot. One winner per slot, guaranteed."""
     try:
         b = be.book_slot(body.application_id, body.slot_id)
     except SlotTaken:
+        # Recorded here rather than inside book_slot: that claim runs inside
+        # BEGIN IMMEDIATE, and a signal written there would be a transaction
+        # opened inside a transaction. The losing side is also the only side
+        # worth counting — an office that loses races is an office short an
+        # inspector, which is the whole point of keeping the number.
+        _note_lost_slot(body.application_id, body.slot_id, "taken")
         raise HTTPException(409, "That slot was just taken — pick another.")
     except AlreadyBooked:
         raise HTTPException(409, "This application already holds an appointment.")
     except SlotPassed:
+        _note_lost_slot(body.application_id, body.slot_id, "passed")
         raise HTTPException(409, "That time has already passed — pick a later one.")
     except KeyError as e:
         raise HTTPException(404, str(e))
@@ -395,6 +422,16 @@ def answer_question(attempt_id: str, body: AnswerBody):
         raise HTTPException(400, str(e))
 
     scenario = scenario_by_id(body.scenario_id)
+    if not rec.correct:
+        # The one signal with a curriculum behind it: which competency the most
+        # people get wrong is what a road-safety syllabus should be reading, and
+        # nobody needs a name attached to answer it. The chosen option is kept
+        # because "everyone picks the same wrong answer" and "everyone guesses
+        # differently" are different problems with different fixes.
+        signals.record("test.wrong", attempt.citizen_id,
+                       competency=scenario.competency.value,
+                       scenario_id=body.scenario_id,
+                       chosen_option_id=body.chosen_option_id)
     return {
         "correct": rec.correct,
         # feedback teaches, per the "learning not just pass/fail" goal
@@ -573,10 +610,32 @@ def proof_slot_race(contenders: int = 8):
     return proofs.slot_race(max(2, min(contenders, 32)))
 
 
+@app.post("/proof/booking-load", tags=["proof"])
+def proof_booking_load(applicants: int = 120):
+    """A rush: more people than slots, all pressing together. Prices the guarantee."""
+    return proofs.booking_load(max(2, min(applicants, 400)))
+
+
 @app.post("/proof/ledger-tamper", tags=["proof"])
 def proof_ledger_tamper():
     """Edit a recorded event and show the receipt reporting it."""
     return proofs.ledger_tamper()
+
+
+# -------------------------- what the service learns --------------------------
+
+@app.get("/signals/summary", tags=["proof"])
+def signals_summary(limit: int = 20):
+    """
+    Where people fail, in aggregate, with no way back to who they were.
+
+    Deliberately unauthenticated. Every row behind this is an HMAC of a citizen
+    reference and an allowlisted handful of fields — there is nothing here to
+    protect, and a service that says it learns from failure should be able to
+    show the working. See app/signals.py for what makes that a property rather
+    than a promise.
+    """
+    return signals.summary(max(1, min(limit, 50)))
 
 
 @app.post("/demo/reset", tags=["proof"])

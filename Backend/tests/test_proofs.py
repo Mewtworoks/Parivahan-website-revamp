@@ -12,6 +12,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import func, select  # noqa: E402
 
@@ -129,3 +130,43 @@ def test_demo_reset_clears_the_journey_but_keeps_the_offices():
     assert body["offices"] >= 3
     from datetime import date
     assert be.list_free_slots("mh01", BOOKABLE_DAY), "reset left no bookable slots"
+
+
+@pytest.mark.slow
+def test_a_rush_sells_every_slot_exactly_once():
+    """
+    The guarantee under load rather than under demonstration.
+
+    slot_race asks "can this be got wrong?" with eight threads at one slot. This
+    asks the only version a real office cares about: a hundred people on a grid
+    of eighteen, all pressing together. Every slot must go, each to one person,
+    and the ninety-odd who missed must be told so rather than left holding an
+    appointment the inspector has never heard of.
+
+    The counts are read back off the rows afterwards. What the threads believed
+    happened is not evidence; what the database holds is.
+    """
+    out = client.post("/proof/booking-load?applicants=100").json()
+
+    assert out["slots_sold"] == out["expected_sold"], out["verdict"]
+    assert out["double_booked"] == 0, out["verdict"]
+    assert out["lost_writes"] == 0, out["verdict"]
+    assert out["errors"] == 0, out
+    assert out["sold_to_one_person_each"] is True
+    # Everybody is accounted for: nobody is left without an answer either way.
+    assert out["won"] + out["rejected"] == out["applicants"]
+    assert out["p99_ms"] >= out["p50_ms"] > 0
+
+
+@pytest.mark.slow
+def test_the_rush_can_be_run_twice():
+    """
+    Unlike the other proofs this one consumes every slot it is given, so a fixed
+    date works once and then reports "no free slots" to the second person who
+    presses the button — which, in front of an audience, is the run that counts.
+    """
+    first = client.post("/proof/booking-load?applicants=30").json()
+    second = client.post("/proof/booking-load?applicants=30").json()
+    assert "error" not in second, second
+    assert second["slots_sold"] == second["expected_sold"]
+    assert first["slots_offered"] and second["slots_offered"]

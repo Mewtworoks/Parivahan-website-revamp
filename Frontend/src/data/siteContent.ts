@@ -17,6 +17,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     // The staff view and the runnable guarantees. Part of the argument rather
     // than developer tooling, but the top bar had no room left for them.
     ['Inspector desk', { go: 'desk' }], ['See the guarantees run', { go: 'proof' }],
+    ['Where people actually fail', { go: 'learning' }],
     ['Accessibility', { info: 'a11y' }], ['Source', { info: 'source' }]]],
 ];
 
@@ -149,8 +150,8 @@ export const INFO_PANELS: Record<string, InfoPanel> = {
       },
       {
         h: 'Known limits', hHi: 'ज्ञात सीमाएँ',
-        p: "Maharashtra and Bihar are the only states with real data behind them. Fees follow the central schedule and would need a per-state table. The practice bank is twenty-nine situations, not the full official question bank. The driving-licence wizard skips its own 30-day waiting period on request, since a demo can't wait a month.",
-        pHi: 'सिर्फ महाराष्ट्र और बिहार के पीछे असली डेटा है। शुल्क केंद्रीय अनुसूची के अनुसार हैं और हर राज्य के लिए अलग तालिका चाहिए होगी। अभ्यास बैंक में उनतीस स्थितियाँ हैं, पूरा आधिकारिक प्रश्न बैंक नहीं। ड्राइविंग लाइसेंस विज़ार्ड माँगने पर अपनी 30 दिन की प्रतीक्षा अवधि छोड़ देता है, क्योंकि डेमो एक महीना इंतज़ार नहीं कर सकता।',
+        p: "Maharashtra and Bihar are the only states with real data behind them. Fees follow the central schedule and would need a per-state table. The practice bank is forty situations across nine competencies, not the full official question bank. The driving-licence wizard skips its own 30-day waiting period on request, since a demo can't wait a month.",
+        pHi: 'सिर्फ महाराष्ट्र और बिहार के पीछे असली डेटा है। शुल्क केंद्रीय अनुसूची के अनुसार हैं और हर राज्य के लिए अलग तालिका चाहिए होगी। अभ्यास बैंक में नौ दक्षताओं पर चालीस स्थितियाँ हैं, पूरा आधिकारिक प्रश्न बैंक नहीं। ड्राइविंग लाइसेंस विज़ार्ड माँगने पर अपनी 30 दिन की प्रतीक्षा अवधि छोड़ देता है, क्योंकि डेमो एक महीना इंतज़ार नहीं कर सकता।',
       },
     ],
   },

@@ -124,8 +124,13 @@ def summary(limit: int = 20) -> dict[str, Any]:
         ).mappings().all()
         rows = conn.execute(
             select(db.signals.c.kind, db.signals.c.detail)
+            # form.unparsed belongs here as much as any of them: "the service
+            # could not read your answer to this field" is the clearest stall
+            # there is, and leaving it out meant the field ranking stayed empty
+            # while the commonest failure of all was being recorded.
             .where(db.signals.c.kind.in_(("test.wrong", "form.abandoned",
-                                          "form.reasked", "form.offtrack")))
+                                          "form.reasked", "form.offtrack",
+                                          "form.unparsed")))
         ).mappings().all()
 
     competencies: dict[str, int] = {}

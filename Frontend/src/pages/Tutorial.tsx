@@ -33,7 +33,7 @@ export function Tutorial({ go, state }: PageProps) {
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g10" style={{ marginBottom: 24 }}>
         <div className="row between g12 wrapf">
-          <span className="eyebrow">Before stage 8 · mandatory</span>
+          <span className="eyebrow">{t('Before stage 8 · mandatory', 'चरण 8 से पहले · अनिवार्य', 'टप्पा 8 पूर्वी · अनिवार्य')}</span>
           {/* Demo shortcut, same as the wizard's. Ticking five items in front of
               an audience shows nothing the build is arguing, and until they are
               all ticked both onward buttons stay disabled. */}

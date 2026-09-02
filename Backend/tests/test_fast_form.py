@@ -43,6 +43,21 @@ def _start(ref: str, language: str = "en") -> str:
                        json={"citizen_ref": ref, "language": language}).json()["session_id"]
 
 
+def _open_day_number(rto_id: str = "mh01") -> str:
+    """
+    The day number Saarthi is actually offering, rather than one written down.
+
+    A calendar date used to be typed straight into the test below. The grid only
+    offers days that still have time left on them, so once the last slot of that
+    date had gone the number matched nothing, the turn fell through to the model,
+    and the test failed — in the evening, having passed all morning. What the
+    test is about is the language holding across a bare answer; which day that
+    answer names was never the point.
+    """
+    days = dispatch_tool("find_slot_days", {"rto_id": rto_id})["days"]
+    return str(date.fromisoformat(next(d for d in days if d["left"])["date"]).day)
+
+
 def _say(sid: str, text: str, language: str = "en") -> dict:
     """
     The language rides on the turn, as the panel now sends it.
@@ -389,7 +404,7 @@ def test_a_bare_time_does_not_change_the_language(monkeypatch):
 
     days = _say(sid, "मेरा स्लॉट बुक करो", "hi")
     assert DEVANAGARI.search(days["reply"]), days["reply"]
-    times = _say(sid, "28", "hi")
+    times = _say(sid, _open_day_number(), "hi")
     assert DEVANAGARI.search(times["reply"]), times["reply"]
 
     # The reported turn: a bare time, and everything after it must stay Hindi.

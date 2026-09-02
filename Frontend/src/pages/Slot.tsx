@@ -96,7 +96,7 @@ export function Slot({ go, state, update }: PageProps) {
         <div className="col g12"><span className="label">{t('Choose an office', 'एक कार्यालय चुनें', 'एक कार्यालय निवडा')}</span>
           {offices.map(o => (
             <Tile key={o.id} checked={officeId === o.id} onClick={() => { setOfficeId(o.id); setDay(null); setTime(null); setTaken(false); }} title={o.name}
-              desc={`${o.area} · ${o.km} km away`}
+              desc={t(`${o.area} · ${o.km} km away`, `${o.area} · ${o.km} किमी दूर`, `${o.area} · ${o.km} किमी दूर`)}
               right={<span className="col g6" style={{ alignItems: 'flex-end', flex: 'none' }}><Pill tone={o.load === 'light' ? 'ok' : 'warn'}>{o.load === 'light' ? t('Light day', 'हल्का दिन', 'कमी दिवस') : t('Busy', 'व्यस्त', 'व्यग्र')}</Pill><span className="tiny">{formatOfficeWait(o.waitMinutes, o.wait, lang)}</span></span>} />
           ))}
           {live && <span className="tiny">{t('Waiting times are read from each office as it stands now.', 'प्रतीक्षा समय हर कार्यालय से इस समय की स्थिति के अनुसार पढ़ा गया है।')}</span>}

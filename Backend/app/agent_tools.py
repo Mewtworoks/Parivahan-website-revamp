@@ -36,6 +36,7 @@ from datetime import date, timedelta
 
 from . import booking_engine as be
 from . import engine
+from . import signals
 from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
 from .booking_models import AppStatus, LicenceKind
 from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
@@ -896,6 +897,24 @@ def pending_details(tool: str, args: dict) -> dict:
 
 
 def dispatch_tool(tool: str, args: dict) -> dict:
+    """
+    Run one agent tool, and note it if it raises.
+
+    Wrapped rather than recorded at each of the twelve call sites, because a
+    signal that depends on somebody remembering to add it at the thirteenth is
+    not a signal. What is stored is the tool and the exception's class name —
+    never the message, which carries slot ids, application numbers and, on a
+    bad day, whatever the citizen typed.
+    """
+    try:
+        return _dispatch(tool, args)
+    except Exception as exc:                      # noqa: BLE001 - re-raised below
+        signals.record("tool.error", str(args.get("citizen_id") or ""),
+                       tool=tool, error=type(exc).__name__)
+        raise
+
+
+def _dispatch(tool: str, args: dict) -> dict:
     if tool == "get_journey_status":
         cid = args["citizen_id"]
         app_obj = be.latest_application_for(cid)

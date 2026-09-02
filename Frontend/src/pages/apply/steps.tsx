@@ -59,7 +59,7 @@ export function StateAndRto({ form, updateForm }: StepProps) {
         <div className="col g12"><span className="label">{t('RTO office', 'आरटीओ कार्यालय', 'आरटीओ कार्यालय')}</span>
           <span className="hint">{t('Your PIN code decides the default. You may pick another office in the same state — the portal allows it and nobody tells you.', 'आपका पिन कोड डिफ़ॉल्ट तय करता है। आप उसी राज्य में कोई अन्य कार्यालय चुन सकते हैं — पोर्टल इसकी अनुमति देता है और कोई नहीं बताता।', 'तुमचा पिन कोड डिफॉल्ट ठरवतो. तुम्ही त्याच राज्यातील दुसरे कार्यालय निवडू शकता — पोर्टल याची परवानगी देते आणि कोणी सांगत नाही.')}</span>
           {offices.map(office => (
-            <Tile key={office.id} checked={selectedRtoId === office.id} onClick={() => updateForm({ rto: office.id })} title={office.name} desc={`${office.area} · ${office.km} km away`}
+            <Tile key={office.id} checked={selectedRtoId === office.id} onClick={() => updateForm({ rto: office.id })} title={office.name} desc={t(`${office.area} · ${office.km} km away`, `${office.area} · ${office.km} किमी दूर`, `${office.area} · ${office.km} किमी दूर`)}
               right={<Pill tone={office.load === 'light' ? 'ok' : 'warn'}>{office.load === 'light' ? t('Light', 'हल्का', 'कमी') : t('Busy', 'व्यस्त', 'व्यग्र')}</Pill>} />
           ))}
           <span className="tiny">{live

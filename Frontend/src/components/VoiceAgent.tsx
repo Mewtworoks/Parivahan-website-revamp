@@ -136,6 +136,14 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const [input, setInput] = useState('');
   const [muted, setMuted] = useState(storedMute);
   const [listening, setListening] = useState(false);
+  /**
+   * The live recogniser, or null.
+   *
+   * Held because Chrome allows exactly one per page: without a handle on the
+   * running one there is no way to stop it before starting the next, and
+   * `start()` throws rather than queueing.
+   */
+  const recogniserRef = useRef<any>(null);
   const [working, setWorking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -165,7 +173,15 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   // session here is what made a close-and-reopen start from nothing — the
   // conversation is ended when the citizen signs out, not when they glance at
   // the page behind it.
-  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+  // The microphone goes with it. Closed mid-sentence, the recogniser stayed
+  // live on a panel nobody could see — the browser kept showing the recording
+  // dot, and reopening met a recogniser Chrome would not let us start a second
+  // copy of.
+  useEffect(() => () => {
+    window.speechSynthesis?.cancel();
+    try { recogniserRef.current?.abort(); } catch { /* already gone */ }
+    recogniserRef.current = null;
+  }, []);
 
   // Every change, so the transcript survives a close, a reopen and a reload.
   useEffect(() => {
@@ -333,10 +349,30 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     } finally { setWorking(false); }
   };
 
+  /** Forget the recogniser and drop the listening state. Safe to call twice. */
+  const release = () => {
+    recogniserRef.current = null;
+    setListening(false);
+  };
+
+  /** Stop a running recogniser. `abort` discards the audio; `stop` would submit it. */
+  const stopListening = () => {
+    const running = recogniserRef.current;
+    release();
+    try { running?.abort(); } catch { /* already gone */ }
+  };
+
   const listen = () => {
     const Ctor = (window as unknown as { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }).SpeechRecognition
       || (window as unknown as { webkitSpeechRecognition?: new () => any }).webkitSpeechRecognition;
     if (!Ctor) { setError(t('Voice input works in Chrome. You can still type to Saarthi below.', 'बोलकर पूछना Chrome में काम करता है। आप नीचे लिखकर भी पूछ सकते हैं।')); return; }
+
+    // Pressing it while it is already listening stops it. That is what the
+    // button looks like it should do while it reads "Listening…", and it is
+    // also the only way to get out of a recogniser that has latched onto a
+    // noisy room and will not settle.
+    if (recogniserRef.current) { stopListening(); return; }
+
     // Stop talking the moment somebody starts. Saarthi kept reading its last
     // reply into the open microphone, which is both rude and self-defeating —
     // the recogniser hears the synthesiser and sends Saarthi its own words.
@@ -350,10 +386,38 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
-    recognition.onerror = () => { setListening(false); setError(t('I could not hear that. Try again or type your question.', 'मैं सुन नहीं सकी। दोबारा कोशिश कीजिए या सवाल लिखिए।')); };
-    recognition.onend = () => setListening(false);
+    recognition.onerror = (event: any) => {
+      release();
+      // "I could not hear that" was said for every one of these, including a
+      // refused microphone — which is advice to try again at the one problem
+      // trying again cannot fix.
+      const reason = event?.error;
+      if (reason === 'aborted') return;               // we stopped it ourselves
+      setError(
+        reason === 'not-allowed' || reason === 'service-not-allowed'
+          ? t('The microphone is blocked for this site. Allow it in the address bar, or type your question below.',
+            'इस साइट के लिए माइक्रोफ़ोन बंद है। पता बार से अनुमति दीजिए, या नीचे सवाल लिखिए।')
+          : reason === 'no-speech'
+            ? t('I did not hear anything. Press Speak and try again, or type your question.',
+              'मुझे कुछ सुनाई नहीं दिया। बोलिए दबाकर दोबारा कोशिश कीजिए, या सवाल लिखिए।')
+            : t('I could not hear that. Try again or type your question.',
+              'मैं सुन नहीं सकी। दोबारा कोशिश कीजिए या सवाल लिखिए।'));
+    };
+    recognition.onend = () => release();
     recognition.onresult = (event: any) => send(event.results[0][0].transcript);
-    recognition.start();
+    recogniserRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      // Chrome allows one live recogniser per page and throws InvalidStateError
+      // if the last one has not finished releasing. Uncaught, that killed the
+      // click handler on the way out, so the second press after a failed first
+      // one did nothing at all and the panel kept showing the old error — the
+      // button looked broken exactly when somebody was retrying.
+      release();
+      setError(t('The microphone is still busy. Press Speak again in a moment, or type your question.',
+        'माइक्रोफ़ोन अभी व्यस्त है। एक पल बाद बोलिए दबाइए, या सवाल लिखिए।'));
+    }
   };
 
   return (

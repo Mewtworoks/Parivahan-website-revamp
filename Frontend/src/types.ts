@@ -13,8 +13,10 @@ export type Route =
   // that only pretends. pages/DrivingLicence.tsx and pages/dl/ are untouched;
   // search "DL journey parked" to put it back.
   // Staff-side and behind-the-scenes views. The desk is what makes the
-  // citizen's live queue actually move; the proofs run the guarantees.
-  | 'desk' | 'proof';
+  // citizen's live queue actually move; the proofs run the guarantees;
+  // 'learning' is the only screen here about everybody at once rather than
+  // about one applicant, and the only one with no name on it anywhere.
+  | 'desk' | 'proof' | 'learning';
 
 export interface EligibilityAnswers {
   dob?: string;

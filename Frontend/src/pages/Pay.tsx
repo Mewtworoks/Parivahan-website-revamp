@@ -49,7 +49,7 @@ export function Pay({ go, state, update }: PageProps) {
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g10" style={{ marginBottom: 26 }}>
-        <span className="eyebrow">Application SS-2026-004182 · stages 5 and 6</span><h1>{t('Pay the fee', 'फीस भरें', 'फी भरा')}</h1>
+        <span className="eyebrow">{t('Application SS-2026-004182 · stages 5 and 6', 'आवेदन SS-2026-004182 · चरण 5 और 6', 'अर्ज SS-2026-004182 · टप्पे 5 आणि 6')}</span><h1>{t('Pay the fee', 'फीस भरें', 'फी भरा')}</h1>
         <p className="lede">{t('Every line is a statutory charge with a rule behind it. The official portal calculates, collects, verifies and prints a receipt as four separate menu items — here it is one uninterrupted step.', 'हर लाइन एक वैधानिक शुल्क है जिसके पीछे एक नियम है। आधिकारिक पोर्टल गणना, संग्रह, सत्यापन और रसीद प्रिंट को चार अलग मेनू आइटम के रूप में करता है — यहां यह एक निरंतर चरण है।', 'प्रत्येक ओळ ही एक वैधानिक शुल्क आहे ज्यामागे एक नियम आहे. अधिकृत पोर्टल गणना, संकलन, पडताळणी आणि पावती छपाई चार वेगळ्या मेनू आयटम म्हणून करते — इथे हा एक सतत टप्पा आहे.')}</p>
       </div>
       <div className="card card-p col g14">

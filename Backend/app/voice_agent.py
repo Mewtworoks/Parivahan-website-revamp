@@ -392,6 +392,17 @@ def start_session(citizen_ref: str, language: str = "en") -> VoiceSession:
     session.token_id = resumed.get("token_id") or session.token_id
     if not session.form_answers:
         session.form_answers = drafts.load(citizen_ref)
+
+    # Abandonment is only visible from the far side of it. Nobody announces that
+    # they are giving up on a form — they close the tab, and the fact of it can
+    # only be read later, when they come back to a draft that stalled and never
+    # became an application. `stored` being empty is what makes this a return
+    # rather than a reload: the earlier conversation lapsed out of the resume
+    # window, so the gap was real.
+    if stored is None and not session.application_id:
+        stalled = drafts.current_field(citizen_ref)
+        if stalled:
+            signals.record("form.abandoned", citizen_ref, field=stalled)
     # The picker wins at open time, even on a resumed conversation. Filling this
     # in only when it was blank meant somebody who opened Saarthi, closed it,
     # switched the site to Hindi and opened it again was greeted in English —
@@ -558,6 +569,12 @@ def _next_question(session: VoiceSession) -> str | None:
     # Only after a real failed attempt at this field — not merely because it is
     # the outstanding one, which it is on the first ask too.
     repeated = session.unread_for == item["field"]
+    if repeated:
+        # The clearest single sign the flow is failing: the service is about to
+        # ask for something it has already asked for. Counted per field, because
+        # "everybody stalls at date of birth" is a fixable sentence and "one
+        # person stalled once" is noise.
+        signals.record("form.reasked", session.citizen_ref, field=item["field"])
     # Remembered so the answer that comes back can be read without the model.
     session.asked_field = item["field"]
     hindi = bool(session.language and "in Hindi" in session.language)
@@ -1211,9 +1228,13 @@ def _read_time(text: str, slots: list[dict]) -> str | None:
     if not slots:
         return None
     lowered = " ".join(text.lower().split())
-    if _EARLIEST.search(lowered):
-        return slots[0]["slot_id"]
 
+    # Most specific first, and this order is load-bearing. "The earliest morning
+    # slot" names a band and then a position inside it — but _EARLIEST used to
+    # be tested first and returned slots[0] outright, so once the morning was
+    # booked out the citizen asked for a morning and was handed 14:45. A clock
+    # time is more specific still: read before the band, so "9:30 in the
+    # morning" resolves to 9:30 rather than to whatever morning slot is first.
     for found in _CLOCK.finditer(lowered):
         hour, minute, half = int(found[1]), found[2] or "00", (found[3] or "").lower()
         if half == "pm" and hour < 12:
@@ -1229,12 +1250,20 @@ def _read_time(text: str, slots: list[dict]) -> str | None:
         if len(same_hour) == 1 and not found[2]:
             return same_hour[0]["slot_id"]
 
+    # A band narrows the list; the first inside it is already the earliest one,
+    # so "the earliest morning" and "a morning slot" agree by construction. An
+    # empty band returns None rather than falling through to _EARLIEST: asked
+    # for a morning that has gone, the honest answer is that there is not one,
+    # not an afternoon offered as though it were what was requested.
     if _MORNING.search(lowered):
         early = [s for s in slots if s["time"] < "12:00"]
         return early[0]["slot_id"] if early else None
     if _AFTERNOON.search(lowered):
         late = [s for s in slots if s["time"] >= "12:00"]
         return late[0]["slot_id"] if late else None
+
+    if _EARLIEST.search(lowered):
+        return slots[0]["slot_id"]
     return None
 
 
@@ -1478,16 +1507,23 @@ def _call_nvidia(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | N
         except httpx.HTTPError as exc:
             log.warning("NVIDIA request failed (attempt %d/2): %r", attempt + 1, exc)
             if attempt:
+                # Recorded on the second failure, not the first: one retried
+                # timeout is a network, two is an outage, and only the second
+                # reached the citizen as an error.
+                signals.record("model.failed", "", reason=type(exc).__name__)
                 raise HTTPException(502, "Saarthi could not reach the language service.") from exc
 
     assert response is not None
     if response.status_code >= 400:
         log.warning("NVIDIA returned %d: %s", response.status_code, response.text[:400])
+        signals.record("model.failed", "", reason="upstream_error",
+                       status=str(response.status_code))
         raise HTTPException(502, "Saarthi language service returned an error.")
 
     try:
         return response.json()["choices"][0]["message"]
     except (KeyError, IndexError, ValueError) as exc:
+        signals.record("model.failed", "", reason="unreadable_response")
         raise HTTPException(502, "Saarthi received an invalid language-service response.") from exc
 
 

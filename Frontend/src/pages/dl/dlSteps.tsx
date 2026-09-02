@@ -151,7 +151,7 @@ export function BookTest({ dl, updateDl, stateName }: DlStepProps) {
         why={t('Finding out about the vehicle requirement now — not on test day — is the difference between passing and a wasted trip.', 'वाहन की आवश्यकता के बारे में अभी पता चलना — टेस्ट के दिन नहीं — पास होने और बेकार यात्रा के बीच का अंतर है।', 'वाहनाच्या गरजेबद्दल आताच कळणे — टेस्टच्या दिवशी नाही — उत्तीर्ण होणे आणि वाया गेलेली फेरी यातील फरक आहे.')} />
       <div className="col g12"><span className="label">Choose a test track</span>
         {offices.map(o => (
-          <Tile key={o.id} checked={officeId === o.id} onClick={() => updateDl({ officeId: o.id, day: null, time: null })} title={o.name} desc={`${o.area} · ${o.km} km away`}
+          <Tile key={o.id} checked={officeId === o.id} onClick={() => updateDl({ officeId: o.id, day: null, time: null })} title={o.name} desc={t(`${o.area} · ${o.km} km away`, `${o.area} · ${o.km} किमी दूर`, `${o.area} · ${o.km} किमी दूर`)}
             right={<Pill tone={o.load === 'light' ? 'ok' : 'warn'}>{o.load === 'light' ? 'Light day' : 'Busy'}</Pill>} />
         ))}
       </div>

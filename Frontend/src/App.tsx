@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type MouseEvent } from 'react';
 import logo from './assets/sadak_setu_icon.png';
 import { Desk } from './pages/Desk';
+import { Learning } from './pages/Learning';
 // DL journey parked — see the note on Route in types.ts.
 // import { DrivingLicence } from './pages/DrivingLicence';
 import { Eligibility } from './pages/Eligibility';
@@ -59,6 +60,7 @@ const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   'What is mocked': { hi: 'क्या नकली है', mr: 'काय बनावट आहे' },
   'Inspector desk': { hi: 'निरीक्षक डेस्क', mr: 'निरीक्षक डेस्क' },
   'See the guarantees run': { hi: 'गारंटी चलती देखें', mr: 'हमी चालताना पहा' },
+  'Where people actually fail': { hi: 'लोग असल में कहाँ अटकते हैं', mr: 'लोक खरोखर कुठे अडतात' },
   Accessibility: { hi: 'सुगम्यता', mr: 'सुलभता' },
   Source: { hi: 'स्रोत', mr: 'स्रोत' },
 };
@@ -70,7 +72,7 @@ const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
   receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
   test: Test, issued: Issued, status: Status,
-  desk: Desk, proof: Proof,
+  desk: Desk, proof: Proof, learning: Learning,
   // DL journey parked: dl: DrivingLicence,
 };
 

@@ -17,7 +17,20 @@ import { Note, Pill } from '../ui/SharedUI';
  * so the claim can be watched rather than taken on trust.
  */
 
-type Which = 'idem' | 'race' | 'ledger';
+type Which = 'idem' | 'race' | 'load' | 'ledger';
+
+/** One measured number, with its name under it rather than beside it. */
+function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' }) {
+  return (
+    <div className="col g4" style={{ minWidth: 92 }}>
+      <b className="mono" style={{
+        fontSize: '1.3rem', fontFamily: 'var(--disp)',
+        color: tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : undefined,
+      }}>{value}</b>
+      <span className="tiny">{label}</span>
+    </div>
+  );
+}
 
 function Verdict({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
@@ -81,6 +94,7 @@ export function Proof({ go }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const [idem, setIdem] = useState<api.IdempotencyProof | null>(null);
   const [race, setRace] = useState<api.SlotRaceProof | null>(null);
+  const [load, setLoad] = useState<api.BookingLoadProof | null>(null);
   const [ledger, setLedger] = useState<api.TamperProof | null>(null);
 
   const run = async <T,>(which: Which | 'reset', call: () => Promise<T>, keep: (v: T) => void) => {
@@ -91,7 +105,7 @@ export function Proof({ go }: PageProps) {
   };
 
   const reset = () => run('reset', api.resetDemo, () => {
-    setIdem(null); setRace(null); setLedger(null);
+    setIdem(null); setRace(null); setLoad(null); setLedger(null);
     // The browser holds its own copy of the journey now, and the reset just
     // deleted the application it points at. Left behind, the tracker would open
     // on an id the service has never heard of — the exact "somebody else's
@@ -183,6 +197,60 @@ export function Proof({ go }: PageProps) {
           </Result>
         )}
         {race?.error && <Note tone="warn">{race.error}</Note>}
+      </div>
+
+      {/* 2b — the same guarantee, priced.
+          Eight threads prove it can be got right. They do not answer the
+          question an office actually has, which is whether it still holds when
+          a popular Monday grid opens and a hundred people are already waiting
+          on it. The counts below are read back off the rows afterwards, not
+          reported by the threads about themselves. */}
+      <div className="card card-p col g14" style={{ marginTop: 20 }}>
+        <div className="row between g12 wrapf">
+          <div className="col g4">
+            <h3>{t('A hundred and twenty people, eighteen slots', 'एक सौ बीस लोग, अठारह स्लॉट')}</h3>
+            <span className="sub">
+              {t('The morning a popular office opens its grid. Every slot must sell, each to exactly one person, and everybody who missed must be told — not left holding an appointment the inspector has never heard of.',
+                'जिस सुबह कोई व्यस्त कार्यालय अपनी स्लॉट सूची खोलता है। हर स्लॉट बिकना चाहिए, हर एक ठीक एक व्यक्ति को, और जिन्हें नहीं मिला उन्हें बताया जाना चाहिए — न कि ऐसा अपॉइंटमेंट थमा दिया जाए जिसके बारे में निरीक्षक ने कभी सुना ही नहीं।')}
+            </span>
+          </div>
+          <button className="btn btn-p btn-sm" disabled={busy === 'load'}
+            onClick={() => run('load', () => api.proveBookingLoad(120), setLoad)}>
+            {busy === 'load' ? t('Running…', 'चल रहा है…') : t('Open the grid', 'सूची खोलें')}
+          </button>
+        </div>
+        {load && !load.error && (
+          <Result>
+            <div className="row g20 wrapf" style={{ rowGap: 16 }}>
+              <Stat label={t('pressed at once', 'एक साथ दबाया')} value={String(load.applicants)} />
+              <Stat label={t('slots sold', 'स्लॉट बिके')} value={`${load.slots_sold}/${load.slots_offered}`} tone="ok" />
+              <Stat label={t('double-booked', 'दोहरी बुकिंग')} value={String(load.double_booked)}
+                tone={load.double_booked ? 'warn' : 'ok'} />
+              <Stat label={t('lost writes', 'खोए राइट')} value={String(load.lost_writes)}
+                tone={load.lost_writes ? 'warn' : 'ok'} />
+              <Stat label={t('refused cleanly', 'साफ़ मना')} value={String(load.rejected)} />
+            </div>
+            <div className="row g20 wrapf" style={{ rowGap: 16 }}>
+              <Stat label={t('median', 'माध्यिका')} value={`${load.p50_ms} ms`} />
+              <Stat label="p95" value={`${load.p95_ms} ms`} />
+              <Stat label="p99" value={`${load.p99_ms} ms`} />
+              <Stat label={t('bookings per second', 'प्रति सेकंड बुकिंग')}
+                value={load.throughput_per_s ? String(load.throughput_per_s) : '—'} />
+            </div>
+            {/* Said plainly rather than buried: the write queue is the honest
+                cost of the guarantee, and a p99 in the seconds is what serialised
+                writes look like under a rush. Hiding it would make the number
+                marketing. */}
+            <span className="tiny">
+              {t('Latency includes the wait for the write lock. Bookings are serialised on purpose — that queue is the guarantee, and its cost is the number above.',
+                'विलंब में राइट लॉक की प्रतीक्षा भी शामिल है। बुकिंग जान-बूझकर एक-एक करके होती है — वही कतार यह गारंटी है, और ऊपर का आँकड़ा उसकी कीमत है।')}
+            </span>
+            <Verdict ok={load.double_booked === 0 && load.lost_writes === 0 && load.errors === 0}>
+              {load.verdict}
+            </Verdict>
+          </Result>
+        )}
+        {load?.error && <Note tone="warn">{load.error}</Note>}
       </div>
 
       {/* 3 — the ledger */}
