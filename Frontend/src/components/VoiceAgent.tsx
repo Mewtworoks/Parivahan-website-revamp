@@ -76,14 +76,6 @@ function canRecogniseSpeech(): boolean {
 }
 
 /**
- * Read a reply aloud in the language it was actually written in.
- *
- * Devanagari settles it outright. Otherwise the reply is either English or
- * Hinglish \u2014 romanised Hindi, which an en-IN voice pronounces far closer than
- * a hi-IN one does \u2014 so fall back to the picker, which is what the citizen
- * chose to read the rest of the site in.
- */
-/**
  * Whether Saarthi reads its replies out.
  *
  * Remembered, because somebody who muted it did so for a reason — a shared
@@ -101,13 +93,168 @@ function hush() {
   try { window.speechSynthesis?.cancel(); } catch { /* no synthesiser here */ }
 }
 
+/**
+ * Every voice the browser will admit to having.
+ *
+ * `getVoices()` is populated asynchronously and returns an empty array on the
+ * first call in Chrome and Edge \u2014 which is exactly the call that matters here,
+ * because Saarthi's opening line is spoken within a second of the panel opening.
+ * An empty list means no voice is chosen, which means the platform default, and
+ * on Windows the platform default is Microsoft David: the flattest voice on the
+ * machine. So the list is cached at module load and refreshed on the event that
+ * fires when it finally arrives.
+ */
+let voices: SpeechSynthesisVoice[] = [];
+
+function refreshVoices() {
+  try { voices = window.speechSynthesis?.getVoices() ?? []; } catch { voices = []; }
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  refreshVoices();
+  window.speechSynthesis.addEventListener?.('voiceschanged', refreshVoices);
+}
+
+/**
+ * Names that mark a neural voice, and names that mark a formant one.
+ *
+ * There is no flag for "sounds like a person" \u2014 `localService` is the closest
+ * thing, since the good voices are the ones streamed from the vendor, but Chrome
+ * reports its own bundled Google voices as remote too and those are also the
+ * good ones. So this matches on names. `Natural` and `Online` are Edge's neural
+ * range, and the Indian-language names below are its hi-IN and mr-IN pair; the
+ * cold list is the decade-old SAPI5 set that ships with Windows and reads a
+ * sentence at one pitch from end to end.
+ */
+const WARM = /natural|neural|online|google|aria|guy|neerja|prabhat|swara|madhur|manohar|aarohi/i;
+const COLD = /espeak|festival|compact|desktop|\bdavid\b|\bzira\b|\bmark\b|\bhemant\b|\bkalpana\b|\bheera\b/i;
+
+/**
+ * Which locales to try, best first.
+ *
+ * Devanagari settles the language outright. Otherwise the reply is English or
+ * Hinglish, and both go to the locale the citizen is reading the site in.
+ *
+ * The fallbacks matter more than the first choice. Marathi voices exist on
+ * almost no machine, and asking for a locale nobody has does not degrade to a
+ * near neighbour \u2014 the browser hands back its default, which is usually en-US.
+ * A Marathi sentence in an American accent is not an accent problem, it is
+ * unintelligible, so mr falls to hi rather than to whatever is lying around.
+ */
+function localeChain(text: string, uiLang: Lang): string[] {
+  if (/[\u0900-\u097F]/.test(text)) return uiLang === 'mr' ? ['mr-IN', 'hi-IN'] : ['hi-IN'];
+  if (uiLang === 'mr') return ['mr-IN', 'hi-IN', 'en-IN'];
+  return [SPEECH_LOCALE[uiLang], 'en-IN'];
+}
+
+function pickVoice(locale: string): SpeechSynthesisVoice | undefined {
+  if (!voices.length) refreshVoices();
+  const base = locale.split('-')[0].toLowerCase();
+  const tag = (v: SpeechSynthesisVoice) => v.lang.replace('_', '-').toLowerCase();
+  const scored = voices
+    .filter(v => tag(v).startsWith(base))
+    .map(v => {
+      let score = 0;
+      // An exact locale beats a warm voice in the wrong one: en-IN said plainly
+      // is closer to how the citizen speaks than en-US said beautifully, and
+      // every place name in this service is an Indian one.
+      if (tag(v) === locale.toLowerCase()) score += 40;
+      if (WARM.test(v.name)) score += 30;
+      if (!v.localService) score += 15;
+      if (COLD.test(v.name)) score -= 35;
+      return { v, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.v;
+}
+
+/**
+ * Rewrite the bits a synthesiser reads badly.
+ *
+ * An application number is the worst of them: `DL1420110012345` arrives at the
+ * synthesiser as one token and leaves as either a fourteen-digit cardinal number
+ * or silence, and it is the one string in the whole conversation somebody is
+ * trying to write down. Digits get spaced so they are read out one at a time,
+ * the way a person reading a number aloud to somebody with a pen would.
+ */
+function pronounceable(text: string, uiLang: Lang): string {
+  const rupees = uiLang === 'en' ? ' rupees' : ' \u0930\u0941\u092A\u092F\u0947';
+  return text
+    .replace(/[*_`#]+/g, '')
+    .replace(/\u20B9\s?([\d,]+)/g, (_m, n: string) => n + rupees)
+    .replace(/\bRTO\b/g, 'R T O')
+    .replace(/\b(?=[A-Z0-9-]*\d)([A-Z]{2}[A-Z0-9-]{6,})\b/g, m => m.replace(/-/g, ' ').split('').join(' '))
+    .replace(/\d{5,}/g, m => m.split('').join(' '))
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * One utterance per sentence, rather than one per reply.
+ *
+ * Two reasons. A synthesiser handed a paragraph reads it at a constant clip with
+ * no breath in it, and the gap between queued utterances is the pause a person
+ * would leave \u2014 so the punctuation starts being audible. And Chrome truncates a
+ * single utterance at around fifteen seconds with no error and no `end` event,
+ * which for Saarthi meant the last sentence of a long answer \u2014 usually the one
+ * naming what to do next \u2014 was the sentence that got cut.
+ */
+const MAX_CHUNK = 170;
+
+function chunks(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.match(/[^.!?\u0964\n]+[.!?\u0964]*/g) ?? []) {
+    let rest = raw.trim();
+    if (!rest) continue;
+    // A sentence past the cap is split at a comma if there is one deep enough to
+    // be a real clause boundary, and at a word break otherwise. Never mid-word:
+    // a word cut in half is pronounced as two nonsense words.
+    while (rest.length > MAX_CHUNK) {
+      const comma = rest.lastIndexOf(',', MAX_CHUNK);
+      const space = rest.lastIndexOf(' ', MAX_CHUNK);
+      const at = comma > 60 ? comma + 1 : space > 0 ? space : MAX_CHUNK;
+      out.push(rest.slice(0, at).trim());
+      rest = rest.slice(at).trim();
+    }
+    if (rest) out.push(rest);
+  }
+  // Abbreviations leave stubs ("No.", "Rs."), and a two-word utterance lands as
+  // a clipped bark with a pause on either side. Fold the tiny ones back.
+  const merged: string[] = [];
+  for (const c of out) {
+    if (c.length < 12 && merged.length) merged[merged.length - 1] += ' ' + c;
+    else merged.push(c);
+  }
+  return merged.length ? merged : [text];
+}
+
+/** Read a reply aloud, in the language it was actually written in. */
 function speak(text: string, uiLang: Lang) {
   if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : SPEECH_LOCALE[uiLang];
-  utterance.rate = 0.95;
-  window.speechSynthesis.speak(utterance);
+  const synth = window.speechSynthesis;
+  synth.cancel();
+
+  const chain = localeChain(text, uiLang);
+  let voice: SpeechSynthesisVoice | undefined;
+  let locale = chain[0];
+  for (const candidate of chain) {
+    const found = pickVoice(candidate);
+    if (found) { voice = found; locale = candidate; break; }
+  }
+
+  // A neural voice already carries its own pacing, and slowing one down is what
+  // makes it sound synthetic again. The old 0.95 was compensating for a formant
+  // voice, so it stays only where a formant voice is what we got.
+  const neural = voice ? WARM.test(voice.name) : false;
+
+  for (const chunk of chunks(pronounceable(text, uiLang))) {
+    const utterance = new SpeechSynthesisUtterance(chunk);
+    utterance.lang = voice?.lang ?? locale;
+    if (voice) utterance.voice = voice;
+    utterance.rate = neural ? 1 : 0.94;
+    utterance.pitch = neural ? 1 : 1.04;
+    synth.speak(utterance);
+  }
 }
 
 /** Voice facade for Saarthi. The API key remains in FastAPI; this is mic + UI only. */
@@ -143,7 +290,11 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
    * lost from the citizen's side while sitting perfectly intact on the server —
    * ask a question, glance at the page behind, and Saarthi had never replied.
    */
-  const turnsRef = useRef<Turn[]>([]);
+  // Seeded from the transcript rather than empty. The effect below syncs it, but
+  // an effect runs after the first paint, and an append that landed before it
+  // would have built the next transcript on top of nothing — losing the stored
+  // conversation and the greeting with it.
+  const turnsRef = useRef<Turn[]>(turns);
   const mountedRef = useRef(true);
 
   const [input, setInput] = useState('');
@@ -190,11 +341,24 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   // live on a panel nobody could see — the browser kept showing the recording
   // dot, and reopening met a recogniser Chrome would not let us start a second
   // copy of.
-  useEffect(() => () => {
-    mountedRef.current = false;
-    window.speechSynthesis?.cancel();
-    try { recogniserRef.current?.abort(); } catch { /* already gone */ }
-    recogniserRef.current = null;
+  //
+  // `mountedRef` is set true here rather than only at its declaration, and that
+  // is load-bearing rather than tidy. StrictMode mounts, unmounts and remounts
+  // every component once in development. The cleanup below therefore runs on the
+  // first pass and sets the flag false, and a ref initialised once is never set
+  // back — so on the mount the citizen actually sees, the component believes it
+  // is unmounted. Everything guarded by the flag then goes quiet: `appendTurn`
+  // skips `setTurns`, so neither the question nor the reply reaches the screen,
+  // and `acceptReply` skips `speak`. The turn completes, the server answers, the
+  // transcript is saved, and the panel shows nothing at all.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      window.speechSynthesis?.cancel();
+      try { recogniserRef.current?.abort(); } catch { /* already gone */ }
+      recogniserRef.current = null;
+    };
   }, []);
 
   // Every change, so the transcript survives a close, a reopen and a reload.
