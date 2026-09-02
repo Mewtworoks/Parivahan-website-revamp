@@ -140,6 +140,16 @@ export interface AppState {
   module?: 'll' | 'dl';
   elig?: EligibilityAnswers;
   form?: ApplicationForm;
+  /**
+   * Which stage of the wizard the citizen was last on.
+   *
+   * Kept beside the answers rather than in the component, because the two are
+   * only useful together. The form's own copy promises "saved after every step"
+   * and the answers were indeed saved — but the place was not, so a reload
+   * returned somebody to stage one to go looking for work they could not see,
+   * which reads as having lost all of it.
+   */
+  formStep?: number;
   app?: SubmittedApplication;
   stage?: ApplicationStage;
   paym?: 'upi' | 'card' | 'net';

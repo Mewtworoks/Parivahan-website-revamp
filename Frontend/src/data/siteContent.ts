@@ -159,8 +159,14 @@ export const INFO_PANELS: Record<string, InfoPanel> = {
     t: 'Accessibility', tHi: 'सुगम्यता', body: [
       {
         h: 'Built in', hHi: 'जो बना हुआ है',
-        p: 'Text size control and a light/dark theme in the header. A language switcher (English, Hindi, Marathi). Every tap target at least 44px. Visible focus rings on every control. Colour never carries meaning alone — a state always has a label or an icon too. Contrast checked against WCAG AA. Practice-game hearts and round outcomes are announced to screen readers, not just shown visually, and its sound cues can be muted.',
-        pHi: 'हेडर में टेक्स्ट का आकार बदलने का नियंत्रण और हल्की/गहरी थीम। भाषा बदलने का विकल्प (अंग्रेज़ी, हिंदी, मराठी)। हर टैप लक्ष्य कम से कम 44px। हर नियंत्रण पर दिखने वाला फोकस रिंग। रंग अकेले कभी अर्थ नहीं बताता — हर स्थिति के साथ लेबल या आइकन भी होता है। कंट्रास्ट WCAG AA के अनुसार जाँचा गया। अभ्यास खेल के दिल और हर दौर का नतीजा स्क्रीन रीडर को बोलकर बताया जाता है, सिर्फ दिखाया नहीं जाता, और उसकी आवाज़ें बंद की जा सकती हैं।',
+        // Two claims here used to be untrue, which on this panel of all panels
+        // is the worst kind of error: Marathi was named in a picker that offers
+        // only two languages, and "every tap target at least 44px" was written
+        // over an interface where most controls are 40px and the footer's links
+        // are 22. Both now say what is actually measurable, and the shortfall
+        // moved down to "Still missing" rather than being softened away.
+        p: 'Text size control and a light/dark theme in the header. A language switcher (English and Hindi). Buttons and form controls are at least 40px tall. Visible focus rings on every control. Colour never carries meaning alone — a state always has a label or an icon too. Contrast checked against WCAG AA. Practice-game hearts and round outcomes are announced to screen readers, not just shown visually, and its sound cues can be muted.',
+        pHi: 'हेडर में टेक्स्ट का आकार बदलने का नियंत्रण और हल्की/गहरी थीम। भाषा बदलने का विकल्प (अंग्रेज़ी और हिंदी)। बटन और फ़ॉर्म नियंत्रण कम से कम 40px ऊँचे हैं। हर नियंत्रण पर दिखने वाला फोकस रिंग। रंग अकेले कभी अर्थ नहीं बताता — हर स्थिति के साथ लेबल या आइकन भी होता है। कंट्रास्ट WCAG AA के अनुसार जाँचा गया। अभ्यास खेल के दिल और हर दौर का नतीजा स्क्रीन रीडर को बोलकर बताया जाता है, सिर्फ दिखाया नहीं जाता, और उसकी आवाज़ें बंद की जा सकती हैं।',
       },
       {
         h: 'For low digital literacy', hHi: 'कम डिजिटल जानकारी वालों के लिए',
@@ -169,8 +175,8 @@ export const INFO_PANELS: Record<string, InfoPanel> = {
       },
       {
         h: 'Still missing', hHi: 'अभी क्या बाकी है',
-        p: 'A screen-reader pass beyond the basics above — landmark regions and skip links have not been added. The DL wizard and the report card coaching text are still English-only.',
-        pHi: 'ऊपर बताई बुनियादी बातों से आगे स्क्रीन रीडर की पूरी जाँच — लैंडमार्क क्षेत्र और स्किप लिंक अभी नहीं जोड़े गए। डीएल विज़ार्ड और रिपोर्ट कार्ड का मार्गदर्शन अभी सिर्फ अंग्रेज़ी में है।',
+        p: 'A screen-reader pass beyond the basics above — landmark regions and skip links have not been added. Footer and inline text links are below the 44px touch target the buttons aim for. Marathi is written through much of the interface but is not offered in the picker yet, because it is not finished. The DL wizard and the report card coaching text are still English-only.',
+        pHi: 'ऊपर बताई बुनियादी बातों से आगे स्क्रीन रीडर की पूरी जाँच — लैंडमार्क क्षेत्र और स्किप लिंक अभी नहीं जोड़े गए। फुटर और वाक्य के भीतर के लिंक 44px के उस टच लक्ष्य से छोटे हैं जिसे बटन पूरा करते हैं। मराठी इंटरफ़ेस में काफ़ी जगह लिखी जा चुकी है पर अभी पिकर में नहीं दी गई, क्योंकि वह पूरी नहीं हुई। डीएल विज़ार्ड और रिपोर्ट कार्ड का मार्गदर्शन अभी सिर्फ अंग्रेज़ी में है।',
       },
     ],
   },

@@ -223,6 +223,12 @@ button {
    flex-wrap: wrap
 }
 
+/* Hidden until the top bar starts dropping things — see the max-width:860px
+   block, where hide-m turns off and this turns on. */
+.only-m {
+   display: none
+}
+
 .grow {
    flex: 1
 }
@@ -1316,6 +1322,15 @@ button {
 
    .hide-m {
       display: none !important
+   }
+
+   /* The other half of hide-m. Everything the top bar drops below this width
+      went somewhere unreachable rather than somewhere smaller — the language
+      switch in particular, which is the one control a Hindi reader needs
+      before anything else on the page means much. This is the button that
+      opens it. */
+   .only-m {
+      display: inline-flex !important
    }
 
    .tb-in {

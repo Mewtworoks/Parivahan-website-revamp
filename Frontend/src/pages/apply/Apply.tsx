@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentType } from 'react';
+import { useRef, type ComponentType } from 'react';
 import * as api from '../../api';
 import { PRE_BASE, preFor } from '../../data/applicant';
 import { demoForm } from '../../data/demoApplicant';
@@ -46,7 +46,18 @@ function stepValidity({ step, form, isAadhaar, classIds, needsMedicalCert, form1
 /** The nine-stage learner's-licence application wizard. */
 export function Apply({ go, state, update }: PageProps) {
   const t = useT();
-  const [step, setStep] = useState(0);
+  /**
+   * The current stage, read from the journey rather than held here.
+   *
+   * Clamped on the way in and out: a stored index is only as trustworthy as the
+   * build that wrote it, and a wizard that has since lost a stage would index
+   * STEPS out of bounds and render nothing at all. Clamping turns the worst
+   * case into "you resume on the last stage" instead of a blank screen.
+   */
+  const stepCount = STEPS.length;
+  const clampStep = (n: number) => Math.min(Math.max(Math.trunc(n) || 0, 0), stepCount - 1);
+  const step = clampStep(state.formStep ?? 0);
+  const setStep = (next: number) => update({ formStep: clampStep(next) });
   const { pending, error, run } = useAction();
   // One key for this attempt at submitting. A dropped connection and a second
   // press reuse it, so the server returns the first application instead of
@@ -107,6 +118,10 @@ export function Apply({ go, state, update }: PageProps) {
         submittedAt: submitted.created_at,
       },
       stage: 'submitted',
+      // Filed. The resume point goes with it, so somebody who starts a second
+      // application is not dropped onto the review stage of the one they just
+      // sent, looking at a Submit button for an application that already exists.
+      formStep: 0,
     });
     go('slip');
   };

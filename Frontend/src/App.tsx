@@ -127,6 +127,7 @@ export default function App() {
   const [infoPanelId, setInfoPanelId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   // Saarthi closed itself to show the sign-in sheet, and wants to come back.
   const [resumeVoice, setResumeVoice] = useState(false);
   const phone = useIdentity();
@@ -276,6 +277,15 @@ export default function App() {
               the sheet lists anyway. The sheet is still reached from the
               footer's "Call 1800 000 000". */}
           <button className="btn btn-p btn-sm" onClick={() => setVoiceOpen(true)}>{Icon.speaker()} {t('Talk to Saarthi', 'सारथी से बात करें')}</button>
+          {/* Everything the bar drops below 860px. It used to drop them into
+              nothing: on a phone the whole top bar was the wordmark and Saarthi,
+              so the desk, the tracker, sign-in and — worst of the four — the
+              language switch had no route at all. A Hindi reader on a phone
+              could not reach Hindi. */}
+          <button className="btn btn-s btn-sm only-m" aria-label={t('Menu', 'मेन्यू')}
+            aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+            {Icon.menu()}
+          </button>
         </div>
       </header>
       <main>
@@ -365,6 +375,69 @@ export default function App() {
             if (resumeVoice) { setResumeVoice(false); setVoiceOpen(true); }
           }}
         />
+      )}
+      {/* The phone's top bar, unfolded. Same controls as the desktop header —
+          not a reduced set — because a control that only exists on a laptop is
+          a control most of this country does not have. Language sits at the top
+          of it for the same reason. */}
+      {menuOpen && (
+        <Sheet title={t('Menu', 'मेन्यू')} onClose={() => setMenuOpen(false)}>
+          <div className="col g20">
+            <div className="col g10">
+              <label className="label" htmlFor="mlang">{t('Language', 'भाषा')}</label>
+              <select className="input" id="mlang" value={lang}
+                onChange={e => setLang(e.target.value as Lang)}>
+                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeLabel}</option>)}
+              </select>
+            </div>
+
+            <div className="col g10">
+              <span className="label" id="mth">{t('Theme', 'थीम')}</span>
+              <div className="seg" role="group" aria-labelledby="mth">
+                <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>{Icon.moon({ width: 14, height: 14 })} {t('Dark', 'डार्क')}</button>
+                <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>{Icon.sun({ width: 14, height: 14 })} {t('Light', 'लाइट')}</button>
+              </div>
+            </div>
+
+            <div className="col g10">
+              <span className="label" id="msz">{t('Text size', 'टेक्स्ट आकार')}</span>
+              <div className="seg" role="group" aria-labelledby="msz">
+                <button onClick={() => setTextSize(Math.max(14, textSize - 1))} aria-label={t('Smaller text', 'छोटा टेक्स्ट')}>A−</button>
+                <button onClick={() => setTextSize(16)} aria-pressed={textSize === 16} aria-label={t('Normal text', 'सामान्य टेक्स्ट')}>A</button>
+                <button onClick={() => setTextSize(Math.min(21, textSize + 1))} aria-label={t('Larger text', 'बड़ा टेक्स्ट')}>A+</button>
+              </div>
+            </div>
+
+            <hr className="hr" />
+
+            <div className="col g10">
+              <span className="label">{t('Go to', 'यहाँ जाएँ')}</span>
+              {([
+                ['elig', t('Check eligibility', 'पात्रता जाँचें')],
+                ['learn', t('Practice', 'अभ्यास')],
+                ['status', t('Track an application', 'आवेदन ट्रैक करें')],
+                ['desk', t('RTO desk', 'आरटीओ डेस्क')],
+                ['proof', t('See the guarantees run', 'गारंटी चलती देखें')],
+                ['learning', t('Where people actually fail', 'लोग असल में कहाँ अटकते हैं')],
+              ] as [Route, string][]).map(([target, label]) => (
+                <button key={target} className="btn btn-s btn-full"
+                  style={{ justifyContent: 'space-between' }}
+                  onClick={() => { setMenuOpen(false); go(target); }}>
+                  {label} {Icon.right()}
+                </button>
+              ))}
+            </div>
+
+            <hr className="hr" />
+
+            <button className="btn btn-p btn-full"
+              onClick={() => { setMenuOpen(false); setIdentityOpen(true); }}>
+              {phone
+                ? <span className="row g6">{Icon.phone()}<span className="mono">{prettyPhone(phone)}</span></span>
+                : t('Sign in', 'साइन इन')}
+            </button>
+          </div>
+        </Sheet>
       )}
       {grievanceOpen && <GrievanceSheet state={state} onClose={() => setGrievanceOpen(false)} />}
       {helpOpen && (
