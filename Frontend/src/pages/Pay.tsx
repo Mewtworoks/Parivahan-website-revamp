@@ -68,7 +68,7 @@ export function Pay({ go, state, update }: PageProps) {
         <hr className="hr" />
         <div className="row between g16"><b style={{ fontSize: '1.1rem' }}>{t('Grand total', 'कुल योग', 'एकूण रक्कम')}</b><b style={{ fontSize: '1.35rem', fontFamily: 'var(--disp)' }}>₹{total}</b></div>
         <span className="tiny">{lang === 'en' ? inWords(total) : inWordsHi(total)}</span>
-        {rows.some(r => r.state) && <Note tone="warn"><b>{t(`${stateName}'s own charges are in this total.`, `${stateName} के अपने शुल्क इस योग में हैं।`, `${stateName}चे स्वतःचे शुल्क या एकूण रकमेत आहेत.`)}</b> {t('You saw them on the classes screen too, not for the first time here. That is the only difference between this page and the official one.', 'आपने इन्हें श्रेणियों वाली स्क्रीन पर भी देखा था, यहां पहली बार नहीं। यही इस पेज और आधिकारिक पेज के बीच का इकलौता अंतर है।', 'तुम्ही हे वर्गांच्या स्क्रीनवरही पाहिले होते, इथे पहिल्यांदा नाही. हाच या पानाचा आणि अधिकृत पानाचा एकमेव फरक आहे.')}</Note>}
+        {rows.some(r => r.state) && <Note tone="warn">{t(`${stateName}'s own charges are in this total.`, `${stateName} के अपने शुल्क इस योग में हैं।`, `${stateName}चे स्वतःचे शुल्क या एकूण रकमेत आहेत.`)} {t('You saw them on the classes screen too, not for the first time here. That is the only difference between this page and the official one.', 'आपने इन्हें श्रेणियों वाली स्क्रीन पर भी देखा था, यहां पहली बार नहीं। यही इस पेज और आधिकारिक पेज के बीच का इकलौता अंतर है।', 'तुम्ही हे वर्गांच्या स्क्रीनवरही पाहिले होते, इथे पहिल्यांदा नाही. हाच या पानाचा आणि अधिकृत पानाचा एकमेव फरक आहे.')}</Note>}
       </div>
       <div className="card card-p col g16" style={{ marginTop: 16 }}>
         {phase === 'pick' ? (

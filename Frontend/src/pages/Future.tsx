@@ -76,7 +76,7 @@ export function Future({ go }: PageProps) {
         </div>
 
         <Note tone="warn">
-          <b>{t('Everything below is invented.', 'नीचे सब कुछ गढ़ा हुआ है।')}</b>{' '}
+          {t('Everything below is invented.', 'नीचे सब कुछ गढ़ा हुआ है।')}{' '}
           {t('It is an example of what this would say, not something it has said. The real counts are on the next page.',
             'यह उदाहरण है कि यह क्या कहती, न कि उसने कुछ कहा है। असली गिनती अगले पन्ने पर है।')}
         </Note>

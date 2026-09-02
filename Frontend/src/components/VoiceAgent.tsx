@@ -466,13 +466,14 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             onMouseLeave={e => { e.currentTarget.open = false; }}
           >
             <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
+            {/* One weight, one paragraph.
+                This was a bold sentence with a lighter one under it, which reads
+                as a headline over body copy — a shape that tells the reader the
+                second half is optional. In a notice about what will never be
+                asked of them, none of it is optional. */}
             <div className="flat disclose-body">
-              <b>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card.',
-                    'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता।')}</b>
-              <p className="tiny" style={{ marginTop: 7 }}>
-                {t('It asks your name, date of birth, state and what you want to drive — that is all. Document checks are simulated in this prototype, and nothing here is a government service. Hindi or English is fine.',
-                  'यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है — बस इतना। इस प्रोटोटाइप में दस्तावेज़ जाँच नकली है, और यह कोई सरकारी सेवा नहीं है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}
-              </p>
+              <p>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card. It asks your name, date of birth, state and what you want to drive. Nothing here is a government service, and document checks are simulated. Hindi or English is fine.',
+                'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता। यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है। यह कोई सरकारी सेवा नहीं है, और दस्तावेज़ जाँच नकली है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}</p>
             </div>
           </details>
         </div>

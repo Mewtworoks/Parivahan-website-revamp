@@ -163,7 +163,7 @@ export type RoadSign = {
   x: number;
   shape: 'tri' | 'circle-red' | 'circle-blue' | 'rect-blue';
   /** Which mark goes inside the face. */
-  glyph?: 'bend-right' | 'narrows' | 'children' | 'no-entry' | 'arrow-left' | 'arrow-up' | 'text';
+  glyph?: 'bend-right' | 'narrows' | 'children' | 'no-entry' | 'arrow-left' | 'arrow-up' | 'text' | 'level-crossing';
   /** For the informatory rectangles, which carry words rather than a symbol. */
   text?: string;
 };
@@ -203,6 +203,14 @@ export interface RoadSpec {
   zebra?: number;
   /** Distance to a painted stop line. */
   stopline?: number;
+  /**
+   * Distance to an unmarked speed breaker.
+   *
+   * Its own feature rather than an actor, because a hump is part of the road
+   * surface — and unmarked is the point of the scenario it exists for, so it is
+   * drawn as a shallow rise in the tarmac with no paint on it whatsoever.
+   */
+  hump?: number;
   signal?: {
     z: number;
     state: 'red' | 'amber' | 'green' | 'flash-amber';
@@ -223,7 +231,7 @@ export interface RoadSpec {
    * rider is drawn alongside and deliberately *not* in the mirror, because not
    * being in the mirror is what a blind spot is.
    */
-  mirror?: ('car' | 'bike' | 'truck')[];
+  mirror?: ('car' | 'bike' | 'truck' | 'ambulance')[];
 }
 
 export interface GameLogEntry {

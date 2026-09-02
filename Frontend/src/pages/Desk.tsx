@@ -133,7 +133,7 @@ export function Desk({ go, state }: PageProps) {
 
       <div style={{ marginTop: 20 }}>
         <Note tone="brand" icon={Icon.bang()}>
-          <b>{t('Why this screen exists.', 'यह स्क्रीन क्यों है।')}</b>{' '}
+          {t('Why this screen exists.', 'यह स्क्रीन क्यों है।')}{' '}
           {t('An applicant can only be told a real wait if somebody is recording what actually happens at the counter. Every "Call next" here is what makes the estimate on their phone true rather than decorative.',
             'आवेदक को वास्तविक इंतज़ार तभी बताया जा सकता है जब काउंटर पर जो हो रहा है वह दर्ज हो। यहाँ हर "अगला बुलाएँ" ही उनके फ़ोन का अनुमान सच बनाता है।')}
         </Note>

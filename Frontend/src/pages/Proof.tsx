@@ -292,7 +292,7 @@ export function Proof({ go }: PageProps) {
             </Verdict>
             {/* Stating the limit is the difference between a demo and a claim. */}
             <Note tone="brand" icon={Icon.bang()}>
-              <b>{t('The honest limit.', 'ईमानदार सीमा।')}</b> {ledger.caveat}
+              {t('The honest limit.', 'ईमानदार सीमा।')} {ledger.caveat}
             </Note>
           </Result>
         )}

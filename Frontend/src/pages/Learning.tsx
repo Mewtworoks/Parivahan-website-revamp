@@ -193,7 +193,7 @@ export function Learning({ go }: PageProps) {
               looks exactly like one drawn over eleven million. Naming the limit
               is the difference between a demonstration and a claim. */}
           <Note>
-            <b>{t('This is prototype traffic.', 'यह प्रोटोटाइप का डेटा है।')}</b>{' '}
+            {t('This is prototype traffic.', 'यह प्रोटोटाइप का डेटा है।')}{' '}
             {t('These counts come from whoever has walked through this build — tens of attempts, not a national dataset. What is being shown is that the measurement is possible and safe, not what the answer turns out to be.',
               'ये गिनतियाँ उन लोगों से आई हैं जिन्होंने यह बिल्ड आज़माया — कुछ दर्जन प्रयास, कोई राष्ट्रीय आँकड़ा नहीं। यहाँ यह दिखाया जा रहा है कि यह माप संभव और सुरक्षित है, न कि यह कि जवाब क्या निकलता है।')}
           </Note>

@@ -1,7 +1,7 @@
 import { Icon } from '../ui/Icon';
 import { Note } from '../ui/SharedUI';
 import type { GameLogEntry, PageProps } from '../types';
-import { SCENARIOS, SKILL_AXES, scoreOf } from './scenarios';
+import { DECISION_LIMIT_MS, FAST_ANSWER_MS, SCENARIOS, SKILL_AXES, scoreOf } from './scenarios';
 
 /**
  * The wrong answers, joined back to the situations they came from.
@@ -54,7 +54,7 @@ function weakestAxisAdvice(axisKey: string, label: string, scorePercent: number)
     : axisKey === 'signal' ? 'Amber is the one that catches people. Treat it as stop unless stopping is unsafe.'
     : axisKey === 'priority' ? 'Revise right of way at unmarked junctions and zebra crossings — traffic from the right, and pedestrians already crossing, go first.'
     : axisKey === 'sign' ? 'Learn the shapes before the pictures: triangle warns, circle orders, rectangle informs.'
-    : 'Your decision times swing widely. The test rewards a steady four seconds per question, not two fast then one frozen.';
+    : `Your decision times swing widely. The test rewards a steady pace inside the ${DECISION_LIMIT_MS / 1000}-second window, not two fast then one frozen.`;
   return `${label} is your weakest axis at ${scorePercent}%. ${advice}`;
 }
 
@@ -91,7 +91,7 @@ export function Report({ go, state, update }: PageProps) {
   if (weakest) notes.push(weakestAxisAdvice(weakest[0], weakest[1], Math.round(scores[weakest[0]]! * 100)));
   if (correctButSlow.length) {
     const avgSlowSeconds = (correctButSlow.reduce((sum, e) => sum + e.ms, 0) / correctButSlow.length / 1000).toFixed(1);
-    notes.push(`You answered ${correctButSlow.length} question${correctButSlow.length > 1 ? 's' : ''} correctly but took over 2.2 seconds — averaging ${avgSlowSeconds}s. Correct and slow is still a hesitation, and in the practical test it is the thing an examiner writes down.`);
+    notes.push(`You answered ${correctButSlow.length} question${correctButSlow.length > 1 ? 's' : ''} correctly but took over ${FAST_ANSWER_MS / 1000} seconds — averaging ${avgSlowSeconds}s. Correct and slow is still a hesitation, and in the practical test it is the thing an examiner writes down.`);
   }
   if (readinessPercent >= 80) notes.push('You are above the pass line on the current bank. Take the mock test, then book the slot.');
 
@@ -108,7 +108,7 @@ export function Report({ go, state, update }: PageProps) {
           <div className="col g4"><span className="sub">Readiness</span>
             <b style={{ fontFamily: 'var(--disp)', fontSize: '3.4rem', lineHeight: 1, letterSpacing: '-.04em' }}>{readinessPercent}%</b>
             <span className="tiny">{readinessPercent >= 80 ? 'Above the pass line' : readinessPercent >= 60 ? 'Borderline — one more round' : 'Not ready yet'}</span></div>
-          <div className="col g4"><span className="sub">Average decision</span><b style={{ fontFamily: 'var(--disp)', fontSize: '1.5rem' }}>{(avgMs / 1000).toFixed(1)}s</b><span className="tiny">of a 4.0s window</span></div>
+          <div className="col g4"><span className="sub">Average decision</span><b style={{ fontFamily: 'var(--disp)', fontSize: '1.5rem' }}>{(avgMs / 1000).toFixed(1)}s</b><span className="tiny">of a {DECISION_LIMIT_MS / 1000}s window</span></div>
           <div className="col g4"><span className="sub">Cleared</span><b style={{ fontFamily: 'var(--disp)', fontSize: '1.5rem' }}>{clearedCount} of {log.length}</b><span className="tiny">situations</span></div>
         </div>
         <hr className="hr" />
@@ -173,7 +173,7 @@ export function Report({ go, state, update }: PageProps) {
               <div className="col g6" style={{ paddingLeft: 30 }}>
                 <div className="row g8" style={{ alignItems: 'flex-start' }}>
                   <span className="tiny mono" style={{ color: 'var(--bad)', flex: 'none', minWidth: 62 }}>{m.chose === null ? 'no answer' : 'you said'}</span>
-                  <span className="sub" style={{ color: 'var(--bad)' }}>{m.chose === null ? (m.entry.to ? 'The four seconds ran out.' : 'Not recorded — this round predates answer logging.') : m.chose}</span>
+                  <span className="sub" style={{ color: 'var(--bad)' }}>{m.chose === null ? (m.entry.to ? `The ${DECISION_LIMIT_MS / 1000} seconds ran out.` : 'Not recorded — this round predates answer logging.') : m.chose}</span>
                 </div>
                 <div className="row g8" style={{ alignItems: 'flex-start' }}>
                   <span className="tiny mono" style={{ color: 'var(--ok)', flex: 'none', minWidth: 62 }}>correct</span>
@@ -188,12 +188,12 @@ export function Report({ go, state, update }: PageProps) {
       )}
 
       {mistakes.length === 0 && (
-        <div style={{ marginTop: 16 }}><Note tone="brand"><b>Nothing wrong to revise.</b> Every situation in this round was answered correctly.</Note></div>
+        <div style={{ marginTop: 16 }}><Note tone="brand">Nothing wrong to revise. Every situation in this round was answered correctly.</Note></div>
       )}
 
       {weakest && (
         <div style={{ marginTop: 16 }}>
-          <Note tone="brand"><b>Next round adapts.</b> Because {weakest[1].toLowerCase()} scored lowest, the engine will weight the next eight situations towards it instead of reshuffling the same twelve.</Note>
+          <Note tone="brand">Next round adapts. Because {weakest[1].toLowerCase()} scored lowest, the engine will weight the next eight situations towards it instead of reshuffling the same twelve.</Note>
         </div>
       )}
       <div className="sticky-cta"><div className="row g12 wrapf">

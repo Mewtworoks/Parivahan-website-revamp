@@ -114,13 +114,10 @@ function StatePicker({ current, onPick, onSkip }: {
           onMouseLeave={e => { e.currentTarget.open = false; }}
         >
           <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
+          {/* One weight, one paragraph — see the note on Saarthi's disclaimer. */}
           <div className="flat disclose-body">
-            <b>{t('Only Maharashtra and Bihar have real data behind them.',
-              'सिर्फ़ महाराष्ट्र और बिहार के पीछे असली डेटा है।')}</b>
-            <p className="tiny" style={{ marginTop: 7 }}>
-              {t('Those two have their own offices, live queues and state charges. The rest of the list is the official portal\'s, and falls back to the Maharashtra offices — marked "Sample" so you know which is which before you pick.',
-                'उन दोनों के अपने कार्यालय, लाइव कतारें और राज्य शुल्क हैं। बाकी सूची आधिकारिक पोर्टल की है, और महाराष्ट्र के कार्यालयों पर लौट आती है — चुनने से पहले ही पता चले, इसलिए उन्हें "नमूना" लिखा गया है।')}
-            </p>
+            <p>{t('Only Maharashtra and Bihar have real data behind them: their own offices, live queues and state charges. The rest of the list is the official portal\'s and falls back to the Maharashtra offices, marked "Sample" so you know which is which before you pick.',
+              'सिर्फ़ महाराष्ट्र और बिहार के पीछे असली डेटा है: उनके अपने कार्यालय, लाइव कतारें और राज्य शुल्क। बाकी सूची आधिकारिक पोर्टल की है और महाराष्ट्र के कार्यालयों पर लौट आती है, जिन पर "नमूना" लिखा है ताकि चुनने से पहले पता चले।')}</p>
           </div>
         </details>
       </div>

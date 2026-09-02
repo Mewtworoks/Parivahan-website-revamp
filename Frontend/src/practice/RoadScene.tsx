@@ -123,6 +123,21 @@ function glyphChildren(g: CanvasRenderingContext2D, cx: number, cy: number, r: n
   g.beginPath(); g.arc(cx + r * 0.28, cy - r * 0.34, Math.max(1, r * 0.17), 0, Math.PI * 2); g.fill();
 }
 
+/**
+ * The St Andrew's cross of an unguarded level crossing. Drawn as the cross alone
+ * rather than a train pictograph, because the cross is what is actually bolted
+ * to the post at an Indian unmanned crossing and it is what a learner has to
+ * recognise from a distance.
+ */
+function glyphLevelCrossing(g: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  g.strokeStyle = '#1b1d21';
+  g.lineWidth = Math.max(1, r * 0.26);
+  g.beginPath();
+  g.moveTo(cx - r * 0.6, cy - r * 0.55); g.lineTo(cx + r * 0.6, cy + r * 0.55);
+  g.moveTo(cx + r * 0.6, cy - r * 0.55); g.lineTo(cx - r * 0.6, cy + r * 0.55);
+  g.stroke();
+}
+
 function glyphArrow(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, dir: 'up' | 'left', color: string) {
   g.fillStyle = color;
   const t = Math.max(1, r * 0.28);
@@ -171,6 +186,7 @@ function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
     if (s.glyph === 'bend-right') glyphBendRight(ctx, cx, gc, r * 0.5);
     else if (s.glyph === 'narrows') glyphNarrows(ctx, cx, gc, r * 0.5);
     else if (s.glyph === 'children') glyphChildren(ctx, cx, gc, r * 0.5);
+    else if (s.glyph === 'level-crossing') glyphLevelCrossing(ctx, cx, gc, r * 0.55);
   } else if (s.shape === 'circle-red') {
     const r = size * 0.56;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -323,9 +339,26 @@ function actorZ(a: RoadActor, travelled: number) {
   return Math.max(MIN_GAP, a.z - travelled * rate);
 }
 
+/**
+ * How far a crossing vehicle has come along the side road.
+ *
+ * "A car arrives from your right at the same moment" is the question, and the
+ * first version drew it parked out on the verge and left it there: nothing in
+ * the scene arrived, so the one word the whole priority rule turns on was
+ * carried by the text alone. It now closes on the junction and stops at the near
+ * edge of your carriageway, which is where a car actually claiming priority
+ * would be.
+ */
+function lateralX(a: RoadActor, travelled: number) {
+  if (!a.lateral) return a.x;
+  const stopAt = 3.6;
+  const room = Math.max(0, Math.abs(a.x) - stopAt);
+  return a.x - Math.sign(a.x) * Math.min(room, travelled * 0.44);
+}
+
 function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: number, night: boolean, time: number) {
   const z = actorZ(a, travelled);
-  const { sx, sy, scale } = project(a.x, z);
+  const { sx, sy, scale } = project(lateralX(a, travelled), z);
   if (scale < 2.2 || z > DRAW_Z) return;
   const f = haze(z);
   const sky = night ? NIGHT_LOW : SKY_LOW;
@@ -391,7 +424,46 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
     car: [1.7, 1.15], van: [1.9, 1.7], bus: [2.4, 2.5], truck: [2.5, 2.1], bike: [0.7, 1.1],
   };
   const [dw, dh] = dims[a.kind] || [1.7, 1.15];
-  const w = Math.max(3, scale * dw * (a.lateral ? 1.8 : 1));
+
+  if (a.lateral) {
+    // Side profile. Everything below this point draws the back of a vehicle —
+    // window in the middle, tail lamps at the corners — and that code was
+    // skipped entirely for a crossing vehicle, which is why the car from the
+    // right came out as a plain beige rectangle. A vehicle seen side-on is a
+    // different object: long, low, with wheels under it and a cabin set back.
+    const lw = Math.max(6, scale * dw * 2.1);
+    const lh = Math.max(3, scale * dh * 0.72);
+    const lx = Math.round(sx - lw / 2);
+    const ly = Math.round(sy - lh);
+    // Facing: something from the right is travelling leftward, so its nose is on
+    // the left. The direction it is pointing is the whole of what makes it read
+    // as crossing rather than parked.
+    const nose = a.x > 0 ? -1 : 1;
+
+    shadow(lw);
+    ctx.fillStyle = mix('#1c1c1f', sky, f);
+    const wr = Math.max(1, lh * 0.3);
+    ctx.fillRect(Math.round(lx + lw * 0.16), Math.round(sy - wr), Math.round(wr * 1.6), Math.round(wr));
+    ctx.fillRect(Math.round(lx + lw * 0.68), Math.round(sy - wr), Math.round(wr * 1.6), Math.round(wr));
+
+    ctx.fillStyle = body;
+    ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), Math.round(lh * 0.62));
+    // Cabin, set back from the nose so the silhouette has a direction.
+    const cabX = nose < 0 ? lx + lw * 0.3 : lx + lw * 0.16;
+    ctx.fillRect(Math.round(cabX), ly, Math.round(lw * 0.52), Math.round(lh * 0.4));
+    ctx.fillStyle = `rgba(255,255,255,${0.16 * (1 - f)})`;
+    ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), 1);
+    // Glass along the cabin.
+    ctx.fillStyle = `rgba(30,40,48,${0.5 * (1 - f)})`;
+    ctx.fillRect(Math.round(cabX + lw * 0.05), ly + Math.round(lh * 0.08), Math.round(lw * 0.42), Math.round(lh * 0.24));
+    // One lamp at the leading end, so which way it is going is unambiguous.
+    ctx.fillStyle = mix('#e8e3cf', sky, f);
+    const lampX = nose < 0 ? lx + 1 : lx + lw - Math.max(1, lw * 0.06) - 1;
+    ctx.fillRect(Math.round(lampX), ly + Math.round(lh * 0.5), Math.max(1, Math.round(lw * 0.06)), Math.max(1, Math.round(lh * 0.18)));
+    return;
+  }
+
+  const w = Math.max(3, scale * dw);
   const h = Math.max(3, scale * dh);
   const left = Math.round(sx - w / 2);
   const top = Math.round(sy - h);
@@ -405,7 +477,7 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
   ctx.fillStyle = `rgba(255,255,255,${0.16 * (1 - f)})`;
   ctx.fillRect(left, top, Math.round(w), 1);
 
-  if (!a.lateral) {
+  {
     ctx.fillStyle = `rgba(30,40,48,${0.55 * (1 - f)})`;
     ctx.fillRect(left + Math.round(w * 0.15), top + Math.round(h * 0.12), Math.round(w * 0.7), Math.round(h * 0.3));
     if (a.oncoming) {
@@ -545,7 +617,35 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       const night = !!s.night;
       const skyLow = night ? NIGHT_LOW : SKY_LOW;
       const skyTop = night ? NIGHT_TOP : SKY_TOP;
-      const eased = 1 - (1 - Math.min(1, Math.max(0, progressRef.current))) ** 2;
+      // Cubic rather than quadratic ease-out. Over a thirty-second window the
+      // distances involved are small — a hazard twenty metres off leaves about
+      // twelve metres to cover — and spreading twelve metres evenly across half
+      // a minute is motion too slow to register as motion. Cubic puts most of it
+      // in the opening seconds, where it reads as approach, and lets the last
+      // couple of metres take the rest of the window as the car settles to a
+      // stop at the decision point.
+      const eased = 1 - (1 - Math.min(1, Math.max(0, progressRef.current))) ** 3;
+
+      // How far the learner may travel across the whole decision window.
+      //
+      // Not a distance picked by hand: it is solved so that the nearest thing
+      // closing on the camera arrives at MIN_GAP exactly as the countdown
+      // expires. The situation therefore develops across the entire window and
+      // comes to rest at the final moment, waiting for the answer — rather than
+      // resolving in the first two seconds and leaving a still picture on screen
+      // for the remaining twenty-eight, which is what a fixed distance produced
+      // once the window went to thirty seconds.
+      //
+      // Everything ground-fixed is a candidate, not just actors: a junction or a
+      // stop line arriving under the car would be as wrong as driving into a cow.
+      let reach = Infinity;
+      const consider = (z0: number, rate: number) => { if (rate > 0) reach = Math.min(reach, (z0 - MIN_GAP) / rate); };
+      (s.actors || []).forEach(a => consider(a.z, a.oncoming ? 2 : a.withTraffic ? 0 : 1));
+      (s.signs || []).forEach(g => consider(g.z, 1));
+      if (s.signal) consider(s.signal.z, 1);
+      [s.junction, s.zebra, s.stopline, s.hump].forEach(z => { if (z !== undefined) consider(z, 1); });
+      // An empty stretch of road has nothing to arrive at, so it just moves.
+      if (!isFinite(reach)) reach = 30;
 
       // One clock for the whole scene.
       //
@@ -557,12 +657,16 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       // scenario says you are stopped at a red light then nothing moves at all.
       //
       // Distance is a function of the countdown, not of the wall clock: the
-      // situation advances as the decision window burns down and freezes when the
-      // answer lands. 26 was also simply too fast — a whole dash every sixth of
-      // a second. `speed * 1.4` covers about fifteen metres across four seconds
-      // at 40km/h, which reads as approaching rather than as a chase.
+      // situation advances as the decision window burns down and freezes the
+      // moment the answer lands.
+      //
+      // The easing is doing real work here. `1-(1-p)²` decelerates, so the scene
+      // closes quickly at first and slows as it arrives — which on a road reads
+      // as braking, and puts the car at a standstill at the same instant the
+      // time runs out. `speed: 0` scenarios never move at all: you are already
+      // stopped at the light, and the light is the question.
       const speed = s.speed ?? 11;
-      const travelled = eased * speed * 1.4;
+      const travelled = speed === 0 ? 0 : eased * reach;
       const scroll = travelled;
 
       // Painted markings and roadside structures are as fixed to the ground as a
@@ -574,6 +678,7 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       const jz = adv(s.junction);
       const zz = adv(s.zebra);
       const sz = adv(s.stopline);
+      const hz = adv(s.hump);
 
       // Two flat sky bands. A 180px canvas upscaled 3x steps a smooth gradient
       // anyway, so it is better to choose where the step falls.
@@ -677,6 +782,17 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
           }
         }
 
+        // An unmarked speed breaker: a shallow rise in the tarmac and nothing
+        // else. Lightened on the near face and darkened just past the crown,
+        // which is the whole of how a hump reads from a car — and deliberately
+        // without a stripe of paint on it, because "no warning and no paint" is
+        // the situation being tested.
+        if (hz !== undefined && Math.abs(z - hz) < 1.5) {
+          const t = (z - hz) / 1.5;
+          ctx.fillStyle = mix(t < 0 ? '#6d727a' : '#2f343b', skyLow, f * 0.8);
+          ctx.fillRect(Math.round(cx - halfW), y, Math.round(halfW * 2), 1);
+        }
+
         // Stop line: solid, and thicker than a lane marking.
         if (sz !== undefined && Math.abs(z - sz) < 0.55) {
           ctx.fillStyle = mix('#efece1', skyLow, f * 0.85);
@@ -741,14 +857,23 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
         ctx.fillRect(mx, my, 9, mh);
         ctx.fillRect(mx + mw - 9, my, 9, mh);
         s.mirror.forEach((kind, i) => {
-          const bw = kind === 'bike' ? 7 : kind === 'truck' ? 22 : 16;
-          const bh = kind === 'bike' ? 11 : kind === 'truck' ? 15 : 10;
+          const bw = kind === 'bike' ? 7 : kind === 'truck' ? 22 : kind === 'ambulance' ? 19 : 16;
+          const bh = kind === 'bike' ? 11 : kind === 'truck' ? 15 : kind === 'ambulance' ? 14 : 10;
           const bx = Math.round(mx + mw / 2 - bw / 2 + (i - (s.mirror!.length - 1) / 2) * (bw + 6));
           const by = my + mh - bh - 1;
-          ctx.fillStyle = kind === 'bike' ? '#3d6f52' : '#b9b2a0';
+          ctx.fillStyle = kind === 'bike' ? '#3d6f52' : kind === 'ambulance' ? '#eceadf' : '#b9b2a0';
           ctx.fillRect(bx, by, bw, bh);
           ctx.fillStyle = 'rgba(30,40,48,0.55)';
           ctx.fillRect(bx + 1, by + 1, bw - 2, Math.max(1, Math.round(bh * 0.4)));
+          if (kind === 'ambulance') {
+            // A red stripe and a beacon that actually flashes. A still ambulance
+            // in a mirror is just a white van, and the question is about the one
+            // behind you with its siren on.
+            ctx.fillStyle = '#c8382a';
+            ctx.fillRect(bx, by + Math.round(bh * 0.55), bw, 2);
+            ctx.fillStyle = Math.sin(time * 9) > 0 ? '#e8483a' : '#3a5f8a';
+            ctx.fillRect(bx + Math.round(bw * 0.3), by - 2, Math.round(bw * 0.4), 2);
+          }
           if (kind === 'bike') {
             // A rider's head, so a two-wheeler in the mirror is a person.
             ctx.fillStyle = '#2b2f36';

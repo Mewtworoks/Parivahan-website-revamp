@@ -161,9 +161,9 @@ export function Status({ go, state, update }: PageProps) {
               </div>
             </div>
             {application.booking && (
-              <Note tone="brand" icon={Icon.pin()}><b>{t('Appointment held', 'अपॉइंटमेंट तय')}:</b> {application.booking.label}, {application.booking.time} · {rtoName}</Note>
+              <Note tone="brand" icon={Icon.pin()}>{t('Appointment held', 'अपॉइंटमेंट तय')}: {application.booking.label}, {application.booking.time} · {rtoName}</Note>
             )}
-            {isAadhaar && <Note tone="ok" icon={Icon.check()}><b>{t('Submitted for contactless service.', 'संपर्क रहित सेवा के लिए जमा किया गया।', 'संपर्करहित सेवेसाठी सादर केले.')}</b> {t('No visit to the RTO office is needed for this application.', 'इस आवेदन के लिए आरटीओ कार्यालय जाने की ज़रूरत नहीं है।', 'या अर्जासाठी आरटीओ कार्यालयात जाण्याची गरज नाही.')}</Note>}
+            {isAadhaar && <Note tone="ok" icon={Icon.check()}>{t('Submitted for contactless service.', 'संपर्क रहित सेवा के लिए जमा किया गया।', 'संपर्करहित सेवेसाठी सादर केले.')} {t('No visit to the RTO office is needed for this application.', 'इस आवेदन के लिए आरटीओ कार्यालय जाने की ज़रूरत नहीं है।', 'या अर्जासाठी आरटीओ कार्यालयात जाण्याची गरज नाही.')}</Note>}
             <hr className="hr" />
             <DocLinks />
           </div>

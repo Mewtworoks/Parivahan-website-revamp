@@ -471,7 +471,12 @@ export default function App() {
       {helpOpen && (
         <Sheet title={t('Need help?', 'सहायता चाहिए?', 'मदत हवी आहे?')} onClose={() => setHelpOpen(false)}>
           <div className="col g20">
-            <Note tone="brand" icon={Icon.phone()}><b>Call 1800 000 000</b><br />Free, 8 am to 8 pm, in Marathi, Hindi and English. Say your application number and the person who answers can see the same screen you do.</Note>
+            {/* One notice instead of two. This sheet opened with a brand note
+                about the helpline and closed with a second note saying the
+                helpline was illustrative — a claim and its retraction, eight
+                lines apart, with the FAQ sandwiched between them. Said once, in
+                one weight, the caveat lands where the number does. */}
+            <Note tone="brand" icon={Icon.phone()}>Call 1800 000 000 — free, 8 am to 8 pm, in Marathi, Hindi or English. The number and the answers below are illustrative: this is a prototype, not a running helpline.</Note>
             <div className="col g12">
               <h3>{t('Common questions', 'सामान्य प्रश्न', 'सामान्य प्रश्न')}</h3>
               {HELP_FAQ.map(([question, answer]) => (
@@ -481,7 +486,6 @@ export default function App() {
                 </details>
               ))}
             </div>
-            <Note>Prototype. The helpline number and answers are illustrative.</Note>
           </div>
         </Sheet>
       )}

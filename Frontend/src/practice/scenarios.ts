@@ -119,11 +119,6 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['Green is mine, continue at speed', 'Stop and let the pedestrian cross', 'Swerve into the next lane'], c: 1, axes: ['priority', 'hazard'],
     ex: 'A pedestrian on a zebra crossing has right of way regardless of your signal. Green permits movement, it does not remove the duty of care.',
     cite: 'MV Act s.138 · pedestrian right of way' },
-  { id: 'H1', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['van', 7, 2.6, '#c9cdd3'], ['car', 3, 6.5, '#3f7ec9'], ['child', 8, 5, '#c8452f', undefined, undefined, 'cross']],
-    q: 'A van is parked on your left. You cannot see the footpath behind it. You are doing 45 km/h.',
-    a: ['Maintain speed, you have a clear lane', 'Slow to a walking pace and cover the brake', 'Hold the horn down and pass'], c: 1, axes: ['hazard'],
-    ex: 'A stationary vehicle blocking your view of a footpath is the classic hidden hazard. The correct response is speed reduction before you can see the danger, not after.',
-    cite: 'Defensive driving · developing hazard, DVSA model' },
   { id: 'H2', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['cow', 11, 3.5], ['car', 4, 6.5, '#3f7ec9']],
     q: 'Cattle are standing in your lane on a two-lane road with oncoming traffic.',
     a: ['Overtake using the oncoming lane', 'Stop or crawl until it is safe to pass wide', 'Drive close and use the horn to move them'], c: 1, axes: ['hazard', 'priority'],
@@ -184,11 +179,6 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['It is a warning — slow down ahead', 'It is a prohibition — a manoeuvre is banned here', "It is informatory — it's telling you something, not ordering you"], c: 2, axes: ['sign'],
     ex: 'Rectangular signs are informatory: distances, place names, facilities. They inform, they don\'t warn or prohibit — that is what triangles and circles are for.',
     cite: 'IRC:67 · informatory signs' },
-  { id: 'G6', lvl: 'signs', vehicle: 'any', map: T_TEE, art: [['signc', 14, 1, null, '#2f6fb0'], ['car', 9.5, 9, '#3f7ec9', undefined, 'v']],
-    q: 'A circular sign with a blue background and a white arrow.',
-    a: ['A warning to slow down', 'A mandatory direction — you must go that way', 'Just a decoration, no legal meaning'], c: 1, axes: ['sign'],
-    ex: 'Blue circular signs are mandatory — they instruct you to do something, like a compulsory direction. Red circular signs prohibit; blue ones order.',
-    cite: 'IRC:67 · mandatory signs' },
   { id: 'S7', lvl: 'signals', vehicle: 'any', map: T_JUNC, art: [['signal', 12, 4, null, '#5c9a5c'], ['car', 9, 7.5, '#3f7ec9']],
     q: "The main signal is red, but a green arrow board beside it reads 'Free Left'.",
     a: ['Wait for the main signal to turn green', 'You may turn left with care, watching for pedestrians and other traffic', 'The arrow board is decorative and has no meaning'], c: 1, axes: ['signal', 'priority'],
@@ -214,11 +204,6 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ["It's a warning of a one-way street ahead", 'It is mandatory — this is a one-way street, travel only in the direction shown', "It's purely decorative"], c: 1, axes: ['sign'],
     ex: 'A blue rectangular arrow sign for a one-way street is mandatory — travel is only permitted in the direction the arrow shows.',
     cite: 'IRC:67 · one-way mandatory sign' },
-  { id: 'G8', lvl: 'signs', vehicle: 'any', map: T_TEE, art: [['sign', 5, 7, null, '#c8452f'], ['car', 9.5, 10, '#3f7ec9', undefined, 'v']],
-    q: 'A triangular sign, red border, showing two arrows squeezing together.',
-    a: ['Road narrows ahead — cautionary, ease off and watch for oncoming traffic', 'Road closed ahead — turn back', 'Two-way traffic starts here — mandatory'], c: 0, axes: ['sign', 'hazard'],
-    ex: 'Triangular signs are cautionary. A narrowing-road pictograph warns the carriageway ahead is tighter than usual, often at a bridge — reduce speed and give way if needed.',
-    cite: 'IRC:67 · road-narrows caution' },
   { id: 'G9', lvl: 'signs', vehicle: 'bike', map: T_ROAD, art: [['bike', 9, 6.5, '#3f7ec9']],
     q: "You're about to ride off with a friend riding pillion. Your friend has no helmet.",
     a: ['Ride anyway — only the rider needs a helmet', 'Both rider and pillion must wear a helmet — get your friend one first', 'Helmets are optional under 40 km/h'], c: 1, axes: ['sign'],
@@ -244,6 +229,41 @@ export const SCENARIOS: PracticeScenario[] = [
     a: ['That is enough — signalling is the only requirement', 'Check your mirror and blind spot before turning, not just signal', "Turning without signalling is fine if the road looks empty"], c: 1, axes: ['hazard', 'consistency'],
     ex: "A signal alone doesn't check for a vehicle already overtaking you. Mirror-check every time before actually committing to the turn, signal or not.",
     cite: 'Defensive riding · mirror check before committing' },
+  // --- added: situations specific to how Indian roads actually behave --------
+  // The bank was written around signal states and sign classification, which is
+  // what a question paper tests. These six are what the road tests: the hazards
+  // a learner here will meet in their first week and that no European-derived
+  // syllabus covers.
+  { id: 'S9', lvl: 'signals', vehicle: 'any', map: T_JUNC, art: [['car', 9, 7.5, '#3f7ec9'], ['sign', 5, 4, null, '#c8452f']],
+    q: 'An unmanned level crossing ahead. The track looks clear as far as you can see.',
+    a: ['Cross without stopping — you can see the track is clear', 'Stop, look both ways, and cross only when certain', 'Sound the horn and cross quickly'], c: 1, axes: ['priority', 'hazard'],
+    ex: 'At an unguarded crossing the law requires you to stop and make sure, every time. Seeing a clear track is not the same as knowing it is clear — a train covers the distance you can see in less time than it takes to cross.',
+    cite: 'MV Act s.131 · duty at an unguarded level crossing' },
+  { id: 'S10', lvl: 'signals', vehicle: 'any', map: T_ROAD, art: [['car', 9, 7.5, '#3f7ec9'], ['car', 9, 11, '#e8e4d8']],
+    q: 'An ambulance is behind you with its siren on. Traffic is heavy.',
+    a: ['Hold your position — it will find its own way past', 'Move left as soon as there is space and let it through', 'Speed up to stay ahead and clear the road for it'], c: 1, axes: ['priority', 'consistency'],
+    ex: 'Failing to give way to an emergency vehicle is its own offence. Speeding up is not giving way — it moves the obstruction further down the road and arrives with it.',
+    cite: 'MV Act s.194E · failure to give way to emergency vehicles' },
+  { id: 'H11', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['car', 6, 7.5, '#3f7ec9'], ['bike', 11, 5.5, '#c8452f', undefined, 'h', 'back']],
+    q: 'On a divided road, a two-wheeler is riding straight towards you on your side of the divider.',
+    a: ['Hold your lane and flash your lights — you have right of way', 'Slow, keep left, and give them room to get past', 'Accelerate to clear the stretch before they reach you'], c: 1, axes: ['hazard', 'consistency'],
+    ex: 'Being in the right does not stop a collision. Wrong-side riding is common where the next legal turn is far away; the only safe answer is to slow and open space, even though you are not the one at fault.',
+    cite: 'Rules of the Road Regulations 1989, r.2 · keep left' },
+  { id: 'H12', lvl: 'hazards', vehicle: 'car', map: T_ROAD, art: [['car', 9, 7.5, '#3f7ec9']],
+    q: 'An unmarked speed breaker appears in your lane with no warning sign and no paint.',
+    a: ['Keep your speed — braking on a hump is worse than riding over it', 'Brake before it, cross slowly, accelerate after', 'Swing onto the shoulder to go around it'], c: 1, axes: ['hazard'],
+    ex: 'Unmarked humps are everywhere and are a leading cause of two-wheeler falls. Brake before the hump rather than on it, and never use the unpaved shoulder to avoid one — that is where the loose gravel and the pedestrians are.',
+    cite: 'IRC:99 · speed breakers, marking and approach' },
+  { id: 'G12', lvl: 'signs', vehicle: 'any', map: T_ROAD, art: [['car', 9, 7.5, '#3f7ec9'], ['van', 9, 4, '#c9c2ae']],
+    q: 'The vehicle ahead is slow. There is space to pass on its left and on its right.',
+    a: ['Pass on the left — the gap is shorter', 'Pass on the right, unless that vehicle has signalled a right turn', 'Either side is legal on a two-lane road'], c: 1, axes: ['priority', 'consistency'],
+    ex: 'Overtaking is done on the right. The single exception is a vehicle that has signalled and is turning right, which you may then pass on its left — undertaking anything else is both illegal and where the two-wheelers are.',
+    cite: 'Rules of the Road Regulations 1989, r.6 · overtaking' },
+  { id: 'G13', lvl: 'signs', vehicle: 'bike', map: T_ROAD, art: [['bike', 9, 7.5, '#3f7ec9']],
+    q: 'Your phone rings while you are riding. It is clipped into a holder on the handlebar.',
+    a: ['Answer it — in a holder it counts as hands-free', 'Do not use it while moving; stop somewhere safe first', 'Answer, but only while keeping one hand on the bar'], c: 1, axes: ['consistency'],
+    ex: 'A phone in a bar clip is still a phone: the offence is the distraction, not the hand. On a two-wheeler there is no cabin to absorb the second you were not looking.',
+    cite: 'MV Act s.184 · dangerous driving, incl. handheld devices' },
 ];
 
 export type VehicleFocus = 'car' | 'bike' | 'both';
@@ -337,12 +357,10 @@ export const ROAD_SPECS: Record<string, RoadSpec> = {
   },
 
   // --- hazards -------------------------------------------------------------
-  // The van is the hazard because of what it hides, so it sits close to the kerb
-  // with nothing visible behind it. Nothing is drawn in the gap: the point is
-  // that the player cannot see, and inventing a pedestrian there would answer
-  // the question before it was asked.
-  H1: { speed: 12.5, actors: [{ kind: 'van', x: -3.7, z: 17 }] },
-  H2: { speed: 11,
+  // Cattle standing in your lane with something coming the other way, so the
+  // easy answer — go round them — is the one the oncoming car closes off.
+  H2: {
+    speed: 11,
     actors: [
       { kind: 'cow', x: 1.5, z: 21 }, { kind: 'cow', x: 3.1, z: 24.5 },
       { kind: 'car', x: -2.7, z: 36, oncoming: true },
@@ -406,13 +424,43 @@ export const ROAD_SPECS: Record<string, RoadSpec> = {
   G3: { speed: 0, player: 'bike' },
   G4: { speed: 13, centre: 'solid' },
   G5: { speed: 13, signs: [{ z: 21, x: -6.8, shape: 'rect-blue', glyph: 'text' }] },
-  G6: { speed: 12, signs: [{ z: 19, x: -6.6, shape: 'circle-blue', glyph: 'arrow-left' }] },
   G7: { speed: 12, signs: [{ z: 20, x: -6.6, shape: 'rect-blue', glyph: 'arrow-up' }] },
-  G8: { speed: 12, signs: [{ z: 20, x: -6.6, shape: 'tri', glyph: 'narrows' }] },
   // The pillion's bare head is the answer, so it is drawn as a bare head.
   G9: { speed: 0, player: 'bike', pillion: 'nohelmet' },
   G10: { speed: 0, player: 'bike', pillion: 'three' },
   G11: { speed: 0, player: 'bike' },
+
+  // --- added with the six India-specific situations ------------------------
+  // The unguarded crossing: the cross on the post, and the track itself drawn
+  // as the junction feature so there is something to stop short of.
+  S9: {
+    speed: 9, junction: 24, centre: 'dash',
+    signs: [{ z: 27, x: -6.6, shape: 'tri', glyph: 'level-crossing' }],
+  },
+  // The ambulance is behind, so it is in the mirror and nowhere else. Putting it
+  // in front of the camera would answer a different question.
+  S10: {
+    speed: 8,
+    actors: [{ kind: 'car', x: 0.4, z: 18, withTraffic: true }],
+    mirror: ['ambulance'],
+  },
+  // Wrong-side rider, head-on, in your lane. `oncoming` closes it at double, so
+  // the whole point — that this resolves faster than you expect — is in the
+  // motion rather than only in the text.
+  H11: {
+    speed: 11,
+    actors: [{ kind: 'bike', x: 1.9, z: 34, oncoming: true, body: '#c8382a' }],
+  },
+  // No sign, no paint, no warning: the hump and nothing else.
+  H12: { speed: 12, hump: 21 },
+  // Something slow ahead with room on both sides, which is the question.
+  G12: {
+    speed: 11,
+    actors: [{ kind: 'van', x: 0.2, z: 19, withTraffic: true }],
+  },
+  // A phone question. Nothing on the road, because nothing on the road is the
+  // point — the hazard is inside the helmet.
+  G13: { speed: 0, player: 'bike' },
 };
 
 /** The scenario bank filtered to what's relevant for the given vehicle focus ('any'-tagged rules always included). */
@@ -425,9 +473,22 @@ export const SKILL_AXES: [key: string, label: string][] = [
   ['signal', 'Signal compliance'], ['priority', 'Right of way'], ['sign', 'Sign recognition'], ['hazard', 'Hazard anticipation'], ['consistency', 'Decision consistency'],
 ];
 
-/** Decision window per question (ms), and the threshold under which an answer counts as "fast". */
-export const DECISION_LIMIT_MS = 12000;
-export const FAST_ANSWER_MS = 6000;
+/**
+ * Decision window per question (ms), and the threshold under which an answer
+ * counts as "fast".
+ *
+ * Thirty seconds is a reading window rather than a reflex one, which is the
+ * right shape for what these questions actually are: a scene to look at, a
+ * sentence of context, and three options to weigh. The old twelve rewarded
+ * recognising a question you had already seen.
+ *
+ * Everything that renders a duration derives it from these two — the report
+ * card had "of a 4.0s window" and "over 2.2 seconds" written into it as text,
+ * which had already been wrong since the window went from four seconds to
+ * twelve, and would have gone wrong again here.
+ */
+export const DECISION_LIMIT_MS = 30000;
+export const FAST_ANSWER_MS = 12000;
 
 /** Scores each of the five skill axes from a played round's answer log, 0-1 (or null if the axis wasn't tested). */
 export function scoreOf(log: GameLogEntry[]): Record<string, number | null> {

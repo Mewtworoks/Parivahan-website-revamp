@@ -93,7 +93,7 @@ export function Test({ go, state, update }: PageProps) {
             saying which screen it was. */}
         <div className="col g16">
           <h1>{t("Learner's theory test", 'लर्नर थ्योरी टेस्ट')}</h1>
-          <Note tone="warn"><b>{t('The test cannot start.', 'टेस्ट शुरू नहीं हो सका।')}</b>{' '}
+          <Note tone="warn">{t('The test cannot start.', 'टेस्ट शुरू नहीं हो सका।')}{' '}
             {api.isOffline(error)
               ? t('The licence service is not responding. Your application is unaffected — the test can be taken when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही। आपके आवेदन पर कोई असर नहीं — सेवा वापस आने पर टेस्ट दिया जा सकता है।')
               : error.message}</Note>
@@ -173,7 +173,7 @@ export function Test({ go, state, update }: PageProps) {
         {feedback && (
           <div className="fade col g14">
             <Note tone={feedback.correct ? 'ok' : 'warn'} icon={feedback.correct ? Icon.check() : undefined}>
-              <b>{feedback.correct ? t('Correct.', 'सही।', 'बरोबर.') : t('Not quite.', 'बिल्कुल नहीं।', 'अगदी बरोबर नाही.')}</b> {feedback.explanation}
+              {feedback.correct ? t('Correct.', 'सही।', 'बरोबर.') : t('Not quite.', 'बिल्कुल नहीं।', 'अगदी बरोबर नाही.')} {feedback.explanation}
               {feedback.mv_act_ref && <><br /><span className="tiny mono">{feedback.mv_act_ref}</span></>}
             </Note>
             <div className="row between g12 wrapf">

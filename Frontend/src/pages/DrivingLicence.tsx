@@ -141,7 +141,7 @@ export function DrivingLicence({ go, state }: PageProps) {
               <dt>Classes on it</dt><dd>{baseClassIds.map(id => CLASSES.find(c => c.id === id)!.code).join(', ')}</dd>
               <dt>Issued</dt><dd>21 Aug 2026</dd><dt>You may apply between</dt><dd>20 Sep 2026 and 17 Feb 2027</dd></dl>
             <div className="col g8"><div className="row between"><span className="sub">Mandatory waiting period</span><span className="sub">Day 1 of 30</span></div><div className="pbar"><i style={{ width: '4%' }} /></div></div>
-            <Note tone="brand" icon={Icon.clock()}><b>We will message you on 20 Sep 2026</b> with a draft Form 4 already filled from this licence. The window closes on 17 Feb 2027, after which the learner's licence lapses and you start again.</Note>
+            <Note tone="brand" icon={Icon.clock()}>We will message you on 20 Sep 2026 with a draft Form 4 already filled from this licence. The window closes on 17 Feb 2027, after which the learner's licence lapses and you start again.</Note>
             <button className="btn btn-p" style={{ alignSelf: 'flex-start' }} onClick={() => setPhase('wizard')}>Preview the application now (demo) {Icon.right()}</button>
           </div>
         )}
@@ -149,7 +149,7 @@ export function DrivingLicence({ go, state }: PageProps) {
       <div className="card card-p col g16" style={{ marginTop: 16 }}>
         <h3>The five stages, once the window opens</h3>
         <Timeline items={DL_STEPS.map((label, i) => ({ state: 'todo' as const, title: label, body: DL_STEP_BODY[i] }))} />
-        <Note><b>Honest limitation.</b> The 30-day waiting period is enforced by the real RTO, not by this prototype — "Preview the application now" above lets you walk through all five steps immediately, for demonstration.</Note>
+        <Note>Honest limitation. The 30-day waiting period is enforced by the real RTO, not by this prototype — "Preview the application now" above lets you walk through all five steps immediately, for demonstration.</Note>
       </div>
       <div className="sticky-cta"><button className="btn btn-s" onClick={() => go('status')}>See my applications</button></div>
     </div>

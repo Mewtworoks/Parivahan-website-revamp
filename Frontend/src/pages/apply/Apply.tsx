@@ -171,7 +171,7 @@ export function Apply({ go, state, update }: PageProps) {
           <StepComponent {...stepProps} />
           {error && (
             <Note tone="warn">
-              <b>{t('Not submitted yet.', 'अभी जमा नहीं हुआ।')}</b>{' '}
+              {t('Not submitted yet.', 'अभी जमा नहीं हुआ।')}{' '}
               {api.isOffline(error)
                 ? t('The licence service is not responding. Nothing you filled in has been lost — press Submit again when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही। आपका भरा हुआ कुछ भी नहीं खोया — सेवा वापस आने पर फिर से जमा करें।')
                 : error.message}{' '}
