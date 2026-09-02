@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ComponentType, type MouseEvent } from 'react';
-import logo from './assets/sadak_setu_icon.png';
 import { Desk } from './pages/Desk';
 import { Future } from './pages/Future';
 import { Learning } from './pages/Learning';
@@ -32,6 +31,7 @@ import type { AppState, PageProps, Route } from './types';
 import { BackToTop } from './ui/BackToTop';
 import { GrievanceSheet } from './ui/GrievanceSheet';
 import { Icon } from './ui/Icon';
+import { Mark } from './ui/Mark';
 import { InfoSheet } from './ui/InfoSheet';
 import { Note, Sheet } from './ui/SharedUI';
 import { IdentitySheet } from './ui/SignIn';
@@ -209,7 +209,7 @@ export default function App() {
       <header className="tb">
         <div className="wrap tb-in">
           <button className="mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
-            <img src={logo} alt="" className="mark-g" />
+            <Mark size={34} />
             {/* Wordmark alone. The strapline and the Prototype badge both said
                 here what the hero kicker, the home-page notice and the footer
                 disclaimer already say — and on a phone the strapline wrapped to
@@ -334,7 +334,7 @@ export default function App() {
           <div className="foot-top">
             <div className="col g12 foot-id">
               <button className="mark foot-mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
-                <img src={logo} alt="" className="mark-g" />
+                <Mark size={30} />
                 <span className="mark-t">{t('Parivahan Sewa', 'परिवहन सेवा', 'परिवहन सेवा')}</span>
               </button>
               <p className="foot-line">

@@ -133,6 +133,19 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
       ? loadConversation(phone || '').turns
       : [greeting],
   );
+  /**
+   * The transcript as it stands, and whether this panel is still on screen.
+   *
+   * Both exist because a reply can outlive the panel that asked for it. The
+   * sheet is conditionally rendered, so closing it unmounts the component; an
+   * in-flight `voiceTurn` then resolved into a dead component, `setTurns` was a
+   * no-op, and the effect that saves the transcript never ran. The answer was
+   * lost from the citizen's side while sitting perfectly intact on the server —
+   * ask a question, glance at the page behind, and Saarthi had never replied.
+   */
+  const turnsRef = useRef<Turn[]>([]);
+  const mountedRef = useRef(true);
+
   const [input, setInput] = useState('');
   const [muted, setMuted] = useState(storedMute);
   const [listening, setListening] = useState(false);
@@ -178,6 +191,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   // dot, and reopening met a recogniser Chrome would not let us start a second
   // copy of.
   useEffect(() => () => {
+    mountedRef.current = false;
     window.speechSynthesis?.cancel();
     try { recogniserRef.current?.abort(); } catch { /* already gone */ }
     recogniserRef.current = null;
@@ -185,8 +199,24 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
 
   // Every change, so the transcript survives a close, a reopen and a reload.
   useEffect(() => {
+    turnsRef.current = turns;
     if (phone) saveConversation(phone, turns, sessionRef.current);
   }, [phone, turns, sessionId]);
+
+  /**
+   * Add a line, and write the transcript to storage in the same breath.
+   *
+   * Not `setTurns` plus the effect above: that effect only runs while the
+   * component is mounted, which is exactly the case that was broken. Saving
+   * here, from a closure that survives unmount, is what makes a reply arriving
+   * after the panel closed still be there when it reopens.
+   */
+  const appendTurn = (turn: Turn) => {
+    const next = [...turnsRef.current, turn];
+    turnsRef.current = next;
+    if (phone) saveConversation(phone, next, sessionRef.current);
+    if (mountedRef.current) setTurns(next);
+  };
 
   // The signed-in number is the reference, so Saarthi reads the same journey the
   // wizard filed and the tracker shows. It used to fall back to
@@ -242,9 +272,12 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   }, [phone, lang]);
 
   const acceptReply = (reply: api.VoiceReply) => {
-    setTurns(old => [...old, { who: 'saarthi', text: reply.reply }]);
+    appendTurn({ who: 'saarthi', text: reply.reply });
     setPending(reply.pending_confirmation?.label || null);
-    if (!muted) speak(reply.reply, lang);
+    // Only speak if the panel is still open. A reply that arrives after the
+    // citizen closed it used to start talking at them from a panel that was no
+    // longer on screen.
+    if (!muted && mountedRef.current) speak(reply.reply, lang);
     for (const event of reply.tool_events) {
       const result = event.result;
       if (!result) continue;
@@ -305,7 +338,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     const transcript = raw.trim();
     if (!transcript || working) return;
     setInput(''); setError(null); setWorking(true);
-    setTurns(old => [...old, { who: 'citizen', text: transcript }]);
+    appendTurn({ who: 'citizen', text: transcript });
     try {
       try {
         acceptReply(await api.voiceTurn(await ensureSession(), transcript, lang === 'hi' ? 'hi' : 'en'));
@@ -340,10 +373,10 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     try {
       await api.cancelVoiceAction(sessionId);
       setPending(null);
-      setTurns(old => [...old, {
+      appendTurn({
         who: 'saarthi',
         text: t('All right, I have cancelled that action.', 'ठीक है, मैंने वह कार्रवाई रद्द कर दी है।'),
-      }]);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not cancel that action.');
     } finally { setWorking(false); }
@@ -557,17 +590,14 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           <input className="input grow" value={input} disabled={!phone || working || Boolean(pending)} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void send(); }} placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : canRecogniseSpeech() ? t('Or type your question…', 'या अपना सवाल लिखिए…') : t('Type your question…', 'अपना सवाल लिखिए…')} />
           <button className="btn btn-s" disabled={!phone || working || Boolean(pending) || !input.trim()} onClick={() => void send()}>{t('Send', 'भेजें')}</button>
         </div>
-        <div className="row g8 wrapf">
-          {/* Starters in the citizen's own language — a Hindi chip pressed by an
-              English speaker pins the whole conversation to Hindi, because the
-              service answers in the language of the last thing it was sent. */}
-          {(lang === 'hi'
-            ? ['मुझे लर्नर लाइसेंस बनवाना है', 'टेस्ट के लिए स्लॉट दिखाओ', 'मेरा नंबर और इंतज़ार कितना है?']
-            : ['I want a learner licence', 'Show me test slots', 'What is my token and wait?']
-          ).map(example => (
-            <button key={example} className="btn btn-g btn-sm" disabled={!phone || working || Boolean(pending)} onClick={() => void send(example)}>{example}</button>
-          ))}
-        </div>
+        {/* No starter chips.
+            Three suggested questions sat here, and they cost more than the row
+            they occupied. Saarthi's opening line is already built from the
+            citizen's own record and names the next step, so a chip reading "I
+            want a learner licence" answers a question the panel has just
+            answered better. They also taught the wrong thing: a citizen who
+            presses a chip learns that this is a menu of three, when the point of
+            an assistant is that you can ask it anything in your own words. */}
         {error && <Note tone="warn">{error}</Note>}
       </div>
     </Sheet>

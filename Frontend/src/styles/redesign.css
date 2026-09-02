@@ -606,10 +606,8 @@ a {
    color: inherit
 }
 
-.foot-mark .mark-g {
-   width: 30px;
-   height: 30px
-}
+/* The footer mark is sized by its `size` prop now, not by overriding the width
+   of an <img>. This rule had nothing left to select. */
 
 .foot-mark .mark-t {
    font-family: var(--disp);
@@ -705,14 +703,9 @@ a {
    background: linear-gradient(150deg, oklch(0.352 0.112 162), oklch(0.242 0.074 166) 58%, oklch(0.308 0.094 150))
 }
 
-/* The mark is a PNG with the old cobalt baked into it, sitting on top of the
-   .mark-g tile that already tints itself with --brand — so the tile went green
-   and the image stayed blue on top of it. Rotating the hue is what is available
-   without redrawing the asset: the scooter is white, and white has no hue to
-   rotate, so only the field behind it moves. Replace the file and this goes. */
-.mark-g {
-   filter: hue-rotate(-78deg) saturate(0.92)
-}
+/* The hue-rotate that used to live here is gone with the PNG it was correcting.
+   The mark is drawn in ui/Mark.tsx now and fills from var(--brand) directly, so
+   it follows the palette instead of being chased by a filter. */
 
 .btn-a:hover {
    background: var(--brand-soft)
