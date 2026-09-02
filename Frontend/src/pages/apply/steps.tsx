@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { preFor } from '../../data/applicant';
-import { CATEGORIES, STAGES, STATES } from '../../data/applicationFlow';
+import { CATEGORIES, STAGES, STATES, STATE_HI } from '../../data/applicationFlow';
 import { ADDR_UNIT, STATE_FEES } from '../../data/fees';
 import { FORM1 } from '../../data/documents';
 import { RTO_BY_STATE, RTOS, rtosFor } from '../../data/rtoOffices';
@@ -52,7 +52,10 @@ export function StateAndRto({ form, updateForm }: StepProps) {
       <div className="card card-p col g20">
         <Field label={t('State or union territory', 'राज्य या केंद्र शासित प्रदेश', 'राज्य किंवा केंद्रशासित प्रदेश')} hint={t('Where you live, not where you were born.', 'जहां आप रहते हैं, जहां आप पैदा हुए वहां नहीं।', 'तुम्ही जिथे राहता तिथे, जिथे जन्मलात तिथे नाही.')}>
           <select className="input" style={{ maxWidth: 300 }} value={stateName} onChange={e => updateForm({ state: e.target.value, rto: (RTO_BY_STATE[e.target.value] || RTOS)[0].id })}>
-            {STATES.map(s => <option key={s}>{s}</option>)}
+            {/* The value stays the English name — it is what the application
+                stores and what the service is sent. Only the label follows the
+                picker. */}
+            {STATES.map(s => <option key={s} value={s}>{t(s, STATE_HI[s])}</option>)}
           </select>
         </Field>
         <hr className="hr" />

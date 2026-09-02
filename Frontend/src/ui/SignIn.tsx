@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import * as api from '../api';
+import { STATES, STATE_HI } from '../data/applicationFlow';
+import { RTO_BY_STATE, rtosFor } from '../data/rtoOffices';
 import { prettyPhone, signIn, signOut } from '../lib/identity';
 import { useT } from '../lib/language';
 import { Icon } from './Icon';
-import { Note, Pill, Sheet } from './SharedUI';
+import { Note, Pill, Sheet, Tile } from './SharedUI';
 
 /**
  * The one place the citizen ever signs in.
@@ -23,19 +25,142 @@ import { Note, Pill, Sheet } from './SharedUI';
 /** The number the sample applicant carries, so a demo lines up end to end. */
 const DEMO_PHONE = '9820011021';
 
-export function IdentitySheet({ phone, onClose }: { phone: string | null; onClose: () => void }) {
+/**
+ * The states with their own office list and fee schedule behind them.
+ *
+ * Named rather than counted, because the picker offers every state the official
+ * portal does and only two of them are modelled. A citizen who picks Kerala and
+ * is quietly given three Mumbai offices has been misled by the one screen whose
+ * entire job is to ask where they are.
+ */
+const MODELLED = new Set(['Maharashtra', ...Object.keys(RTO_BY_STATE)]);
+
+export function IdentitySheet({ phone, currentState, onPickState, onClose }: {
+  phone: string | null;
+  currentState?: string;
+  onPickState: (state: string, rtoId: string) => void;
+  onClose: () => void;
+}) {
   const t = useT();
+  /**
+   * Signing in hands straight over to the state question, the way the official
+   * portal opens on one. The state scopes every fee, office and form after it,
+   * so asking once at the start is the difference between a journey that is
+   * about your state and one that quietly assumes Maharashtra.
+   */
+  const [picking, setPicking] = useState(false);
+
+  const title = picking
+    ? t('Where are you applying?', 'आप कहाँ आवेदन कर रहे हैं?')
+    : phone ? t('Your profile', 'आपकी प्रोफ़ाइल') : t('Sign in', 'साइन इन');
+
   return (
-    <Sheet
-      title={phone ? t('Your profile', 'आपकी प्रोफ़ाइल') : t('Sign in', 'साइन इन')}
-      onClose={onClose}
-    >
-      {phone ? <Profile phone={phone} onClose={onClose} /> : <SignInForm onDone={onClose} />}
+    <Sheet title={title} onClose={onClose}>
+      {picking
+        ? (
+          <StatePicker
+            current={currentState}
+            onPick={(state, rtoId) => { onPickState(state, rtoId); onClose(); }}
+            onSkip={onClose}
+          />
+        )
+        : phone
+          ? <Profile phone={phone} currentState={currentState}
+              onChangeState={() => setPicking(true)} onClose={onClose} />
+          : <SignInForm onDone={() => setPicking(true)} />}
     </Sheet>
   );
 }
 
-function Profile({ phone, onClose }: { phone: string; onClose: () => void }) {
+/**
+ * The state question, asked once and remembered.
+ *
+ * Two columns of plain buttons rather than a `<select>`: a dropdown hides the
+ * one fact worth seeing here, which is that only two of these have real data
+ * behind them. Shown as a list, the badge sits next to the name and the choice
+ * is made with the caveat visible instead of after it.
+ */
+function StatePicker({ current, onPick, onSkip }: {
+  current?: string;
+  onPick: (state: string, rtoId: string) => void;
+  onSkip: () => void;
+}) {
+  const t = useT();
+  const [chosen, setChosen] = useState(current || '');
+
+  const confirm = (state: string) => {
+    // The office travels with the state. Left behind, a Bihar applicant kept
+    // the Mumbai office picked before they switched, and the appointment landed
+    // two thousand kilometres from the address on the same application.
+    onPick(state, rtosFor(state)[0].id);
+  };
+
+  return (
+    <div className="col g14">
+      {/* One line of purpose, and the caveat folded behind a pill — the same
+          shape Saarthi's panel uses, for the same reason. Spelled out, the
+          disclaimer was three lines of prose under a scrolling list of eleven
+          tiles, and the screen whose only job is to take one tap read as
+          homework. The badge on each row already carries the fact; this holds
+          the explanation for whoever wants it. */}
+      <div className="row between g10 wrapf" style={{ alignItems: 'flex-start' }}>
+        <span className="sub" style={{ flex: '1 1 220px' }}>
+          {t('Every fee, office and form after this is picked for the state you choose.',
+            'इसके बाद हर शुल्क, कार्यालय और फ़ॉर्म आपके चुने राज्य के हिसाब से आता है।')}
+        </span>
+        <details
+          className="disclose"
+          onMouseEnter={e => { e.currentTarget.open = true; }}
+          onMouseLeave={e => { e.currentTarget.open = false; }}
+        >
+          <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
+          <div className="flat disclose-body">
+            <b>{t('Only Maharashtra and Bihar have real data behind them.',
+              'सिर्फ़ महाराष्ट्र और बिहार के पीछे असली डेटा है।')}</b>
+            <p className="tiny" style={{ marginTop: 7 }}>
+              {t('Those two have their own offices, live queues and state charges. The rest of the list is the official portal\'s, and falls back to the Maharashtra offices — marked "Sample" so you know which is which before you pick.',
+                'उन दोनों के अपने कार्यालय, लाइव कतारें और राज्य शुल्क हैं। बाकी सूची आधिकारिक पोर्टल की है, और महाराष्ट्र के कार्यालयों पर लौट आती है — चुनने से पहले ही पता चले, इसलिए उन्हें "नमूना" लिखा गया है।')}
+            </p>
+          </div>
+        </details>
+      </div>
+
+      {/* No second line per row. The badge is the whole distinction, and a
+          description under it was being clipped by the tile rather than
+          wrapping — a caveat cut in half is worse than no caveat. */}
+      {/* No inner scroll. Capped, the list showed five states down a scrollbar
+          nobody could see while the sheet below it sat empty — two scrolling
+          regions on one panel, and the shorter one hiding six of the eleven
+          answers. The sheet scrolls; the list is just a list. */}
+      <div className="col g8" role="radiogroup">
+        {STATES.map(s => (
+          <Tile
+            key={s}
+            checked={chosen === s}
+            onClick={() => { setChosen(s); confirm(s); }}
+            title={t(s, STATE_HI[s])}
+            right={MODELLED.has(s)
+              ? <Pill tone="ok">{t('Real data', 'असली डेटा')}</Pill>
+              : <Pill>{t('Sample', 'नमूना')}</Pill>}
+          />
+        ))}
+      </div>
+
+      <div>
+        <button className="btn btn-s btn-sm" onClick={onSkip}>
+          {t('Decide later', 'बाद में तय करें')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Profile({ phone, currentState, onChangeState, onClose }: {
+  phone: string;
+  currentState?: string;
+  onChangeState: () => void;
+  onClose: () => void;
+}) {
   const t = useT();
   return (
     <div className="col g16">
@@ -48,6 +173,28 @@ function Profile({ phone, onClose }: { phone: string; onClose: () => void }) {
           {t('Your application, Saarthi and the tracker all read this number.',
             'आपका आवेदन, सारथी और ट्रैकर — तीनों यही नंबर पढ़ते हैं।')}
         </span>
+      </div>
+
+      {/* The state lives here rather than only inside the form, because it
+          scopes what the fee tables, the office list and the slot board show
+          long before the form is opened. Changeable from the same place it is
+          read, so somebody who moved is not made to restart an application to
+          say so. */}
+      <div className="row between g12 wrapf" style={{ alignItems: 'center' }}>
+        <div className="col g4">
+          <span className="label">{t('Applying in', 'आवेदन कहाँ')}</span>
+          <span className="row g8" style={{ alignItems: 'center' }}>
+            <b>{currentState
+              ? t(currentState, STATE_HI[currentState])
+              : t('Not chosen yet', 'अभी नहीं चुना')}</b>
+            {currentState && !MODELLED.has(currentState) && (
+              <Pill>{t('Sample offices', 'नमूना कार्यालय')}</Pill>
+            )}
+          </span>
+        </div>
+        <button className="btn btn-g btn-sm" onClick={onChangeState}>
+          {currentState ? t('Change', 'बदलें') : t('Choose a state', 'राज्य चुनें')}
+        </button>
       </div>
       <div>
         <button className="btn btn-s" onClick={() => { signOut(); onClose(); }}>

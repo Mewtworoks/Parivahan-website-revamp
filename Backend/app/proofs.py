@@ -135,6 +135,21 @@ def slot_race(threads: int = 8) -> dict[str, Any]:
     }
 
 
+def _full_grid_size(rto_id: str = "mh01") -> int:
+    """
+    How many slots an untouched day at this office holds.
+
+    Measured rather than written down: a day past the end of the search window
+    cannot have been consumed by an earlier run, so whatever it holds is a full
+    grid by definition. That keeps this correct through a change to opening
+    hours, slot length or the number of inspectors, none of which this proof
+    should have an opinion about.
+    """
+    beyond = date.today() + timedelta(days=_PROOF_DAYS["load"] + 120)
+    be.ensure_day(rto_id, beyond)
+    return len(be.list_free_slots(rto_id, beyond))
+
+
 def booking_load(applicants: int = 120) -> dict[str, Any]:
     """
     A rush: far more people than slots, all pressing at the same instant.
@@ -157,20 +172,29 @@ def booking_load(applicants: int = 120) -> dict[str, Any]:
     including the wait for SQLite's write lock — which is the number that
     matters, because that queue is the thing being claimed to hold.
     """
-    # A fresh day per run. Unlike the other two proofs this one consumes every
-    # slot it is given — that is the point of it — so a fixed date works once
-    # and then reports "no free slots" to the second person who presses the
-    # button. Walking forward finds the next day nobody has loaded yet.
+    # A fresh day per run, and specifically an untouched one. Unlike the other
+    # two proofs this one consumes every slot it is given — that is the point of
+    # it — so a fixed date works once and then reports "no free slots" to the
+    # second person who presses the button.
+    #
+    # Untouched rather than merely non-empty, because the grid is what the
+    # headline counts: landing on a day a previous run had left eight slots on
+    # made the card read "a hundred and twenty people, eighteen slots" over a
+    # result that said eight. The demonstration has to be the same size every
+    # time or the number stops meaning anything.
     day, free = None, []
-    for offset in range(_PROOF_DAYS["load"], _PROOF_DAYS["load"] + 60):
+    for offset in range(_PROOF_DAYS["load"], _PROOF_DAYS["load"] + 90):
         candidate = date.today() + timedelta(days=offset)
         be.ensure_day("mh01", candidate)
         free = be.list_free_slots("mh01", candidate)
-        if free:
+        if len(free) == _full_grid_size():
             day = candidate
             break
+        if free and day is None:
+            day = candidate          # fall back to a partial day rather than fail
     if not day:
         return {"error": "No free slots to load."}
+    free = be.list_free_slots("mh01", day)
 
     applicants = max(2, min(applicants, 400))
     slots = [s.id for s in free]

@@ -350,6 +350,13 @@ export default function App() {
       {identityOpen && (
         <IdentitySheet
           phone={phone}
+          currentState={state.form?.state}
+          // The office goes with the state. Written together so no screen can
+          // read a Bihar state next to a Mumbai office — which is what happened
+          // when only the state was updated and the wizard's earlier pick stayed
+          // behind on the same application.
+          onPickState={(picked, rtoId) =>
+            update({ form: { ...(state.form || {}), state: picked, rto: rtoId } })}
           onClose={() => {
             setIdentityOpen(false);
             // Saarthi steps aside to show this sheet, so it comes back when the

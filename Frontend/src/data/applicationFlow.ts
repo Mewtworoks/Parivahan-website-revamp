@@ -2,6 +2,24 @@ import type { ApplicationStep, AppState, Category, StageDefinition, StageRow } f
 
 export const STATES = ['Maharashtra', 'Bihar', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'Gujarat', 'West Bengal', 'Kerala', 'Rajasthan', 'Telangana'];
 
+/**
+ * State names in Devanagari.
+ *
+ * A proper noun usually stays in Latin here — a person's name, a street — but a
+ * state is not that kind of proper noun on an Indian government form: every
+ * Hindi form prints महाराष्ट्र, and this build's own copy already did, so the
+ * picker was showing "Maharashtra" in a tile sitting directly above a sentence
+ * that said महाराष्ट्र.
+ *
+ * Keyed on the English name because that is what is stored on the application
+ * and sent to the service; only the label changes.
+ */
+export const STATE_HI: Record<string, string> = {
+  Maharashtra: 'महाराष्ट्र', Bihar: 'बिहार', Delhi: 'दिल्ली', Karnataka: 'कर्नाटक',
+  'Tamil Nadu': 'तमिलनाडु', 'Uttar Pradesh': 'उत्तर प्रदेश', Gujarat: 'गुजरात',
+  'West Bengal': 'पश्चिम बंगाल', Kerala: 'केरल', Rajasthan: 'राजस्थान', Telangana: 'तेलंगाना',
+};
+
 export const CATEGORIES: Category[] = [
   { id: 'none', t: 'I do not hold any licence', tHi: 'मेरे पास कोई लाइसेंस नहीं है', tMr: 'माझ्याकडे कोणतेही लायसन्स नाही',
     d: "First learner's licence. Most people are here.", dHi: 'पहला लर्नर लाइसेंस। ज़्यादातर लोग यहीं हैं।', dMr: 'पहिले लर्नर लायसन्स. बहुतेक लोक येथेच आहेत.' },
