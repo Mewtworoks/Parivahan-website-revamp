@@ -2,7 +2,6 @@
 // is fine — these are a nice-to-have, never load-bearing for the game itself.
 import correctSrc from '../assets/correct_quiz.mp3';
 import wrongSrc from '../assets/wrong_quiz.mp3';
-import gameOverSrc from '../assets/game-over_quiz.mp3';
 
 // On by default — a first-time player hears sound unless they explicitly mute it.
 let muted = (() => {
@@ -38,7 +37,7 @@ export function playWrong(): void {
   playFile(wrongSrc);
 }
 
-/** Plays once all three hearts are gone and the round ends. */
-export function playGameOver(): void {
-  playFile(gameOverSrc);
-}
+// The game-over sound went with the three hearts. Nothing ends a round early
+// now — it runs to the last of the twenty-nine situations either way — so there
+// is no moment for it to mark, and keeping it would keep a 114kB mp3 in the
+// bundle for a state that can no longer happen.

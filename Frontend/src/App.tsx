@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type MouseEvent } from 'react';
 import logo from './assets/sadak_setu_icon.png';
 import { Desk } from './pages/Desk';
+import { Future } from './pages/Future';
 import { Learning } from './pages/Learning';
 // DL journey parked — see the note on Route in types.ts.
 // import { DrivingLicence } from './pages/DrivingLicence';
@@ -8,6 +9,7 @@ import { Eligibility } from './pages/Eligibility';
 import { Proof } from './pages/Proof';
 import { Checklist } from './pages/Checklist';
 import { Home } from './pages/Home';
+import { Home2 } from './pages/Home2';
 import { Issued } from './pages/Issued';
 import { Pay } from './pages/Pay';
 import { Receipt } from './pages/Receipt';
@@ -42,7 +44,6 @@ const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   "Learner's licence": { hi: 'लर्नर लाइसेंस', mr: 'लर्नर लायसन्स' },
   'Driving licence': { hi: 'ड्राइविंग लाइसेंस', mr: 'ड्रायव्हिंग लायसन्स' },
   'Driving licence · reference': { hi: 'ड्राइविंग लाइसेंस · संदर्भ', mr: 'ड्रायव्हिंग लायसन्स · संदर्भ' },
-  Help: { hi: 'सहायता', mr: 'मदत' },
   'About this build': { hi: 'इस निर्माण के बारे में', mr: 'या निर्मितीबद्दल' },
   'Check eligibility': { hi: 'पात्रता जांचें', mr: 'पात्रता तपासा' },
   Apply: { hi: 'आवेदन करें', mr: 'अर्ज करा' },
@@ -61,6 +62,8 @@ const FOOTER_TRANSLATIONS: Record<string, { hi: string; mr: string }> = {
   'Inspector desk': { hi: 'निरीक्षक डेस्क', mr: 'निरीक्षक डेस्क' },
   'See the guarantees run': { hi: 'गारंटी चलती देखें', mr: 'हमी चालताना पहा' },
   'Where people actually fail': { hi: 'लोग असल में कहाँ अटकते हैं', mr: 'लोक खरोखर कुठे अडतात' },
+  'Government brain': { hi: 'सरकारी दिमाग', mr: 'सरकारी मेंदू' },
+  'Common questions': { hi: 'सामान्य प्रश्न', mr: 'सामान्य प्रश्न' },
   Accessibility: { hi: 'सुगम्यता', mr: 'सुलभता' },
   Source: { hi: 'स्रोत', mr: 'स्रोत' },
 };
@@ -72,7 +75,8 @@ const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
   receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
   test: Test, issued: Issued, status: Status,
-  desk: Desk, proof: Proof, learning: Learning,
+  desk: Desk, proof: Proof, learning: Learning, future: Future,
+  home2: Home2,
   // DL journey parked: dl: DrivingLicence,
 };
 
@@ -314,19 +318,43 @@ export default function App() {
           )
           : <ActivePage go={go} state={state} update={update} />}
       </main>
+      {/* The footer closes the page with mass: near-black under a paper body, so
+          the page gets lighter towards the top where the reader starts. It was
+          briefly a green field mirroring a green hero, which sounded like
+          bookending and read as one colour painted over everything.
+
+          It used to be four equal columns of link text and nothing else, which
+          gave the wordmark no place to sit and treated "Report a problem" as a
+          peer of "Road safety tutorial". Now the identity and what this build is
+          hold the left, the service's own links take the right, and the
+          utilities sit in the last row with the legal line where somebody looks
+          for them. */}
       <footer className="footer">
         <div className="wrap col g24">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 28 }}>
-            {FOOTER_COLUMNS.map(([heading, links]) => (
-              <div key={heading} className="col g12"><b style={{ fontWeight: 600, fontSize: '.93rem' }}>{footerT(t, heading)}</b>
-                {/* A link to a route gets that route's real href, so ctrl-click,
-                    middle-click and "copy link address" behave the way they do
-                    anywhere else. The click handler still routes in-page. Links
-                    that open a sheet have no URL of their own and keep "#". */}
-                <nav className="linkcol">{links.map(([label, target]) => (
-                  <a key={label} href={'go' in target ? `#/${target.go}` : '#'} onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>
-                ))}</nav></div>
-            ))}
+          <div className="foot-top">
+            <div className="col g12 foot-id">
+              <button className="mark foot-mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
+                <img src={logo} alt="" className="mark-g" />
+                <span className="mark-t">{t('Parivahan Sewa', 'परिवहन सेवा', 'परिवहन सेवा')}</span>
+              </button>
+              <p className="foot-line">
+                {t('A redesign concept for the learner’s-licence journey. The queue, the fees and the guarantees are real code — the people in them are not.',
+                  'लर्नर लाइसेंस यात्रा के लिए एक पुनर्डिज़ाइन अवधारणा। कतार, शुल्क और गारंटी असली कोड हैं — उनमें दिखे लोग असली नहीं।',
+                  'लर्नर लायसन्स प्रवासासाठी एक पुनर्रचना संकल्पना. रांग, शुल्क आणि हमी हे खरे कोड आहेत — त्यातील माणसे खरी नाहीत.')}
+              </p>
+            </div>
+            <div className="foot-cols">
+              {FOOTER_COLUMNS.map(([heading, links]) => (
+                <div key={heading} className="col g12"><b className="foot-h">{footerT(t, heading)}</b>
+                  {/* A link to a route gets that route's real href, so ctrl-click,
+                      middle-click and "copy link address" behave the way they do
+                      anywhere else. The click handler still routes in-page. Links
+                      that open a sheet have no URL of their own and keep "#". */}
+                  <nav className="linkcol">{links.map(([label, target]) => (
+                    <a key={label} href={'go' in target ? `#/${target.go}` : '#'} onClick={e => handleFooterLink(e, target)}>{footerT(t, label)}</a>
+                  ))}</nav></div>
+              ))}
+            </div>
           </div>
           <hr className="hr" />
           <div className="row between g16 wrapf">

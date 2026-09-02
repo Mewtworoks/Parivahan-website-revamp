@@ -1,6 +1,6 @@
 import { useLanguage, useT } from '../lib/language';
-import { PixelScene } from '../practice/PixelScene';
-import { DECISION_LIMIT_MS, SCENARIOS, spelledOut } from '../practice/scenarios';
+import { RoadScene } from '../practice/RoadScene';
+import { DECISION_LIMIT_MS, ROAD_SPECS, SCENARIOS, spelledOut } from '../practice/scenarios';
 import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
 import { LicenceCard } from '../ui/LicenceCard';
@@ -27,28 +27,27 @@ const JOURNEY_STEPS: [verb: string, heading: string, headingHi: string, headingM
     'प्रत्येक उत्तर समजावलेले आहे. उत्तीर्ण झाल्यास लायसन्स लगेच दिले जाते.'],
 ];
 
+// Two sentences each, and the second one is the sharp one.
+//
+// These were four-sentence paragraphs, and the qualifications inside them were
+// all true and all earned — a claim on this page had twice been wrong and been
+// rewritten to say only what the build does. But this is a page somebody scans
+// on the way to a button, and a claim nobody finishes reading is not a claim
+// that has been made. The scoping did not go anywhere: it lives on the screen
+// each card points at, where a reader has already decided to read.
 const DIFFERENTIATORS: [icon: ReturnType<typeof Icon.doc>, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string][] = [
   [Icon.doc({ width: 14, height: 14 }), 'The price is on the first screen', 'कीमत पहली स्क्रीन पर ही है', 'किंमत पहिल्याच स्क्रीनवर आहे',
-    'Every charge for your class is listed before you begin, and the receipt names each one. Nothing is collected at a counter later.',
-    'शुरू करने से पहले आपकी श्रेणी का हर शुल्क सूचीबद्ध है, और रसीद में हर एक का नाम है। बाद में काउंटर पर कुछ भी नहीं लिया जाता।',
-    'सुरुवात करण्याआधी तुमच्या वर्गाचे प्रत्येक शुल्क नोंदवलेले असते, आणि पावतीवर प्रत्येकाचे नाव असते. नंतर काउंटरवर काहीही घेतले जात नाही.'],
-  // Both of these used to claim something the build did not do. The first
-  // promised a cross-device resume off a mobile number, with nothing behind it
-  // at all — the application lived in memory and a refresh threw it away. The
-  // browser keeps it now, so the claim is scoped to what is actually true.
+    'Every charge is listed before you begin, and named again on the receipt. Nothing is collected at a counter later.',
+    'हर शुल्क शुरू करने से पहले सूचीबद्ध है, और रसीद में दोबारा नाम से। बाद में काउंटर पर कुछ नहीं लिया जाता।',
+    'प्रत्येक शुल्क सुरुवातीआधी नोंदवलेले असते, आणि पावतीवर पुन्हा नावासह. नंतर काउंटरवर काहीही घेतले जात नाही.'],
   [Icon.clock({ width: 14, height: 14 }), 'You can stop halfway', 'आप बीच में रुक सकते हैं', 'तुम्ही मध्येच थांबू शकता',
-    'The application saves as you go and survives closing the tab, so a dropped connection costs you one step and not the whole form. Once it is submitted, the number and your date of birth open it from anywhere.',
-    'आवेदन अपने-आप सहेजा जाता रहता है और टैब बंद करने पर भी बना रहता है, इसलिए कनेक्शन टूटने पर सिर्फ़ एक चरण गंवाना पड़ता है, पूरा फ़ॉर्म नहीं। जमा होने के बाद, नंबर और जन्मतिथि से इसे कहीं से भी खोला जा सकता है।',
-    'अर्ज आपोआप जतन होत राहतो आणि टॅब बंद केल्यावरही टिकतो, त्यामुळे कनेक्शन तुटल्यास फक्त एक टप्पा गमवावा लागतो, संपूर्ण फॉर्म नाही. सादर झाल्यानंतर, क्रमांक आणि जन्मतारखेने तो कुठूनही उघडता येतो.'],
-  // The second said a booking is "an appointment rather than a token", which
-  // reads as a dig at the queue token this build issues and spends a whole
-  // screen making meaningful. The two are not rivals: the appointment is the
-  // time you were given, the token is your place on the day — and it is now
-  // ordered by appointment, which is the thing worth claiming.
+    'The form saves as you go and survives a closed tab. Your number and date of birth reopen it from anywhere.',
+    'फ़ॉर्म अपने-आप सहेजा जाता है और टैब बंद होने पर भी बचा रहता है। नंबर और जन्मतिथि से इसे कहीं से भी खोलें।',
+    'फॉर्म आपोआप जतन होतो आणि टॅब बंद झाल्यावरही टिकतो. क्रमांक आणि जन्मतारखेने तो कुठूनही उघडा.'],
   [Icon.pin({ width: 14, height: 14 }), 'A slot means a slot', 'स्लॉट का मतलब स्लॉट ही है', 'स्लॉट म्हणजे स्लॉटच',
-    'Each RTO publishes what is genuinely left and the average wait once you arrive. On the day, the queue is called in appointment order — so turning up at dawn earns nothing, and the time you booked is the time you are seen.',
-    'हर आरटीओ बताता है कि सच में कितनी जगह बची है और पहुंचने पर औसत इंतज़ार कितना है। दिन में, कतार अपॉइंटमेंट के क्रम में बुलाई जाती है — इसलिए भोर में पहुंचने से कुछ फ़ायदा नहीं, और आपने जो समय बुक किया वही समय आपको मिलता है।',
-    'प्रत्येक आरटीओ खरोखर किती जागा उरली आहे आणि पोहोचल्यावर सरासरी किती वाट पाहावी लागेल हे सांगतो. त्या दिवशी, रांग अपॉइंटमेंटच्या क्रमाने बोलावली जाते — त्यामुळे पहाटे पोहोचण्याचा काही फायदा नाही, आणि तुम्ही बुक केलेली वेळ हीच तुम्हाला भेटीची वेळ असते.'],
+    'Each RTO publishes what is genuinely left. The queue is called in appointment order, so arriving at dawn earns nothing.',
+    'हर आरटीओ बताता है कि सच में कितनी जगह बची है। कतार अपॉइंटमेंट के क्रम में बुलाई जाती है, इसलिए भोर में पहुंचने से कुछ नहीं मिलता।',
+    'प्रत्येक आरटीओ खरोखर किती जागा उरली आहे ते सांगतो. रांग अपॉइंटमेंटच्या क्रमाने बोलावली जाते, म्हणून पहाटे पोहोचून काही मिळत नाही.'],
 ];
 
 // The learner's-licence facts strip, on the one "start here" panel. With the DL journey parked
@@ -168,16 +167,18 @@ export function Home({ go, update }: PageProps) {
                   that reads "10 questions, 6 to pass", a bare count of road
                   situations looked like a second, contradictory test length. */}
               <p style={{ color: 'var(--ink2)', lineHeight: 1.6 }}>
-                {t(`${spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations to practise on, ${DECISION_LIMIT_MS / 1000} seconds each — not the test itself. You are scored on the decision and on how long it took, which is what the real test measures. The report card names the two habits to fix.`,
-                  `${SCENARIOS.length} सड़क स्थितियों पर अभ्यास करें, हर एक ${DECISION_LIMIT_MS / 1000} सेकंड में — यह असली टेस्ट नहीं है। आपका मूल्यांकन फैसले पर और उसमें लगे समय पर होता है, जो असली टेस्ट भी मापता है। रिपोर्ट कार्ड सुधारने योग्य दो आदतें बताता है।`,
-                  `${SCENARIOS.length} रस्ता परिस्थितींवर सराव करा, प्रत्येक ${DECISION_LIMIT_MS / 1000} सेकंदांत — ही खरी टेस्ट नाही. तुमचे मूल्यमापन निर्णयावर आणि त्यासाठी लागलेल्या वेळेवर होते, जे खरी टेस्टही मोजते. रिपोर्ट कार्ड सुधारण्यासारख्या दोन सवयी सांगते.`)}
+                {t(`${spelledOut(SCENARIOS.length).replace(/^./, c => c.toUpperCase())} road situations, ${DECISION_LIMIT_MS / 1000} seconds each. Scored on the decision and on how long it took, like the real test — and the report card names two habits to fix.`,
+                  `${SCENARIOS.length} सड़क स्थितियाँ, हर एक ${DECISION_LIMIT_MS / 1000} सेकंड में। मूल्यांकन फैसले पर और उसमें लगे समय पर, असली टेस्ट की तरह — और रिपोर्ट कार्ड सुधारने योग्य दो आदतें बताता है।`,
+                  `${SCENARIOS.length} रस्ता परिस्थिती, प्रत्येक ${DECISION_LIMIT_MS / 1000} सेकंदांत। मूल्यमापन निर्णयावर आणि लागलेल्या वेळेवर, खऱ्या टेस्टसारखे — आणि रिपोर्ट कार्ड सुधारण्यासारख्या दोन सवयी सांगते.`)}
               </p>
               <div className="row g10 wrapf">
                 <button className="btn btn-p" onClick={() => go('learn')}>{Icon.play()} {t('Play the road', 'सड़क खेलें', 'रस्ता खेळा')}</button>
                 <span className="tiny" style={{ alignSelf: 'center' }}>{t('No download · works offline', 'डाउनलोड की ज़रूरत नहीं · ऑफ़लाइन भी काम करता है', 'डाउनलोड करण्याची गरज नाही · ऑफलाइनही काम करते')}</span>
               </div>
             </div>
-            <div style={{ minHeight: 230 }}><PixelScene map={SCENARIOS[4].map} art={SCENARIOS[4].art} /></div>
+            {/* The cattle-in-the-lane situation, which is the one that reads
+                fastest as a picture of a road problem out of context. */}
+            <div style={{ minHeight: 230 }}><RoadScene spec={ROAD_SPECS.H2} /></div>
           </div>
         </div>
       </section>
@@ -211,21 +212,21 @@ export function Home({ go, update }: PageProps) {
             <div className="card card-p col g12">
               <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
               <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Open it beside the tracker, call the next token, and the wait on the applicant’s phone recalculates while you watch. Nothing is simulated — both screens read one queue.', 'उसी कतार का काउंटर वाला हिस्सा। इसे ट्रैकर के साथ खोलिए, अगला टोकन बुलाइए, और आवेदक के फ़ोन का इंतज़ार आपकी आंखों के सामने बदल जाएगा। कुछ भी नकली नहीं — दोनों स्क्रीन एक ही कतार पढ़ती हैं।', 'त्याच रांगेची काउंटरकडची बाजू. ट्रॅकरशेजारी उघडा, पुढचे टोकन बोलवा, आणि अर्जदाराच्या फोनवरची वाट तुमच्या डोळ्यांसमोर बदलेल. काहीही बनावट नाही — दोन्ही स्क्रीन एकच रांग वाचतात.')}</p>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Call a token here and the wait on the applicant’s phone moves.', 'उसी कतार का काउंटर वाला हिस्सा। यहाँ टोकन बुलाइए और आवेदक के फ़ोन पर इंतज़ार बदल जाएगा।', 'त्याच रांगेची काउंटरकडची बाजू. येथे टोकन बोलवा आणि अर्जदाराच्या फोनवरची वाट बदलेल.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('desk')}>{t('Open the inspector desk', 'निरीक्षक डेस्क खोलें', 'निरीक्षक डेस्क उघडा')} {Icon.right()}</button></div>
             </div>
             <div className="card card-p col g12">
               <Pill tone="brand">{t('Runnable', 'चलाकर देखें', 'चालवून पहा')}</Pill>
               <h3>{t('See the guarantees run', 'गारंटी चलती देखें', 'हमी चालताना पहा')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit. Each one is fired at the live service from this page — two people race for one slot, the same application is submitted twice, a record is tampered with — and you are shown what came back.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव। हर एक इसी पेज से लाइव सेवा पर चलाया जाता है — दो लोग एक ही स्लॉट के लिए दौड़ते हैं, एक ही आवेदन दो बार जमा होता है, एक रिकॉर्ड से छेड़छाड़ की जाती है — और जो जवाब आया वह आपको दिखाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही. प्रत्येक याच पानावरून लाइव्ह सेवेवर चालवली जाते — दोन माणसे एकाच स्लॉटसाठी धावतात, एकच अर्ज दोनदा सादर होतो, एका नोंदीत फेरफार केला जातो — आणि काय उत्तर आले ते तुम्हाला दाखवले जाते.')}</p>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit — each one fired at the live service while you watch.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव — हर एक आपके सामने लाइव सेवा पर चलाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही — प्रत्येक तुमच्यासमोर लाइव्ह सेवेवर चालवली जाते.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
             </div>
             <div className="card card-p col g12">
               <Pill>{t('Aggregate', 'समग्र', 'एकत्रित')}</Pill>
               <h3>{t('Where people actually fail', 'लोग असल में कहाँ अटकते हैं', 'लोक खरोखर कुठे अडतात')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The only screen here with no name on it anywhere. Which road rule the most people get wrong, and which form field loses them — both worth knowing, neither needing to know who any of them were.', 'यही इकलौता पन्ना है जिस पर कहीं कोई नाम नहीं। कौन-सा नियम सबसे ज़्यादा लोग गलत करते हैं, और कौन-सी फ़ील्ड उन्हें खो देती है — दोनों जानने लायक हैं, और दोनों के लिए यह जानना ज़रूरी नहीं कि वे कौन थे।', 'हेच एकमेव पान आहे ज्यावर कुठेही नाव नाही. कोणता नियम सर्वाधिक लोक चुकतात, आणि कोणते फील्ड त्यांना गमावते — दोन्ही जाणून घेण्यासारखे, आणि दोन्हीसाठी ते कोण होते हे कळण्याची गरज नाही.')}</p>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('Which road rule most people get wrong, and which form field loses them. No names anywhere.', 'कौन-सा नियम सबसे ज़्यादा लोग गलत करते हैं, और कौन-सी फ़ील्ड उन्हें खो देती है। कहीं कोई नाम नहीं।', 'कोणता नियम सर्वाधिक लोक चुकतात, आणि कोणते फील्ड त्यांना गमावते. कुठेही नाव नाही.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('learning')}>{t('See what it learns', 'देखें यह क्या सीखती है', 'ती काय शिकते ते पहा')} {Icon.right()}</button></div>
             </div>

@@ -1,4 +1,4 @@
-import type { AppState, GameLogEntry, PracticeScenario } from '../types';
+import type { AppState, GameLogEntry, PracticeScenario, RoadSpec } from '../types';
 
 const CAR_CLASS_IDS = new Set(['LMV-NT', 'LMV-TR', 'E-RICK']);
 const BIKE_CLASS_IDS = new Set(['MCWG', 'MCWOG']);
@@ -269,6 +269,151 @@ export function vehicleFocusFrom(state: AppState): VehicleFocus {
   if (want === 'gear') return 'both'; // "a geared motorcycle, or both bike and car" — see Eligibility.tsx
   return 'both';
 }
+
+/**
+ * The chase-camera scene for each situation, keyed by scenario id.
+ *
+ * Kept as a separate table rather than a field on each scenario, for two
+ * reasons. The scenario objects are the authored, human-reviewed, frozen part of
+ * this file — question, options, correct-first ordering, explanation, citation —
+ * and the scene is a presentation of them, so the two do not belong at the same
+ * level. And it leaves the overhead `map`/`art` untouched, so both views exist
+ * for every question and either can be put back.
+ *
+ * Distances are metres ahead of the camera; `x` is metres from the centre line,
+ * negative to the left. They are chosen to read rather than to measure: a sign
+ * genuinely 60m away is four pixels tall, and a question about which sign it is
+ * cannot be asked at four pixels. Every sign sits at ~20m, where the face is
+ * legible, and no question depends on the true distance.
+ */
+export const ROAD_SPECS: Record<string, RoadSpec> = {
+  // --- signals -------------------------------------------------------------
+  // "20 metres from the junction, signal turns amber, pedestrian already on the
+  // far crossing." The pedestrian is past the junction because "far crossing"
+  // means the one on the other side — the reason you cannot simply clear it.
+  S1: { speed: 11,
+    junction: 22, zebra: 19, stopline: 17,
+    signal: { z: 22, state: 'amber' },
+    actors: [{ kind: 'ped', x: 2.4, z: 27 }],
+  },
+  // No signal and no markings at all: the centre line is off, because an
+  // unmarked crossroad is the whole premise of the priority rule being tested.
+  S2: { speed: 9,
+    junction: 20, centre: 'none',
+    actors: [{ kind: 'car', x: 8.5, z: 20.5, lateral: true, closes: true, body: '#b9b2a0' }],
+  },
+  S3: { speed: 11,
+    junction: 22, zebra: 20, stopline: 18,
+    signal: { z: 22, state: 'flash-amber' },
+  },
+  // Green for you, and a pedestrian stepping off the kerb onto the crossing.
+  S4: { speed: 9,
+    zebra: 16, stopline: 13.5,
+    signal: { z: 20, state: 'green' },
+    actors: [{ kind: 'ped', x: -2.2, z: 16 }],
+  },
+  // Red, with the stop line short of the zebra — the geometry is the question,
+  // so both markings are drawn and the gap between them is deliberate.
+  S5: { speed: 10,
+    junction: 25, zebra: 20, stopline: 16,
+    signal: { z: 25, state: 'red' },
+  },
+  // Green for you, truck still crossing from the previous phase.
+  S6: { speed: 8,
+    junction: 20, stopline: 15,
+    signal: { z: 20, state: 'green' },
+    actors: [{ kind: 'truck', x: 2.2, z: 20, lateral: true }],
+  },
+  S7: { speed: 10,
+    junction: 22, stopline: 17, zebra: 19,
+    signal: { z: 22, state: 'red', freeLeft: true },
+  },
+  // First at the red, watching the cross-street's head go amber. The cross head
+  // is drawn small and off to the far side, because recognising that it is not
+  // your signal is the answer.
+  S8: { speed: 0,
+    junction: 21, stopline: 15, zebra: 18,
+    signal: { z: 21, state: 'red', cross: 'amber' },
+  },
+
+  // --- hazards -------------------------------------------------------------
+  // The van is the hazard because of what it hides, so it sits close to the kerb
+  // with nothing visible behind it. Nothing is drawn in the gap: the point is
+  // that the player cannot see, and inventing a pedestrian there would answer
+  // the question before it was asked.
+  H1: { speed: 12.5, actors: [{ kind: 'van', x: -3.7, z: 17 }] },
+  H2: { speed: 11,
+    actors: [
+      { kind: 'cow', x: 1.5, z: 21 }, { kind: 'cow', x: 3.1, z: 24.5 },
+      { kind: 'car', x: -2.7, z: 36, oncoming: true },
+    ],
+  },
+  // Bus at the kerb, two passengers already in the road in front of it.
+  H3: { speed: 10,
+    actors: [
+      { kind: 'bus', x: -2.9, z: 23 },
+      { kind: 'ped', x: -1.2, z: 19.5 }, { kind: 'ped', x: -0.5, z: 17.5 },
+    ],
+  },
+  // The blind spot. The rider is alongside and slightly back, visible to the
+  // player from the chase camera and pointedly absent from the mirror — a
+  // vehicle you can see in the mirror is not in your blind spot, so putting one
+  // there would contradict the question.
+  H4: { speed: 8,
+    junction: 18,
+    actors: [{ kind: 'bike', x: -3.5, z: 7, withTraffic: true }],
+  },
+  H5: { speed: 12, signs: [{ z: 21, x: -6.6, shape: 'tri', glyph: 'children' }] },
+  // Wet, and following too close. The gap is the question, so the car ahead is
+  // near and closing.
+  H6: { speed: 14,
+    wet: true,
+    actors: [{ kind: 'car', x: 0.3, z: 12, closes: true }],
+  },
+  // Pothole ahead, two-wheeler behind. The rider goes in the mirror, because
+  // behind is where they are and the mirror is how you would know.
+  H7: { speed: 12,
+    actors: [{ kind: 'pothole', x: 1.5, z: 17 }],
+    mirror: ['bike'],
+  },
+  H8: { speed: 12,
+    night: true,
+    actors: [{ kind: 'car', x: -2.9, z: 27, oncoming: true, closes: true }],
+  },
+  // Stationary traffic in two lanes with a gap down the middle, seen from a
+  // two-wheeler. The gap has to be visible for the question to mean anything.
+  H9: { speed: 0,
+    player: 'bike', stopline: 33,
+    signal: { z: 34, state: 'red' },
+    actors: [{ kind: 'queue', x: 0, z: 13 }],
+  },
+  // Turning right with oncoming traffic present. Signalling early is not the
+  // error; turning into that car is.
+  H10: { speed: 7,
+    player: 'bike', junction: 19,
+    actors: [{ kind: 'car', x: -2.7, z: 31, oncoming: true }],
+  },
+
+  // --- signs ---------------------------------------------------------------
+  // All at ~20m on the left verge, where an Indian sign is mounted and where the
+  // face is big enough to be identified — which is the entire question in each.
+  G1: { speed: 12, signs: [{ z: 20, x: -6.6, shape: 'tri', glyph: 'bend-right' }] },
+  G2: { speed: 12, signs: [{ z: 19, x: -6.6, shape: 'circle-red', glyph: 'no-entry' }] },
+  // A documents question, not a road one: what must be with you on a learner's
+  // licence. Plain road, player on a two-wheeler, nothing to read into the
+  // scene — the alternative is decorating it with something irrelevant and
+  // inviting the player to look for the answer in the picture.
+  G3: { speed: 0, player: 'bike' },
+  G4: { speed: 13, centre: 'solid' },
+  G5: { speed: 13, signs: [{ z: 21, x: -6.8, shape: 'rect-blue', glyph: 'text' }] },
+  G6: { speed: 12, signs: [{ z: 19, x: -6.6, shape: 'circle-blue', glyph: 'arrow-left' }] },
+  G7: { speed: 12, signs: [{ z: 20, x: -6.6, shape: 'rect-blue', glyph: 'arrow-up' }] },
+  G8: { speed: 12, signs: [{ z: 20, x: -6.6, shape: 'tri', glyph: 'narrows' }] },
+  // The pillion's bare head is the answer, so it is drawn as a bare head.
+  G9: { speed: 0, player: 'bike', pillion: 'nohelmet' },
+  G10: { speed: 0, player: 'bike', pillion: 'three' },
+  G11: { speed: 0, player: 'bike' },
+};
 
 /** The scenario bank filtered to what's relevant for the given vehicle focus ('any'-tagged rules always included). */
 export function scenariosFor(focus: VehicleFocus): PracticeScenario[] {

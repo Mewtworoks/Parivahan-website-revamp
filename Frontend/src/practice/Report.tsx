@@ -1,7 +1,52 @@
 import { Icon } from '../ui/Icon';
 import { Note } from '../ui/SharedUI';
-import type { PageProps } from '../types';
-import { SKILL_AXES, scoreOf } from './scenarios';
+import type { GameLogEntry, PageProps } from '../types';
+import { SCENARIOS, SKILL_AXES, scoreOf } from './scenarios';
+
+/**
+ * The wrong answers, joined back to the situations they came from.
+ *
+ * The log stores scenario ids, so the report could always count mistakes and
+ * never name them. Counting is scoring; naming is teaching, and only one of
+ * those helps somebody pass on the next attempt.
+ */
+type Mistake = {
+  entry: GameLogEntry;
+  n: number;
+  q: string;
+  chose: string | null;
+  answer: string;
+  ex: string;
+  cite: string;
+};
+
+function mistakesFrom(log: GameLogEntry[]): Mistake[] {
+  const byId = new Map(SCENARIOS.map(s => [s.id, s]));
+  const out: Mistake[] = [];
+  log.forEach((entry, i) => {
+    if (entry.ok) return;
+    const s = byId.get(entry.id);
+    if (!s) return;
+    out.push({
+      entry,
+      n: i + 1,
+      q: s.q,
+      // A timeout has no wrong answer to show, and pretending otherwise ("you
+      // chose A") would be a lie about the one thing this sheet is for.
+      //
+      // Loose null check on purpose. journeyStore persists the whole state to
+      // localStorage, so a round played before `pick` existed comes back with
+      // the field absent rather than null — a strict `=== null` would fall
+      // through and index the answers with undefined, printing a blank where the
+      // wrong answer should be.
+      chose: typeof entry.pick !== 'number' ? null : s.a[entry.pick] ?? null,
+      answer: s.a[s.c],
+      ex: s.ex,
+      cite: s.cite,
+    });
+  });
+  return out;
+}
 
 function weakestAxisAdvice(axisKey: string, label: string, scorePercent: number): string {
   const advice =
@@ -40,6 +85,7 @@ export function Report({ go, state, update }: PageProps) {
   const weakestFirst = SKILL_AXES.filter(([key]) => scores[key] !== null).sort((a, b) => scores[a[0]]! - scores[b[0]]!);
   const weakest = weakestFirst[0];
   const correctButSlow = log.filter(e => e.ok && !e.fast);
+  const mistakes = mistakesFrom(log);
 
   const notes: string[] = [];
   if (weakest) notes.push(weakestAxisAdvice(weakest[0], weakest[1], Math.round(scores[weakest[0]]! * 100)));
@@ -50,7 +96,7 @@ export function Report({ go, state, update }: PageProps) {
   if (readinessPercent >= 80) notes.push('You are above the pass line on the current bank. Take the mock test, then book the slot.');
 
   return (
-    <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
+    <div className="narrow fade report-root" style={{ padding: '40px 24px 0' }}>
       <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
       <div className="col g10" style={{ marginBottom: 24 }}>
         <span className="eyebrow">Practice round complete</span>
@@ -87,6 +133,64 @@ export function Report({ go, state, update }: PageProps) {
           ))}
         </div>
       </div>
+      {/* The part of a report card that is actually revisable: every situation
+          that went wrong, the answer that was given, the answer that was right,
+          and the rule it comes from. */}
+      {mistakes.length > 0 && (
+        <div className="card col printable" style={{ marginTop: 16, overflow: 'hidden' }}>
+          {/* Only on paper. A printed sheet leaves the page it came from behind,
+              so it has to say what it is, what it is not, and when it was made —
+              a revision sheet with a date on it is checkable against the bank it
+              was drawn from later. */}
+          <div className="print-only printhead">
+            <b>Road-rule revision sheet</b>
+            <span>{mistakes.length} situation{mistakes.length > 1 ? 's' : ''} answered wrong of {log.length} · readiness {readinessPercent}% · {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+            <span>Parivahan Sewa redesign concept · practice bank written from the Motor Vehicles Act, the Central Motor Vehicles Rules and published state question banks. Not an official document.</span>
+          </div>
+          <div className="row between g12 wrapf" style={{ padding: '22px 26px', alignItems: 'flex-end' }}>
+            <div className="col g4 noprint">
+              <h3>Where you went wrong</h3>
+              <span className="tiny">{mistakes.length} of {log.length} situations · every one with the rule it comes from</span>
+            </div>
+            {/* The browser's own print-to-PDF rather than a PDF library. Two
+                reasons, and the second is decisive: it adds no dependency to a
+                bundle this size, and it renders Devanagari correctly. A
+                client-side PDF writer needs a Devanagari font embedded to avoid
+                emitting tofu, and the scenario bank is on its way to Hindi and
+                Marathi — a study sheet that cannot be read in the language
+                somebody revises in is not a study sheet. */}
+            <button className="btn btn-s noprint" onClick={() => window.print()}>
+              {Icon.doc({ width: 15, height: 15 })} Save these as a PDF
+            </button>
+          </div>
+          <hr className="hr noprint" />
+          {mistakes.map((m, i) => (
+            <div key={m.entry.id} className="col g10 mistake" style={{ padding: '20px 26px', borderTop: i === 0 ? undefined : '1px solid var(--line)' }}>
+              <div className="row g10" style={{ alignItems: 'baseline' }}>
+                <span className="tiny mono" style={{ color: 'var(--muted)', flex: 'none' }}>{String(m.n).padStart(2, '0')}</span>
+                <p style={{ fontWeight: 500, lineHeight: 1.5 }}>{m.q}</p>
+              </div>
+              <div className="col g6" style={{ paddingLeft: 30 }}>
+                <div className="row g8" style={{ alignItems: 'flex-start' }}>
+                  <span className="tiny mono" style={{ color: 'var(--bad)', flex: 'none', minWidth: 62 }}>{m.chose === null ? 'no answer' : 'you said'}</span>
+                  <span className="sub" style={{ color: 'var(--bad)' }}>{m.chose === null ? (m.entry.to ? 'The four seconds ran out.' : 'Not recorded — this round predates answer logging.') : m.chose}</span>
+                </div>
+                <div className="row g8" style={{ alignItems: 'flex-start' }}>
+                  <span className="tiny mono" style={{ color: 'var(--ok)', flex: 'none', minWidth: 62 }}>correct</span>
+                  <span className="sub" style={{ color: 'var(--ink)', fontWeight: 500 }}>{m.answer}</span>
+                </div>
+                <p className="sub" style={{ lineHeight: 1.6, marginTop: 4 }}>{m.ex}</p>
+                <span className="tiny mono" style={{ color: 'var(--muted)' }}>{m.cite}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {mistakes.length === 0 && (
+        <div style={{ marginTop: 16 }}><Note tone="brand"><b>Nothing wrong to revise.</b> Every situation in this round was answered correctly.</Note></div>
+      )}
+
       {weakest && (
         <div style={{ marginTop: 16 }}>
           <Note tone="brand"><b>Next round adapts.</b> Because {weakest[1].toLowerCase()} scored lowest, the engine will weight the next eight situations towards it instead of reshuffling the same twelve.</Note>

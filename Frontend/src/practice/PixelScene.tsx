@@ -2,17 +2,62 @@ import { useEffect, useRef } from 'react';
 import { COLS, ROWS, SPRITE_COLORS, SPRITES, TILE, TILE_COLORS } from './scenarios';
 import type { SpriteArt } from '../types';
 
-function drawTile(ctx: CanvasRenderingContext2D, ch: string, x: number, y: number) {
-  ctx.fillStyle = TILE_COLORS[ch] || '#7ba250';
+/**
+ * A stable value in 0..1 for one tile, hashed from its own coordinates.
+ *
+ * Not `Math.random()`, and not a value cached per render: this canvas redraws
+ * every frame, so a random tile would mean grass that boils and asphalt that
+ * flickers. Hashing the coordinates gives variation across the scene while
+ * keeping any given tile identical on every frame and every reload.
+ */
+function tileNoise(c: number, r: number) {
+  const h = Math.imul(c + 1, 73856093) ^ Math.imul(r + 1, 19349663);
+  return (((h ^ (h >>> 13)) >>> 0) % 1000) / 1000;
+}
+
+/**
+ * Six tuft layouts, picked per tile by the hash above.
+ *
+ * There used to be one layout — three tufts at the same three sub-tile offsets
+ * on every tile in the scene. At 16px a tile that is nearly invisible; upscaled
+ * to the ~50px this canvas is actually displayed at, it stops reading as texture
+ * and becomes a polka-dot lattice, perfectly aligned across a third of the
+ * frame. Offsets are integers so they stay on exact pixels at any zoom.
+ */
+const TUFTS: [number, number][][] = [
+  [[3, 5], [10, 11], [7, 2]],
+  [[2, 9], [11, 4], [6, 13]],
+  [[5, 3], [12, 9], [8, 7]],
+  [[4, 12], [9, 6], [13, 2]],
+  [[6, 8], [2, 3], [11, 12]],
+  [[8, 4], [3, 11], [12, 6]],
+];
+
+function drawTile(ctx: CanvasRenderingContext2D, ch: string, x: number, y: number, c: number, r: number) {
+  const n = tileNoise(c, r);
+  // 't' is a tree drawn over grass, so it takes the grass base rather than
+  // falling through to the generic default the way it used to.
+  const isGrass = ch === '.' || ch === 't';
+  const isAsphalt = ch === '#' || ch === '=' || ch === '-' || ch === 'z';
+
+  // One flat green across the verges and one flat grey across the carriageway is
+  // what made the scene read as coloured paper with markings on it. Three shades
+  // of each, a step apart — individually too small to notice, and together the
+  // difference between ground and a filled rectangle.
+  if (isGrass) ctx.fillStyle = n < 0.34 ? '#74a04b' : n < 0.72 ? '#7ba250' : '#83aa56';
+  else if (isAsphalt) ctx.fillStyle = n < 0.36 ? '#686c73' : n < 0.73 ? '#6d7178' : '#72767d';
+  else ctx.fillStyle = TILE_COLORS[ch] || '#7ba250';
   ctx.fillRect(x, y, TILE, TILE);
+
   if (ch === '.') {
-    // grass — a few fixed darker tufts so it isn't one flat colour
-    ctx.fillStyle = '#6f9a45';
-    ctx.fillRect(x + TILE * 0.19, y + TILE * 0.31, 2, 2);
-    ctx.fillRect(x + TILE * 0.63, y + TILE * 0.63, 2, 2);
-    ctx.fillRect(x + TILE * 0.44, y + TILE * 0.13, 2, 2);
+    const tuft = TUFTS[Math.floor(n * TUFTS.length)];
+    // Two tufts on some tiles, three on others — an even count everywhere is its
+    // own kind of regularity.
+    const count = n < 0.28 ? 2 : 3;
+    ctx.fillStyle = n < 0.5 ? '#6a9440' : '#6f9a45';
+    for (let i = 0; i < count; i++) ctx.fillRect(x + tuft[i][0], y + tuft[i][1], 2, 2);
   }
-  if (ch === '#' || ch === '=' || ch === '-' || ch === 'z') {
+  if (isAsphalt) {
     // asphalt — a soft top highlight and bottom shade for a little depth
     ctx.fillStyle = '#7d8189'; ctx.fillRect(x, y, TILE, 2);
     ctx.fillStyle = '#5f636a'; ctx.fillRect(x, y + TILE - 2, TILE, 2);
@@ -116,7 +161,7 @@ export function PixelScene({ map, art, shake, progress = 0, revealed = false }: 
       const effectiveT = frozenAt ?? t;
       const eased = 1 - (1 - Math.min(1, Math.max(0, progressRef.current))) ** 2;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawTile(ctx, (map[r] || '')[c] || '.', c * TILE, r * TILE);
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawTile(ctx, (map[r] || '')[c] || '.', c * TILE, r * TILE, c, r);
       (art || []).forEach(([name, x, y, body, lamp, facing, move]) => {
         const isVehicle = VEHICLES.has(name);
         const isPlayer = isVehicle && body === PLAYER_BODY;

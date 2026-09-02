@@ -1,0 +1,1056 @@
+/* =============================================================================
+   A different visual language for the whole service.
+
+   This file is loaded after parivahan_extracted.css and overrides it. Nothing in
+   that stylesheet is edited, so the entire redesign reverts by deleting one
+   import line in main.tsx — which matters, because a change this wide is a
+   judgement call and it should be cheap to disagree with.
+
+   The identity it replaces was cobalt blue on blue-white, Instrument Sans, 14
+   and 20px corners, and a soft blue-tinted shadow under every panel. Each of
+   those choices is defensible alone. Together they are the house style of every
+   government-technology product and every generated landing page of the last two
+   years, which is the problem: the page looked assembled rather than designed,
+   and nothing on it said *India*, *road transport* or even *document*.
+
+   What replaces it commits to one idea — a state record, set properly:
+
+   - Paper, not screen-white. The ground is warm cream and the cards are near
+     white, so a card separates from the page by being lighter than it rather
+     than by floating above it on a shadow. That swap is what makes removing the
+     shadows survivable; an earlier attempt pulled the shadows while leaving the
+     blue-white ground, and the page went flat because nothing had replaced the
+     job they were doing.
+   - Green, not blue. Deep, close to the flag's, and the only accent on any
+     screen. Blue is what every transport department in the world has already
+     used, which is most of why the old palette read as generic.
+   - IBM Plex Serif for display. Plex exists because an institution commissioned
+     a typeface to speak with, which is exactly the register a licence is in, and
+     the serif carries the weight the sans could not. Body stays Plex Sans, so the
+     superfamily holds it together.
+   - Figures are monospaced and tabular. An application number, a fee, a token, a
+     time — all of them are data, all of them line up in a column, and none of
+     them should reflow as digits change.
+   - Corners are nearly square and rules are hairlines. Forms have edges.
+
+   Dark mode is re-tuned warm to match, rather than left as the blue-black it was.
+   ============================================================================= */
+
+:root {
+   /* Paper. The hue is held at ~85 across every neutral so the greys stay warm;
+      a single cool grey in this palette reads as a mistake. */
+   --bg: oklch(0.973 0.012 85);
+   --surface: oklch(0.995 0.004 85);
+   --surface2: oklch(0.951 0.016 85);
+
+   --ink: oklch(0.245 0.014 60);
+   --ink2: oklch(0.415 0.014 60);
+   --muted: oklch(0.552 0.014 65);
+
+   /* Two weights of rule, because with the shadows gone the borders are doing
+      all the structural work: --line separates things inside a panel, --line2
+      closes the panel itself. */
+   --line: oklch(0.888 0.014 82);
+   --line2: oklch(0.802 0.018 82);
+
+   --brand: oklch(0.435 0.098 156);
+   --brand-hi: oklch(0.368 0.092 156);
+   --brand-soft: oklch(0.958 0.024 156);
+   --brand-line: oklch(0.852 0.048 156);
+
+   --accent: oklch(0.435 0.098 156);
+   --accent-ink: oklch(0.368 0.092 156);
+   --accent-soft: oklch(0.958 0.024 156);
+
+   --ok: oklch(0.435 0.098 156);
+   --ok-soft: oklch(0.958 0.024 156);
+
+   /* Saffron is reserved. It appears only where something needs attention, which
+      is the one job an accent cannot share with the brand colour. */
+   --warn: oklch(0.585 0.132 62);
+   --warn-soft: oklch(0.963 0.036 72);
+   --warn-line: oklch(0.868 0.072 68);
+   --warn-ink: oklch(0.448 0.112 58);
+   --badge-line: oklch(0.855 0.088 68);
+
+   --bad: oklch(0.475 0.158 28);
+   --bad-soft: oklch(0.962 0.028 28);
+   --bad-line: oklch(0.872 0.058 30);
+
+   --r: 5px;
+   --r-lg: 7px;
+
+   /* No shadow on anything that sits in the page. --sh-lg stays for the few
+      things that genuinely float — the sheet, the toast, the dropdown, the
+      back-to-top pill — and is warm and tighter than the blue one it replaces. */
+   --sh: none;
+   --sh-lg: 0 1px 2px oklch(0.24 0.02 60/.07), 0 14px 34px -14px oklch(0.24 0.02 60/.3);
+
+   --sans: "IBM Plex Sans", system-ui, sans-serif;
+   --disp: "IBM Plex Serif", Georgia, serif;
+   --mono: "IBM Plex Mono", ui-monospace, monospace;
+
+   --stripe-1: oklch(0.885 0.016 85);
+   --stripe-2: oklch(0.94 0.012 85);
+   --tl-done: oklch(0.855 0.04 156);
+
+   /* The hero band. Lighter than --bg, so it reads as a raised sheet the page
+      sits under rather than as a panel painted onto it. The first version of
+      this used --surface, two steps off --bg in dark mode and therefore
+      invisible; the second painted the whole band green, which fixed the
+      invisibility by removing the contrast problem entirely — everything went to
+      one value and one hue, including the licence card that is meant to be the
+      strongest object on the page. A wall the same colour as the thing standing
+      against it. */
+   --hero-bg: oklch(0.998 0.003 85);
+
+   /* The footer field: near-black and warm, not green. A dark foot under a paper
+      body is contrast the page can use; a green foot under a green head was two
+      walls of the same paint. Green survives on it as link and accent colour,
+      which is where green was always strongest. */
+   --field: oklch(0.216 0.012 70);
+   --field-ink: oklch(0.972 0.012 90);
+
+   /* Saffron, used as a second voice and only in three places: the hero's
+      underline, the rule that closes the hero band, and warnings. Two accents is
+      one more than the rule allows; the exception is that these two are the
+      flag's, and on a road-transport service that reads as provenance rather
+      than decoration. */
+   --saffron: oklch(0.735 0.158 62);
+}
+
+:root[data-theme="dark"] {
+   --bg: oklch(0.188 0.008 70);
+   --surface: oklch(0.232 0.009 70);
+   --surface2: oklch(0.278 0.011 70);
+
+   --ink: oklch(0.948 0.008 85);
+   --ink2: oklch(0.802 0.012 80);
+   --muted: oklch(0.632 0.014 75);
+
+   --line: oklch(0.335 0.011 70);
+   --line2: oklch(0.425 0.014 70);
+
+   --brand: oklch(0.688 0.128 156);
+   --brand-hi: oklch(0.755 0.118 156);
+   --brand-soft: oklch(0.282 0.042 156);
+   --brand-line: oklch(0.418 0.068 156);
+
+   --accent: oklch(0.688 0.128 156);
+   --accent-ink: oklch(0.818 0.108 156);
+   --accent-soft: oklch(0.288 0.044 156);
+
+   --ok: oklch(0.688 0.128 156);
+   --ok-soft: oklch(0.282 0.042 156);
+
+   --warn: oklch(0.762 0.118 68);
+   --warn-soft: oklch(0.292 0.05 70);
+   --warn-line: oklch(0.508 0.088 68);
+   --warn-ink: oklch(0.842 0.098 70);
+   --badge-line: oklch(0.508 0.088 68);
+
+   --bad: oklch(0.688 0.152 28);
+   --bad-soft: oklch(0.288 0.055 28);
+   --bad-line: oklch(0.508 0.098 28);
+
+   --sh: none;
+   --sh-lg: 0 1px 2px oklch(0 0 0/.4), 0 14px 34px -14px oklch(0 0 0/.66);
+
+   --stripe-1: oklch(0.312 0.011 70);
+   --stripe-2: oklch(0.258 0.01 70);
+   --tl-done: oklch(0.46 0.05 156);
+
+   /* Dark mode needs a bigger step than light does. --surface at 0.232 against
+      --bg at 0.188 is a difference you can measure and cannot see, which is why
+      the band read as a void; 0.268 is far enough to register as elevation. */
+   --hero-bg: oklch(0.268 0.013 70);
+   --field: oklch(0.148 0.009 70);
+   --field-ink: oklch(0.965 0.011 90);
+   --saffron: oklch(0.768 0.152 64);
+}
+
+/* --- display type -----------------------------------------------------------
+
+   The serif runs a touch smaller and tighter than the sans it replaces: at the
+   same size a serif reads larger, and the old -0.02em tracking was tuned for a
+   grotesque. The hero cap comes down from 4.2rem, which was a product-launch
+   size on a page about a government form. */
+
+h1,
+h2,
+h3,
+h4 {
+   font-family: var(--disp);
+   font-weight: 600;
+   letter-spacing: -0.014em
+}
+
+.hero h1 {
+   font-size: clamp(2.15rem, 3.9vw, 3.35rem);
+   line-height: 1.08;
+   letter-spacing: -0.022em
+}
+
+/* Labels are set in mono, not in tracked-out sans. A monospaced label reads as a
+   field name on a form, which is what these are. */
+/* Deliberately not `.tiny`. That class covers both two-word asides and the
+   footer's sixty-word disclaimer, and setting the whole class in mono put the
+   longest, densest paragraph on the site into a typeface with no width variation
+   to help anybody through it. Mono is for labels and figures; the moment it is
+   carrying a sentence somebody has to read, it is the wrong tool. */
+.eyebrow,
+.kicker,
+.strip-n,
+.steps .n {
+   font-family: var(--mono);
+   letter-spacing: .04em
+}
+
+.eyebrow,
+.kicker {
+   text-transform: uppercase;
+   font-weight: 500
+}
+
+/* Figures are data: monospaced, tabular, and lining up down a column whatever
+   digits they contain. Prose keeps proportional numerals — tabular figures in a
+   sentence are too wide. */
+.hero .floor b,
+.hero-stats b,
+.strip-n,
+.mono,
+table,
+td,
+th,
+.slot,
+.tok {
+   font-variant-numeric: tabular-nums
+}
+
+.hero .floor b,
+.hero-stats b {
+   font-family: var(--mono);
+   font-weight: 500;
+   letter-spacing: -.01em
+}
+
+/* --- the hero band ----------------------------------------------------------
+
+   Three decorative layers came off here: a vertical gradient, a dot-grid overlay
+   and a 620px blurred blue orb bleeding off the top-right corner. The orb in
+   particular sat directly behind a licence specimen that is asking to be taken
+   for a real document.
+
+   What holds the band together instead is that it is a different paper from the
+   page — near-white against the cream body — closed top and bottom by a rule.
+   A masthead, the way a document has one. */
+
+.hero:before,
+.hero:after {
+   content: none
+}
+
+/* A raised sheet, not a colour field.
+ *
+ * This band has now been three things, and the second two failed for opposite
+ * reasons. Made --surface, it was two steps off --bg in dark mode: invisible,
+ * a void with type floating in it. Painted solid green, it stopped being
+ * invisible by abolishing contrast altogether — the whole band, and the licence
+ * card standing on it, went to one hue at one value. A wall behind an object,
+ * both the same paint. The card is the only photograph on this page and the
+ * field had flattened it into wallpaper.
+ *
+ * So the band goes back to being paper, a step *lighter* than the page rather
+ * than darker, closed by the saffron rule. The colour did not leave the hero;
+ * it moved into the licence, which is the thing the eye is supposed to land on.
+ * Figure and ground, in that order. */
+.hero {
+   background: var(--hero-bg);
+   border-bottom: 3px solid var(--saffron)
+}
+
+/* Saffron holds the emphasised word, but a step deeper than the footer's — the
+   same value that reads as bright on near-black is barely there on paper, and
+   this is the one word in the headline doing any work. */
+.hero .uline {
+   color: oklch(0.598 0.158 55)
+}
+
+.hero .uline:after {
+   background: oklch(0.598 0.158 55)
+}
+
+:root[data-theme="dark"] .hero .uline,
+:root[data-theme="dark"] .hero .uline:after {
+   color: var(--saffron);
+   background: none
+}
+
+:root[data-theme="dark"] .hero .uline:after {
+   background: var(--saffron)
+}
+
+/* The licence is the object with the colour on it, so it gets the one shadow
+   allowed on this page outside of things that float — it is standing on the
+   sheet, and a document lying on paper casts something. */
+.hero-art .lic {
+   box-shadow: var(--sh-lg)
+}
+
+/* The licence sat at -2.2deg, which is a product shot. A document lies flat. */
+.hero-art .lic {
+   transform: none
+}
+
+
+/* --- panels -----------------------------------------------------------------
+
+   Every static panel loses its shadow and gains the heavier rule. The cream
+   ground is what makes this legible: a near-white card on warm cream separates
+   by value, so the shadow was only ever doing the job twice. */
+
+.card,
+.start,
+.purpose,
+.steps,
+.claims,
+.strip,
+.lookup,
+.flat {
+   box-shadow: none;
+   border-color: var(--line2)
+}
+
+/* Corners come down everywhere the radius was hardcoded past the tokens. */
+.btn,
+.input,
+.tile,
+.slot {
+   border-radius: var(--r)
+}
+
+.pop,
+.float,
+.modcard,
+.gamecard {
+   border-radius: var(--r-lg)
+}
+
+.claim-ic,
+.strip-n {
+   border-radius: 4px
+}
+
+/* The step number was a filled circle. Squared off and outlined, it reads as a
+   stage marker rather than a bullet. */
+.steps .n i {
+   border-radius: 3px
+}
+
+/* --- buttons ----------------------------------------------------------------
+
+   The primary carried a 1px inset highlight along its top edge — a skeuomorphic
+   detail that belongs to a glossier button than this one. Flat, square-ish and
+   green, with the border doing the definition. */
+
+.btn-p {
+   background: var(--brand);
+   box-shadow: none;
+   border-color: var(--brand)
+}
+
+.btn-p:hover {
+   background: var(--brand-hi);
+   border-color: var(--brand-hi)
+}
+
+.btn-s {
+   border-color: var(--line2)
+}
+
+.btn-s:hover {
+   border-color: var(--brand);
+   color: var(--brand)
+}
+
+/* --- focus ------------------------------------------------------------------
+
+   Squared to match everything else, and thick enough to survive on cream. */
+
+:focus-visible {
+   outline: 2.5px solid var(--brand);
+   outline-offset: 2px;
+   border-radius: 3px
+}
+
+/* --- links ------------------------------------------------------------------
+
+   A green link on cream needs the underline; without it the colour alone is not
+   a strong enough signal at body size. */
+
+a {
+   text-decoration-thickness: 1px;
+   text-underline-offset: 2.5px
+}
+
+/* --- material and depth -----------------------------------------------------
+
+   The top bar was an opaque slab pinned to the top of the page, which is the one
+   place on a scrolling site where a material earns its keep: translucent with a
+   blur behind it, content passes *under* the bar instead of vanishing at a hard
+   edge, and the page gains a layer without anything being drawn.
+
+   Saturating as well as blurring is what keeps it from going grey — a plain blur
+   averages colour towards the middle, and on a page with a green field at the
+   top that average is mud. The fallback is the opaque bar it replaces, because a
+   translucent bar with no blur behind it is unreadable, not merely plainer.
+   --------------------------------------------------------------------------- */
+
+.tb {
+   /* Declared twice on purpose: a browser without color-mix drops the second
+      line and keeps the opaque bar, rather than parsing nothing and leaving the
+      sticky bar transparent over the page scrolling beneath it. */
+   background: var(--surface);
+   background: color-mix(in oklab, var(--surface) 82%, transparent);
+   /* 8px, not the 18 this started at. A backdrop-filter on a sticky element is
+      recomputed for every scrolled frame, over the full width of the viewport,
+      and blur cost climbs with radius — so the one place the radius is most
+      tempting is the place it is least affordable. Raising the opacity from 76
+      to 82 buys back the legibility the smaller radius gives up. */
+   backdrop-filter: blur(8px) saturate(175%);
+   -webkit-backdrop-filter: blur(8px) saturate(175%)
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+   .tb {
+      background: var(--surface)
+   }
+}
+
+/* --- the hero, orchestrated -------------------------------------------------
+
+   Everything in the hero arrived on the same frame, which is the seam the
+   opportunity-finding gate calls "lists rendering all at once with no stagger".
+   It passes the other three gates too: this is a first-view moment rather than
+   something anybody repeats, its purpose is state indication — the order the
+   elements arrive in is the order they should be read in — and each element
+   moves for 280ms, inside the sub-300ms budget. Only transform and opacity, so
+   it stays on the compositor.
+
+   The page-enter animation had to become opacity-only for this to work. It was
+   translating the whole page up 8px while these children translated up 12px on
+   their own delays, so the two composed into an 20px drift and then the delayed
+   children re-started after the parent had settled. One animation owns the
+   movement now and the parent just fades.
+   --------------------------------------------------------------------------- */
+
+@keyframes fadeOnly {
+   from {
+      opacity: 0
+   }
+}
+
+.fade {
+   animation: fadeOnly .2s cubic-bezier(0.23, 1, 0.32, 1) both
+}
+
+@keyframes heroIn {
+   from {
+      opacity: 0;
+      transform: translateY(12px)
+   }
+}
+
+.hero .in>.col>*,
+.hero .hero-art,
+.hero .floor {
+   animation: heroIn .28s cubic-bezier(0.23, 1, 0.32, 1) both
+}
+
+/* 60ms apart — the middle of the 30-80ms the stagger rule allows. The licence
+   card comes in with the sentence rather than last, because it is the other half
+   of the headline's claim and arriving after the buttons made it look like an
+   afterthought loading in. */
+.hero .in>.col>*:nth-child(1) {
+   animation-delay: .04s
+}
+
+.hero .in>.col>*:nth-child(2) {
+   animation-delay: .1s
+}
+
+.hero .in>.col>*:nth-child(3) {
+   animation-delay: .16s
+}
+
+.hero .in>.col>*:nth-child(4) {
+   animation-delay: .22s
+}
+
+.hero .hero-art {
+   animation-delay: .16s
+}
+
+.hero .floor {
+   animation-delay: .3s
+}
+
+/* The rule under the one word the headline is actually about, drawn rather than
+   faded — a reveal from the left, starting as the headline finishes arriving, so
+   it reads as underlining a word that is already there. This is the delight
+   budget, spent once, on the single most-looked-at element on the service. */
+.hero .uline:after {
+   transform-origin: left center;
+   animation: ulineIn .36s cubic-bezier(0.23, 1, 0.32, 1) .32s both
+}
+
+@keyframes ulineIn {
+   from {
+      transform: scaleX(0)
+   }
+}
+
+/* --- hover gating -----------------------------------------------------------
+
+   Hover effects belong to devices that have a pointer. On a touchscreen the
+   :hover state latches after a tap and stays there with no cursor to explain it,
+   so the card left behind on the page looks selected rather than hovered. */
+
+@media (hover: none) {
+
+   .tb-btn:hover,
+   .tile:hover,
+   .linkcol a:hover {
+      background: initial;
+      text-decoration: none
+   }
+}
+
+/* --- reduced motion, for everything above ----------------------------------
+
+   Movement goes, opacity stays — a cross-fade instead of a slide, which is the
+   substitution the accessibility rule asks for rather than switching motion off
+   and leaving elements that never arrive. `both` fill means anything animated
+   here is invisible until its animation runs, so these have to be reset to a
+   visible resting state rather than simply set to `none`. */
+
+@media (prefers-reduced-motion: reduce) {
+
+   .hero .in>.col>*,
+   .hero .hero-art,
+   .hero .floor {
+      animation: fadeOnly .2s linear both;
+      animation-delay: 0s
+   }
+
+   .hero .uline:after {
+      animation: none;
+      transform: none
+   }
+}
+
+/* --- the footer -------------------------------------------------------------
+
+   Near-black and warm, closed by a saffron rule at the top.
+
+   This was a green field mirroring a green hero, which sounded like bookending
+   and looked like the page had been painted one colour and then had text put on
+   it. Two walls of the same paint at the same value is not a composition. A dark
+   foot under a paper body is: the page gets lighter towards the top, which is
+   where the reader starts, and the mass at the bottom is where it ends.
+
+   Green stays, as the colour of the links and the wordmark rather than the
+   surface behind them — which is the one job it was always best at.
+
+   The layout is asymmetric on purpose: identity and the one-line claim take a
+   wide left column, the service's links take three narrow ones on the right.
+   Four equal columns is what it was, and equal columns gave the wordmark nowhere
+   to live and made every link the same weight as every other.
+   --------------------------------------------------------------------------- */
+
+.footer {
+   background: var(--field);
+   color: var(--field-ink);
+   border-top: 3px solid var(--saffron);
+   margin-top: 88px;
+   padding: 52px 0 40px
+}
+
+.foot-top {
+   display: grid;
+   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.95fr);
+   gap: 56px;
+   align-items: start
+}
+
+.foot-cols {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+   gap: 32px
+}
+
+.foot-id {
+   max-width: 38ch
+}
+
+/* The wordmark repeated at the foot of the page. Slightly smaller than the top
+   bar's and without the hover treatment, because down here it is a signature
+   rather than a control somebody is hunting for. */
+.foot-mark {
+   display: inline-flex;
+   align-items: center;
+   gap: 11px;
+   background: none;
+   border: 0;
+   padding: 0;
+   color: inherit
+}
+
+.foot-mark .mark-g {
+   width: 30px;
+   height: 30px
+}
+
+.foot-mark .mark-t {
+   font-family: var(--disp);
+   font-weight: 600;
+   font-size: 1.02rem;
+   color: var(--field-ink)
+}
+
+.foot-line {
+   font-size: .875rem;
+   line-height: 1.62;
+   color: oklch(1 0 0/.72)
+}
+
+/* Column headings in mono, matching the field labels everywhere else. They read
+   as the name of a group rather than as the first and boldest link in it. */
+.foot-h {
+   font-family: var(--mono);
+   font-size: .72rem;
+   font-weight: 500;
+   letter-spacing: .1em;
+   text-transform: uppercase;
+   /* Was .58, which is the sort of value that looks right and measures wrong:
+      at .72rem, uppercase, tracked out, on a mid-dark field, it lands under AA.
+      Small tracked type needs more contrast than its size suggests, not less. */
+   color: oklch(1 0 0/.74)
+}
+
+.footer .linkcol {
+   gap: 10px
+}
+
+.footer .linkcol a {
+   color: oklch(1 0 0/.87);
+   text-decoration: none
+}
+
+/* Green on near-black, which is where this green is at its best — the hue has
+   enough lightness at 0.688 to read as a colour rather than as dimmed white. */
+.footer .linkcol a:hover,
+.foot-mark .mark-t {
+   color: oklch(0.712 0.132 158);
+   text-decoration: none
+}
+
+.footer .linkcol a:hover {
+   text-decoration: underline;
+   text-decoration-color: oklch(0.712 0.132 158);
+   text-decoration-thickness: 1.5px;
+   text-underline-offset: 3px
+}
+
+.footer .hr {
+   background: oklch(1 0 0/.2)
+}
+
+/* The disclaimer lives here. It is the one paragraph on the site that has a
+   reason to be read by somebody who is looking for a reason not to trust the
+   build, so it does not get to be the faintest text on the page. */
+.footer .tiny {
+   color: oklch(1 0 0/.7)
+}
+
+@media(max-width:860px) {
+   .foot-top {
+      grid-template-columns: 1fr;
+      gap: 36px
+   }
+
+   .footer {
+      margin-top: 56px;
+      padding: 40px 0 32px
+   }
+}
+
+/* --- the blues that were not tokens ----------------------------------------
+
+   Retuning :root took the palette green everywhere the palette was being asked.
+   These eleven places asked nobody: they carry a blue written directly into the
+   rule, so they survived the reskin and left the page half-changed — which is
+   worse than either colour on its own. The licence card was the loudest, a solid
+   blue slab occupying the top right of the home page while everything around it
+   had gone green.
+   --------------------------------------------------------------------------- */
+
+/* The licence itself. Kept dark enough for the white type and the guilloche
+   detail it already carries; the third stop is warmer so the card is not a flat
+   wash.
+   Deliberately richer than the interface green and deeper than the band it now
+   stands on: this is the only photograph on the page, and with the hero back to
+   paper it is carrying the colour for the whole screen. */
+.lic {
+   background: linear-gradient(150deg, oklch(0.352 0.112 162), oklch(0.242 0.074 166) 58%, oklch(0.308 0.094 150))
+}
+
+/* The mark is a PNG with the old cobalt baked into it, sitting on top of the
+   .mark-g tile that already tints itself with --brand — so the tile went green
+   and the image stayed blue on top of it. Rotating the hue is what is available
+   without redrawing the asset: the scooter is white, and white has no hue to
+   rotate, so only the field behind it moves. Replace the file and this goes. */
+.mark-g {
+   filter: hue-rotate(-78deg) saturate(0.92)
+}
+
+.btn-a:hover {
+   background: var(--brand-soft)
+}
+
+/* The ring on a focused input and the one on a chosen tile — the second is the
+   selected state all through the apply form, so it is on screen more than most
+   things here. */
+.input:focus {
+   box-shadow: 0 0 0 3px oklch(0.435 0.098 156/.16)
+}
+
+.tile[aria-checked=true] {
+   box-shadow: 0 0 0 3px oklch(0.435 0.098 156/.14)
+}
+
+/* The scrim behind a sheet — warm ink, so it does not tint the page blue as it
+   dims it. */
+.sheet-bg {
+   background: oklch(0.22 0.02 60/.52)
+}
+
+.modcard.dark {
+   background: linear-gradient(160deg, oklch(0.375 0.095 158), oklch(0.288 0.075 162));
+   color: oklch(0.955 0.014 90)
+}
+
+.modcard.dark .sub,
+.modcard.dark p {
+   color: oklch(0.885 0.022 90)
+}
+
+/* The game's chrome: heads-up bar and countdown bar. Both were the same
+   hardcoded blue, and both are chrome around the scene rather than part of it,
+   so the brand green is right for them. */
+.hud,
+.cdbar {
+   background: oklch(0.288 0.075 158)
+}
+
+/* The frame around the scene is the exception, and turning it green with the
+   other two was a mistake: it puts a dark green bezel directly against the
+   scene's own grass, and two greens that are close but not equal read as dirt
+   rather than as two things. A bezel's job is to be the absence of colour so
+   the picture inside it can have some — near-black, warm to match the rest of
+   the neutrals. */
+.pixwrap {
+   background: oklch(0.198 0.008 70)
+}
+
+/* The source canvas is 320x208. Displayed at any width that is not a whole
+   multiple of that, `image-rendering: pixelated` has to round each source pixel
+   independently — so at the ~2.1x this was landing on, some pixels came out two
+   screen-pixels wide and their neighbours three. Every straight edge in the
+   scene picks up a stagger, and a lane marking that should be one clean bar
+   arrives faintly ragged. It reads as bad art; it is arithmetic.
+
+   960 is 3x exactly, and the height cap is raised to match so 3x is reachable
+   rather than being clipped back to a fractional scale by max-height. Narrower
+   containers than this still land where they land — CSS cannot snap to a
+   multiple — but the scene at its own full size is now crisp. */
+.pixcanvas {
+   max-width: 960px;
+   max-height: min(70vh, 624px)
+}
+
+/* The driver's-view canvas is 320x180 rather than the top-down 320x208, so it
+   needs its own ratio — and 960 is 3x exactly here too, for the same
+   integer-scaling reason. */
+.roadcanvas {
+   aspect-ratio: 320/180;
+   max-height: min(70vh, 540px);
+   /* The scene is a picture, not a panel, so it gets a picture's corner rather
+      than the interface's near-square 5px. The bezel radius is the canvas radius
+      plus its own padding, which is the only pair of values that produces two
+      concentric curves instead of a rounded rectangle sitting inside a slightly
+      differently rounded one. */
+   border-radius: 8px
+}
+
+.pixwrap:has(.roadcanvas) {
+   padding: 6px;
+   border-radius: 14px
+}
+
+/* --- the revision sheet, on paper -------------------------------------------
+
+   The report card's list of wrong answers is also the printed study sheet — the
+   same markup restyled, rather than a second hidden copy of the content that
+   can drift out of step with the first.
+
+   Print-to-PDF instead of a PDF library, for two reasons and the second one
+   decides it: no dependency added to a bundle already near 500kB, and the
+   browser renders Devanagari correctly. A client-side PDF writer needs a
+   Devanagari face embedded or it emits tofu, and a revision sheet nobody can
+   read in the language they revise in is not a revision sheet.
+   --------------------------------------------------------------------------- */
+
+.print-only {
+   display: none
+}
+
+@media print {
+   @page {
+      margin: 15mm
+   }
+
+   /* The chrome, and everything on the report that is not the sheet. Scores and
+      coaching paragraphs are for the screen; what is worth carrying away is the
+      list of things that went wrong and the rules behind them. */
+   .tb,
+   .footer,
+   .backtotop,
+   .sticky-cta,
+   .noprint {
+      display: none !important
+   }
+
+   .report-root>*:not(.printable) {
+      display: none !important
+   }
+
+   .print-only {
+      display: block !important
+   }
+
+   body {
+      background: #fff !important
+   }
+
+   /* Ink on paper. The screen palette is cream-on-cream with a green shadow,
+      none of which survives a printer, and a coloured card background wastes
+      toner on something that has to be read rather than looked at. */
+   .printable {
+      border: 0 !important;
+      box-shadow: none !important;
+      background: #fff !important;
+      margin: 0 !important
+   }
+
+   .printhead {
+      border-bottom: 1.5pt solid #000;
+      padding-bottom: 8pt;
+      margin-bottom: 4pt
+   }
+
+   .printhead b {
+      display: block;
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: 15pt;
+      margin-bottom: 3pt
+   }
+
+   .printhead span {
+      display: block;
+      font-size: 8pt;
+      color: #444;
+      line-height: 1.45
+   }
+
+   /* A question and its answer must not be split across a page break. Reading
+      "you said" at the foot of one sheet and "correct" at the head of the next
+      is the one failure mode that would make this worse than nothing. */
+   .mistake {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      padding: 10pt 0 !important;
+      border-top: 0.5pt solid #bbb !important
+   }
+
+   .printable,
+   .mistake,
+   .mistake p,
+   .mistake span {
+      color: #000 !important
+   }
+
+   /* The two labels keep their distinction, in values that survive a mono
+      printer as well as they read in a PDF viewer. */
+   .mistake span[style*="--bad"],
+   .mistake .sub[style*="--bad"] {
+      color: #8c2c17 !important
+   }
+
+   .mistake span[style*="--ok"] {
+      color: #1a5c3a !important
+   }
+}
+
+/* =============================================================================
+   COLOUR
+
+   This section deliberately overrides the restraint of everything above it, and
+   it is worth being honest about why. The rules the earlier sections follow come
+   from a design system written for a developer tool — "quiet, editorial", no
+   gradients, one accent, neutral until proven otherwise. Followed strictly on a
+   public service for sixteen-year-olds, they produced a page that was correct,
+   defensible, and grey. Restraint is a means, and it stopped serving.
+
+   So: gradients on the two big surfaces, higher chroma throughout, a second hue
+   (teal) to give the green somewhere to travel, and depth back on the cards.
+
+   Two things from above survive because they were never about restraint:
+   figures stay monospaced, and green stays off the licence card's own value —
+   the card has to remain the strongest object in the hero.
+   ============================================================================= */
+
+:root {
+   /* Cream, not white. The old surface was oklch(0.995 0.004) — white with a
+      rumour of warmth in it. Cards are cream now too, a step up from the page
+      rather than a different material, and the page itself is deep enough to be
+      a colour rather than a failed white. */
+   --bg: oklch(0.951 0.021 88);
+   --surface: oklch(0.979 0.014 88);
+   --surface2: oklch(0.929 0.028 88);
+   --line: oklch(0.866 0.025 84);
+   --line2: oklch(0.771 0.033 84);
+
+   --ink: oklch(0.232 0.019 62);
+   --ink2: oklch(0.402 0.019 62);
+   --muted: oklch(0.532 0.021 66);
+
+   /* Chroma up from 0.098 to 0.152. The interface green was mixed to be
+      inoffensive next to grey and now has to hold its own next to a gradient. */
+   --brand: oklch(0.492 0.152 158);
+   --brand-hi: oklch(0.424 0.145 158);
+   --brand-soft: oklch(0.944 0.048 160);
+   --brand-line: oklch(0.821 0.088 158);
+   --accent: oklch(0.492 0.152 158);
+   --accent-ink: oklch(0.424 0.145 158);
+   --accent-soft: oklch(0.944 0.048 160);
+   --ok: oklch(0.492 0.152 158);
+   --ok-soft: oklch(0.944 0.048 160);
+
+   /* Teal is the third hue, and it exists so the green has a direction to move
+      in. A gradient between two tints of one hue is a wash; between two hues it
+      is a gradient. */
+   --teal: oklch(0.512 0.118 202);
+   --saffron: oklch(0.702 0.168 62);
+
+   --grad-hero: linear-gradient(135deg, oklch(0.941 0.064 168) 0%, oklch(0.974 0.028 96) 46%, oklch(0.945 0.072 74) 100%);
+   --grad-brand: linear-gradient(135deg, oklch(0.522 0.158 158), oklch(0.458 0.132 194));
+   --grad-foot: linear-gradient(160deg, oklch(0.272 0.074 172), oklch(0.206 0.05 202) 54%, oklch(0.244 0.064 148));
+
+   /* Shadows come back, and they are green rather than grey. A neutral shadow
+      under a cream card on a cream page is a smudge; tinting it toward the brand
+      hue makes the same depth read as light falling on something coloured. */
+   --sh: 0 1px 2px oklch(0.34 0.06 160/.07), 0 10px 24px -14px oklch(0.34 0.085 165/.22);
+   --sh-lg: 0 2px 4px oklch(0.32 0.06 160/.09), 0 20px 44px -16px oklch(0.32 0.09 165/.34);
+}
+
+:root[data-theme="dark"] {
+   /* Green-tinted, not grey. The dark theme was neutral warm near-black, which
+      is exactly the grey this section exists to answer — the chroma on every
+      neutral is what makes a dark interface feel lit rather than switched off. */
+   --bg: oklch(0.196 0.030 172);
+   --surface: oklch(0.245 0.036 172);
+   --surface2: oklch(0.291 0.042 172);
+   --line: oklch(0.351 0.038 172);
+   --line2: oklch(0.442 0.046 172);
+
+   --ink: oklch(0.956 0.013 100);
+   --ink2: oklch(0.822 0.021 120);
+   --muted: oklch(0.661 0.027 140);
+
+   --brand: oklch(0.748 0.158 158);
+   --brand-hi: oklch(0.808 0.144 158);
+   --brand-soft: oklch(0.302 0.062 165);
+   --brand-line: oklch(0.452 0.088 160);
+   --accent: oklch(0.748 0.158 158);
+   --accent-ink: oklch(0.848 0.132 158);
+   --accent-soft: oklch(0.302 0.062 165);
+   --ok: oklch(0.748 0.158 158);
+   --ok-soft: oklch(0.302 0.062 165);
+
+   --teal: oklch(0.702 0.122 202);
+   --saffron: oklch(0.782 0.152 66);
+
+   --grad-hero: linear-gradient(135deg, oklch(0.322 0.098 172) 0%, oklch(0.238 0.062 204) 48%, oklch(0.298 0.094 148) 100%);
+   --grad-brand: linear-gradient(135deg, oklch(0.612 0.158 158), oklch(0.532 0.132 196));
+   --grad-foot: linear-gradient(160deg, oklch(0.208 0.058 176), oklch(0.158 0.038 202) 54%, oklch(0.188 0.052 150));
+
+   --sh: 0 1px 2px oklch(0 0 0/.34), 0 12px 28px -14px oklch(0 0 0/.54);
+   --sh-lg: 0 2px 4px oklch(0 0 0/.4), 0 22px 46px -18px oklch(0 0 0/.66);
+}
+
+/* The two big surfaces carry the gradient. Everything else stays flat, because
+   a gradient on every panel is not colour, it is noise. */
+.hero {
+   background: var(--grad-hero)
+}
+
+.footer {
+   background: var(--grad-foot)
+}
+
+/* Depth back on the static panels. The no-shadow rule was right when the ground
+   was near-white and the shadow was grey; a green-tinted shadow on cream is
+   doing something a border cannot. */
+.card,
+.start,
+.purpose,
+.steps,
+.claims,
+.strip,
+.lookup,
+.flat {
+   box-shadow: var(--sh)
+}
+
+.btn-p {
+   background: var(--grad-brand);
+   border-color: transparent;
+   color: #fff
+}
+
+.btn-p:hover {
+   background: var(--grad-brand);
+   filter: saturate(1.12) brightness(1.08);
+   border-color: transparent
+}
+
+/* Deeper than either end of the hero gradient, so the licence still reads as the
+   object standing on the band rather than as part of it. */
+.lic {
+   background: linear-gradient(150deg, oklch(0.322 0.112 164), oklch(0.198 0.062 172) 56%, oklch(0.272 0.098 146))
+}
+
+/* The mono labels pick up the brand hue instead of staying grey — at this size
+   they are closer to punctuation than to text, and grey punctuation on a
+   coloured page is where the last version leaked its life out. */
+.eyebrow,
+.steps .n {
+   color: var(--brand)
+}
+
+/* The scene's bezel follows the theme now rather than sitting at a fixed
+   near-black, so it belongs to the page it is set into. */
+.pixwrap {
+   background: var(--surface2)
+}

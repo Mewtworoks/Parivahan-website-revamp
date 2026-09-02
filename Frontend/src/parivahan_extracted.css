@@ -2284,3 +2284,98 @@ button {
 .stagerow[data-now="1"] {
    background: var(--brand-soft)
 }
+
+/* A promise and the button that checks it, on one row. The padding matches
+   .claims>div because these rows replace those cards and should sit at the same
+   density; the button is pushed to its own column so four rows of different
+   text lengths still line their actions up down one edge. */
+.promise-row {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: 28px;
+   align-items: center;
+   padding: 24px 26px
+}
+
+@media(max-width:760px) {
+   .promise-row {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: stretch
+   }
+}
+
+/* --- interaction feel -------------------------------------------------------
+
+   Appended as one block instead of edited into the rules above, and every rule
+   here is additive on purpose: no colour, shadow, radius, spacing or layout is
+   changed by any of it. An earlier pass at "cleaning up" this stylesheet pulled
+   the card shadows and the hero's background out from under a page that was
+   leaning on them, and the page went flat. So this touches only what happens
+   between a finger going down and coming back up — which is where the service
+   actually felt unfinished.
+
+   Nothing in 2285 lines had an :active state. Every affordance here answered on
+   hover, and hover does not exist on a phone: the tap either did something or
+   the page looked like it had ignored you, with nothing in between. Most of the
+   people this service is for are on a phone.
+   --------------------------------------------------------------------------- */
+
+/* 140ms is what .btn already transitions at, so transform comes along for free
+   and the squeeze lands in the 100-160ms a press wants. 3% is deliberately
+   almost nothing — enough to feel under the thumb, not enough to read as the
+   button moving. */
+.btn:active:not(:disabled),
+.tile:active,
+.slot:active:not(:disabled) {
+   transform: scale(.97)
+}
+
+/* Two mobile browser defaults that read as jank rather than as decisions. The
+   grey box a tap paints over a border-radius ignores the radius, so a rounded
+   button flashes a rectangle; and without touch-action the browser holds the
+   press for 300ms waiting to see if a double-tap zoom is coming, which makes
+   every button on the service feel like it is thinking. */
+.btn,
+.tile,
+.slot,
+.disp-b {
+   -webkit-tap-highlight-color: transparent;
+   touch-action: manipulation
+}
+
+/* .modcard lifts 3px on hover, which on a touchscreen means it stays lifted
+   after the tap that navigated away from it — a card left hovering with no
+   cursor to explain it. Anything that lifts needs a pointer to lift for. */
+@media (hover: none) {
+   .modcard:hover {
+      transform: none;
+      box-shadow: var(--sh);
+      border-color: var(--line)
+   }
+}
+
+/* Reduced motion, which this stylesheet did not answer at all. The page-enter
+   translate, the sheet slide and the press squeeze are all movement and all go;
+   opacity and colour stay, because fading is not what makes anybody ill and
+   losing it would take the state changes with it. */
+@media (prefers-reduced-motion: reduce) {
+
+   .fade,
+   .sheet,
+   .sheet-bg,
+   .pop {
+      animation: none
+   }
+
+   .btn:active:not(:disabled),
+   .tile:active,
+   .slot:active:not(:disabled),
+   .modcard:hover {
+      transform: none
+   }
+
+   html {
+      scroll-behavior: auto
+   }
+}

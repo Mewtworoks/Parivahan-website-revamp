@@ -62,7 +62,11 @@ export function GameIntro({ go, state, update }: PageProps) {
               'पिक्सेल-आर्ट टाइलों में जानबूझकर बनाया गया: पूरा दृश्य सेट कुछ ही किलोबाइट का है, 2015 के एंड्रॉइड पर चलता है और बिना कनेक्शन के भी काम करता है। कोई 3D ड्राइविंग सिम ऐसा नहीं कर पाता।',
               'पिक्सेल-आर्ट टाइल्समध्ये मुद्दाम काढले: संपूर्ण दृश्य संच काही किलोबाइटचा आहे, 2015 च्या अँड्रॉइडवर चालतो आणि कनेक्शनशिवायही काम करतो. कोणतेही 3D ड्रायव्हिंग सिम असे करू शकत नाही.',
             )}</span>
-            <button className="btn btn-p" onClick={() => { update({ focus: null, gameLog: null }); go('lesson'); }}>{t(`Start · ${total} situations`, `शुरू करें · ${total} स्थितियाँ`, `सुरू करा · ${total} परिस्थिती`)} {Icon.right()}</button>
+            {/* One way in. This was briefly two — a scored round with three
+                lives beside a full-bank mode without them — and then the lives
+                went, at which point the two modes were the same round with two
+                names. */}
+            <button className="btn btn-p" onClick={() => { update({ focus: null, gameLog: null }); go('lesson'); }}>{t(`Start · all ${total} situations`, `शुरू करें · सभी ${total} स्थितियाँ`, `सुरू करा · सर्व ${total} परिस्थिती`)} {Icon.right()}</button>
           </div>
         </div>
       </div>

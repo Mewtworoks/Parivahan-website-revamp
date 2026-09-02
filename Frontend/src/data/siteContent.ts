@@ -6,18 +6,37 @@ export type FooterColumn = [heading: string, links: FooterLink[]];
 
 // Footer link targets: either a route jump, or a panel of real content.
 export const FOOTER_COLUMNS: FooterColumn[] = [
-  ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Book a slot', { go: 'slot' }], ['Road safety tutorial', { go: 'tutorial' }]]],
+  // "How a document is verified" moved here from the Help column when that
+  // column went. It is not help in the support sense — it is the reference a
+  // citizen reads before uploading anything, so it belongs in the journey it
+  // belongs to. The rest of that column either had a home already (its "What
+  // each fee pays for" was the same panel as Fees, one column over) or was a
+  // utility rather than a link, and utilities are now in the footer's last row.
+  // 'Common questions' is the sheet that used to be linked as "Call 1800 000
+  // 000". The sheet's own last line reads "the helpline number and answers are
+  // illustrative", so a link presenting that number as a number to call was
+  // offering a phone line this build does not have — the number is still in
+  // there, labelled as illustrative, but it is no longer the promise on the way
+  // in. What the sheet actually contains is an FAQ, so it says so.
+  ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Book a slot', { go: 'slot' }], ['Road safety tutorial', { go: 'tutorial' }], ['How a document is verified', { info: 'verify' }], ['Common questions', { help: true }]]],
   // DL journey parked: the two links that opened the wizard are gone; the two
   // that open reference panels stay, because that content is real. Titled as
   // reference, not as a service — a column headed "Driving licence" under a
   // learner's-only home page reads as a second journey that is not there.
   ['Driving licence · reference', [['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
-  ['Help', [['How a document is verified', { info: 'verify' }], ['What each fee pays for', { info: 'fees' }], ['Report a problem', { grievance: true }], ['Call 1800 000 000', { help: true }]]],
   ['About this build', [['Problem and approach', { info: 'problem' }], ['What is mocked', { info: 'mocked' }],
     // The staff view and the runnable guarantees. Part of the argument rather
     // than developer tooling, but the top bar had no room left for them.
     ['Inspector desk', { go: 'desk' }], ['See the guarantees run', { go: 'proof' }],
     ['Where people actually fail', { go: 'learning' }],
+    // Last in the column on purpose: the only screen on the site whose numbers
+    // are invented sits after the ones whose numbers are not.
+    ['Government brain', { go: 'future' }],
+    // Back in the column they came from. These were briefly promoted to a row of
+    // their own above the legal line, which added a fourth horizontal band to a
+    // footer that already had three — a link does not become easier to find by
+    // being given its own stripe.
+    ['Report a problem', { grievance: true }],
     ['Accessibility', { info: 'a11y' }], ['Source', { info: 'source' }]]],
 ];
 
@@ -165,8 +184,15 @@ export const INFO_PANELS: Record<string, InfoPanel> = {
         // over an interface where most controls are 40px and the footer's links
         // are 22. Both now say what is actually measurable, and the shortfall
         // moved down to "Still missing" rather than being softened away.
-        p: 'Text size control and a light/dark theme in the header. A language switcher (English and Hindi). Buttons and form controls are at least 40px tall. Visible focus rings on every control. Colour never carries meaning alone — a state always has a label or an icon too. Contrast checked against WCAG AA. Practice-game hearts and round outcomes are announced to screen readers, not just shown visually, and its sound cues can be muted.',
-        pHi: 'हेडर में टेक्स्ट का आकार बदलने का नियंत्रण और हल्की/गहरी थीम। भाषा बदलने का विकल्प (अंग्रेज़ी और हिंदी)। बटन और फ़ॉर्म नियंत्रण कम से कम 40px ऊँचे हैं। हर नियंत्रण पर दिखने वाला फोकस रिंग। रंग अकेले कभी अर्थ नहीं बताता — हर स्थिति के साथ लेबल या आइकन भी होता है। कंट्रास्ट WCAG AA के अनुसार जाँचा गया। अभ्यास खेल के दिल और हर दौर का नतीजा स्क्रीन रीडर को बोलकर बताया जाता है, सिर्फ दिखाया नहीं जाता, और उसकी आवाज़ें बंद की जा सकती हैं।',
+        // "Practice-game hearts ... are announced to screen readers" was true
+        // when the game had hearts. It does not: a round now runs to the last of
+        // the twenty-nine situations rather than ending at the third mistake,
+        // and the hearts are gone with the early ending. Left as written, this
+        // panel would be claiming a screen-reader affordance for a control that
+        // is not on the page — which on the accessibility panel is the worst
+        // available place to be wrong.
+        p: 'Text size control and a light/dark theme in the header. A language switcher (English and Hindi). Buttons and form controls are at least 40px tall. Visible focus rings on every control. Colour never carries meaning alone — a state always has a label or an icon too. Contrast checked against WCAG AA. Practice-game round outcomes are announced to screen readers, not just shown visually, and its sound cues can be muted.',
+        pHi: 'हेडर में टेक्स्ट का आकार बदलने का नियंत्रण और हल्की/गहरी थीम। भाषा बदलने का विकल्प (अंग्रेज़ी और हिंदी)। बटन और फ़ॉर्म नियंत्रण कम से कम 40px ऊँचे हैं। हर नियंत्रण पर दिखने वाला फोकस रिंग। रंग अकेले कभी अर्थ नहीं बताता — हर स्थिति के साथ लेबल या आइकन भी होता है। कंट्रास्ट WCAG AA के अनुसार जाँचा गया। अभ्यास खेल के हर दौर का नतीजा स्क्रीन रीडर को बोलकर बताया जाता है, सिर्फ दिखाया नहीं जाता, और उसकी आवाज़ें बंद की जा सकती हैं।',
       },
       {
         h: 'For low digital literacy', hHi: 'कम डिजिटल जानकारी वालों के लिए',

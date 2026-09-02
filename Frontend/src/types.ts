@@ -16,7 +16,16 @@ export type Route =
   // citizen's live queue actually move; the proofs run the guarantees;
   // 'learning' is the only screen here about everybody at once rather than
   // about one applicant, and the only one with no name on it anywhere.
-  | 'desk' | 'proof' | 'learning';
+  // 'future' is the only screen here whose numbers are invented, and it says so
+  // on itself four times over — see pages/Future.tsx for why that is structural
+  // rather than a footnote.
+  | 'desk' | 'proof' | 'learning' | 'future'
+  // 'home2' is the home page restructured, kept alongside the original so the
+  // two can be opened side by side rather than one replacing the other on
+  // somebody's word. Reachable at #/home2 and deliberately not linked from the
+  // nav: it is a comparison, not a second front door. Whichever wins, the other
+  // file and this union member go.
+  | 'home2';
 
 export interface EligibilityAnswers {
   dob?: string;
@@ -119,6 +128,104 @@ export interface SubmittedApplication {
   submittedAt?: string;
 }
 
+/**
+ * One actor in a chase-camera road scene.
+ *
+ * `x` is metres from the centre line (negative is left, the direction oncoming
+ * traffic comes from on an Indian road), `z` is metres ahead of the camera.
+ * Two numbers instead of the overhead view's tile coordinates, because the
+ * perspective renderer needs a real distance to scale by — a tile row cannot be
+ * projected, it can only be looked down on.
+ */
+export type RoadActor = {
+  kind: 'car' | 'van' | 'bus' | 'truck' | 'bike' | 'ped' | 'cow' | 'pothole' | 'queue';
+  x: number;
+  z: number;
+  /** Body colour; the defaults per kind are usually right. */
+  body?: string;
+  /** Coming the other way: drawn front-on, and at night with headlights lit. */
+  oncoming?: boolean;
+  /** Crossing left-to-right across the scene rather than facing the camera. */
+  lateral?: boolean;
+  /**
+   * Travelling the same way at about the same speed, so it holds its distance
+   * while the road scrolls beneath you both. Everything else is stationary
+   * relative to the road and therefore closes at whatever speed you are doing.
+   */
+  withTraffic?: boolean;
+  /** Under way with the traffic, but you are catching it — following too close. */
+  closes?: boolean;
+};
+
+/** A road sign, drawn face-on — which is the entire reason this view exists. */
+export type RoadSign = {
+  z: number;
+  x: number;
+  shape: 'tri' | 'circle-red' | 'circle-blue' | 'rect-blue';
+  /** Which mark goes inside the face. */
+  glyph?: 'bend-right' | 'narrows' | 'children' | 'no-entry' | 'arrow-left' | 'arrow-up' | 'text';
+  /** For the informatory rectangles, which carry words rather than a symbol. */
+  text?: string;
+};
+
+/**
+ * Everything the chase-camera renderer needs to draw one situation.
+ *
+ * Authored per scenario beside the overhead `map`/`art` rather than replacing
+ * them, so the two views can be compared on the same question and the overhead
+ * one stays available for anything this view turns out to render worse.
+ */
+export interface RoadSpec {
+  /** What the learner is driving. Decides the vehicle at the bottom of frame. */
+  player?: 'car' | 'bike';
+  /** A passenger on the player's two-wheeler, for the pillion questions. */
+  pillion?: boolean | 'nohelmet' | 'three';
+  /** Metres the player sits off the centre line. */
+  lane?: number;
+  /**
+   * How fast the learner is travelling, in metres per second. `0` means stopped.
+   *
+   * This exists because the first version had no notion of it: the road scrolled
+   * on a wall clock while every actor sat at a fixed distance, so the markings
+   * rushed past a cow that never got any closer, and the car was still driving
+   * in the scenarios that begin "you are first at a red light" and "traffic is
+   * stopped bumper-to-bumper". One number, read by the road, the verge, the
+   * roadside furniture and every actor, is what keeps those things agreeing.
+   */
+  speed?: number;
+  night?: boolean;
+  wet?: boolean;
+  /** Centre-line treatment, which is itself the question in one scenario. */
+  centre?: 'dash' | 'solid' | 'none';
+  /** Distance to a crossing side road, drawn as asphalt across the verges. */
+  junction?: number;
+  /** Distance to a zebra crossing. */
+  zebra?: number;
+  /** Distance to a painted stop line. */
+  stopline?: number;
+  signal?: {
+    z: number;
+    state: 'red' | 'amber' | 'green' | 'flash-amber';
+    /** The separate arrow board some junctions carry beside the main head. */
+    freeLeft?: boolean;
+    /** The cross-street's own head, visible from the stop line. */
+    cross?: 'red' | 'amber' | 'green';
+  };
+  signs?: RoadSign[];
+  actors?: RoadActor[];
+  /**
+   * What is behind, shown in a rear-view mirror inset.
+   *
+   * A forward camera cannot show a vehicle following you, and two questions turn
+   * on one. The mirror is also the pedagogically exact place to put it: the
+   * answer to "a two-wheeler is close behind" is that you knew because you
+   * looked. And its absence carries meaning too — in the blind-spot question the
+   * rider is drawn alongside and deliberately *not* in the mirror, because not
+   * being in the mirror is what a blind spot is.
+   */
+  mirror?: ('car' | 'bike' | 'truck')[];
+}
+
 export interface GameLogEntry {
   id: string;
   axes: string[];
@@ -126,6 +233,16 @@ export interface GameLogEntry {
   ms: number;
   fast: boolean;
   to: boolean;
+  /**
+   * Which option was chosen, or null on a timeout.
+   *
+   * The log recorded only whether the answer was right, which was enough to
+   * score a round and not enough to review one — "you got four wrong" without
+   * being able to say *what you answered instead* is the part of a report card
+   * nobody can act on. Revising needs the wrong answer you actually believed,
+   * next to the right one.
+   */
+  pick: number | null;
 }
 
 export type ApplicationStage = 'submitted' | 'esign' | 'paid' | 'booked' | 'issued';
