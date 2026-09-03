@@ -7,6 +7,21 @@ export const Icon = {
   sliders: (p?: IconProps) => (
     <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" {...p}><path d="M3 6h9M15 6h2M3 14h2M8 14h9" /><circle cx="13.4" cy="6" r="1.9" /><circle cx="6.4" cy="14" r="1.9" /></svg>
   ),
+  mic: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="6" y="1.4" width="4" height="7.6" rx="2" /><path d="M3.2 7.4a4.8 4.8 0 0 0 9.6 0" /><path d="M8 12.2v2.3M5.6 14.5h4.8" /></svg>
+  ),
+  clipboard: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3.2" y="2.6" width="9.6" height="11.8" rx="1.4" /><path d="M6 2.2h4a1 1 0 0 1 1 1v.6H5v-.6a1 1 0 0 1 1-1z" /><path d="M5.6 8.4l1.6 1.6 3.2-3.4" /></svg>
+  ),
+  deviceForm: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="1.6" width="8" height="12.8" rx="1.6" /><path d="M6.4 5.4h3.2M6.4 8h3.2M6.4 10.6h1.8" /></svg>
+  ),
+  calendar: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="1.6" /><path d="M2.4 6.6h11.2M5.2 2v2.4M10.8 2v2.4" /><rect x="9.4" y="8.6" width="2.4" height="2.2" rx=".4" fill="currentColor" stroke="none" /></svg>
+  ),
+  checkCircle: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="8" cy="8" r="6.2" /><path d="M5.2 8.2l1.9 1.9L11 6.2" /></svg>
+  ),
   check: (p?: IconProps) => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8.5l3.2 3.2L13 5" /></svg>
   ),

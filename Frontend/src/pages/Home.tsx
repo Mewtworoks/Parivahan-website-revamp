@@ -1,4 +1,5 @@
 import { useLanguage, useT } from '../lib/language';
+import { useReveal } from '../lib/useReveal';
 import { PixelScene } from '../practice/PixelScene';
 import { DECISION_LIMIT_MS, SCENARIOS, spelledOut } from '../practice/scenarios';
 import type { PageProps } from '../types';
@@ -8,6 +9,7 @@ import { Pill } from '../ui/SharedUI';
 
 // A verb code, not a translated label — it reads as a system/step marker (like the "n" it sits
 // beside), the same register as the mono application-number placeholder further down the page.
+const JOURNEY_ICONS = [Icon.clipboard, Icon.deviceForm, Icon.calendar, Icon.checkCircle];
 const JOURNEY_STEPS: [verb: string, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string][] = [
   ['CHECK', 'Are you eligible', 'क्या आप पात्र हैं', 'तुम्ही पात्र आहात का',
     'Three questions tell you if you qualify, before any fee is paid.',
@@ -64,9 +66,10 @@ const LL_FACTS: [en: string, hi: string, mr: string][] = [
 export function Home({ go, update }: PageProps) {
   const t = useT();
   const { lang } = useLanguage();
+  const revealRef = useReveal();
 
   return (
-    <div className="fade">
+    <div className="fade" ref={revealRef}>
       <section className="hero">
         <div className="wrap">
           <div className="in">
@@ -110,7 +113,7 @@ export function Home({ go, update }: PageProps) {
           </div>
         </div>
       </section>
-      <section className="wrap" style={{ marginTop: 44 }}>
+      <section className="wrap" style={{ marginTop: 44 }} data-reveal>
         <div className="start">
           <div className="col g16">
             <div className="row g12 wrapf">
@@ -141,7 +144,7 @@ export function Home({ go, update }: PageProps) {
           </button>
         </div>
       </section>
-      <section className="wrap" style={{ marginTop: 44 }}>
+      <section className="wrap" style={{ marginTop: 44 }} data-reveal>
         <div className="col g16">
           <div className="row between g16 wrapf">
             <div className="col g8"><span className="eyebrow">{t('How it goes', 'यह कैसे होता है', 'हे कसे होते')}</span><h2>{t('The whole journey, in four moves', 'पूरी यात्रा, चार चरणों में', 'संपूर्ण प्रवास, चार टप्प्यांत')}</h2></div>
@@ -149,8 +152,12 @@ export function Home({ go, update }: PageProps) {
           </div>
           <div className="steps">
             {JOURNEY_STEPS.map(([verb, heading, headingHi, headingMr, body, bodyHi, bodyMr], n) => (
-              <div key={heading}>
-                <span className="n"><i>{n + 1}</i> {verb}</span>
+              <div key={heading} data-reveal>
+                <span className="step-ic">
+                  <span className="step-num">{n + 1}</span>
+                  {JOURNEY_ICONS[n]({ width: 20, height: 20 })}
+                </span>
+                <span className="n">{verb}</span>
                 <h3>{t(heading, headingHi, headingMr)}</h3>
                 <p>{t(body, bodyHi, bodyMr)}</p>
               </div>
@@ -158,7 +165,7 @@ export function Home({ go, update }: PageProps) {
           </div>
         </div>
       </section>
-      <section className="wrap" style={{ marginTop: 44 }}>
+      <section className="wrap" style={{ marginTop: 44 }} data-reveal>
         <div className="card col" style={{ overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.1fr)', alignItems: 'stretch' }} className="learnband">
             <div className="col g16" style={{ padding: '32px 30px', justifyContent: 'center' }}>
@@ -181,14 +188,14 @@ export function Home({ go, update }: PageProps) {
           </div>
         </div>
       </section>
-      <section className="wrap" style={{ marginTop: 44 }}>
+      <section className="wrap" style={{ marginTop: 44 }} data-reveal>
         <div className="col g8" style={{ marginBottom: 22 }}>
           <span className="eyebrow">{t('What is different here', 'यहां क्या अलग है', 'इथे काय वेगळे आहे')}</span>
           <h2>{t('Three promises, and a way to check each', 'तीन वादे, और हर एक जांचने का एक तरीका', 'तीन आश्वासने, आणि प्रत्येक तपासण्याचा मार्ग')}</h2>
         </div>
         <div className="claims">
           {DIFFERENTIATORS.map(([icon, heading, headingHi, headingMr, body, bodyHi, bodyMr]) => (
-            <div key={heading}>
+            <div key={heading} data-reveal>
               <span className="claim-ic">{icon}</span>
               <h3>{t(heading, headingHi, headingMr)}</h3>
               <p>{t(body, bodyHi, bodyMr)}</p>
@@ -201,14 +208,14 @@ export function Home({ go, update }: PageProps) {
           from the footer and — for the desk — from a block inside the tracker
           that does not render until somebody has checked in, which meant the
           strongest thing in the build was the hardest thing to find. */}
-      <section className="wrap" style={{ marginTop: 20 }}>
+      <section className="wrap" style={{ marginTop: 20 }} data-reveal>
         <div className="col g16">
           <div className="row between g16 wrapf">
             <div className="col g8"><span className="eyebrow">{t('Do not take our word', 'हमारी बात न मानें', 'आमचा शब्द मानू नका')}</span><h2>{t('Or check the claims yourself', 'या फिर दावों को खुद जांचें', 'किंवा दावे स्वतः तपासा')}</h2></div>
             <span className="sub">{t('Three screens, all reading the live service', 'तीन स्क्रीन, सभी लाइव सेवा से पढ़ रही हैं', 'तीन स्क्रीन, सर्व लाइव्ह सेवेतून वाचत आहेत')}</span>
           </div>
           <div className="grid3" style={{ gap: 20 }}>
-            <div className="card card-p col g12">
+            <div className="card card-p col g12" data-reveal>
               <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
               <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
               <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Open it beside the tracker, call the next token, and the wait on the applicant’s phone recalculates while you watch. Nothing is simulated — both screens read one queue.', 'उसी कतार का काउंटर वाला हिस्सा। इसे ट्रैकर के साथ खोलिए, अगला टोकन बुलाइए, और आवेदक के फ़ोन का इंतज़ार आपकी आंखों के सामने बदल जाएगा। कुछ भी नकली नहीं — दोनों स्क्रीन एक ही कतार पढ़ती हैं।', 'त्याच रांगेची काउंटरकडची बाजू. ट्रॅकरशेजारी उघडा, पुढचे टोकन बोलवा, आणि अर्जदाराच्या फोनवरची वाट तुमच्या डोळ्यांसमोर बदलेल. काहीही बनावट नाही — दोन्ही स्क्रीन एकच रांग वाचतात.')}</p>

@@ -17,6 +17,12 @@ import { toast } from '../ui/Toast';
  */
 const SPEECH_LOCALE: Record<Lang, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
 
+// The three starter chips, in each language Saarthi is offered in, paired by
+// position with an icon that has nothing to translate.
+const STARTER_ICONS = [Icon.doc, Icon.pin, Icon.clock];
+const STARTERS_EN = ['I want a learner licence', 'Show me test slots', 'What is my token and wait?'];
+const STARTERS_HI = ['मुझे लर्नर लाइसेंस बनवाना है', 'टेस्ट के लिए स्लॉट दिखाओ', 'मेरा नंबर और इंतज़ार कितना है?'];
+
 // Turn now lives in lib/conversation.ts, because the transcript outlives this
 // component — it is stored there and read back when the panel reopens.
 
@@ -101,12 +107,15 @@ function hush() {
   try { window.speechSynthesis?.cancel(); } catch { /* no synthesiser here */ }
 }
 
-function speak(text: string, uiLang: Lang) {
-  if (!('speechSynthesis' in window)) return;
+/** `onDone` fires once, whether the sentence finished, errored, or was never started at all. */
+function speak(text: string, uiLang: Lang, onDone?: () => void) {
+  if (!('speechSynthesis' in window)) { onDone?.(); return; }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : SPEECH_LOCALE[uiLang];
   utterance.rate = 0.95;
+  utterance.onend = () => onDone?.();
+  utterance.onerror = () => onDone?.();
   window.speechSynthesis.speak(utterance);
 }
 
@@ -136,6 +145,10 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const [input, setInput] = useState('');
   const [muted, setMuted] = useState(storedMute);
   const [listening, setListening] = useState(false);
+  // True for exactly as long as the browser is reading a reply aloud — the
+  // panel has no other way to show that, and "Speaking…" with no visible
+  // effect of pressing Stop was read as the panel having frozen mid-turn.
+  const [speaking, setSpeaking] = useState(false);
   /**
    * The live recogniser, or null.
    *
@@ -244,7 +257,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const acceptReply = (reply: api.VoiceReply) => {
     setTurns(old => [...old, { who: 'saarthi', text: reply.reply }]);
     setPending(reply.pending_confirmation?.label || null);
-    if (!muted) speak(reply.reply, lang);
+    if (!muted) { setSpeaking(true); speak(reply.reply, lang, () => setSpeaking(false)); }
     for (const event of reply.tool_events) {
       const result = event.result;
       if (!result) continue;
@@ -349,6 +362,18 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     } finally { setWorking(false); }
   };
 
+  /** Interrupt Saarthi mid-sentence. The panel's own equivalent of the mute button, but for one line. */
+  const stopSpeaking = () => { hush(); setSpeaking(false); };
+
+  /** Toggles the persisted mute preference. Lives in the Speaking bar now, since that's the one moment it's relevant. */
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    // Muting stops the sentence in progress, not just the next one.
+    if (next) { hush(); setSpeaking(false); }
+    try { localStorage.setItem(MUTE_KEY, next ? '1' : '0'); } catch { /* private browsing */ }
+  };
+
   /** Forget the recogniser and drop the listening state. Safe to call twice. */
   const release = () => {
     recogniserRef.current = null;
@@ -377,6 +402,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     // reply into the open microphone, which is both rude and self-defeating —
     // the recogniser hears the synthesiser and sends Saarthi its own words.
     hush();
+    setSpeaking(false);
     setError(null);
     const recognition = new Ctor();
     // Follows the picker rather than being pinned to Hindi. Pinned, an English
@@ -421,62 +447,23 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   };
 
   return (
-    // The title followed the script rather than the picker: "सारथी" was shown
-    // to somebody who had chosen English, on the one panel whose whole promise
-    // is that it answers in the language you use.
-    <Sheet fill title={t('Saarthi · Voice guide', 'सारथी · वॉइस गाइड', 'सारथी · व्हॉइस गाइड')} onClose={onClose}>
+    // A plain "Saarthi · Voice guide" string is what every other sheet on the site
+    // gets — a document title, not a face. This is the one panel that's meant to
+    // feel like someone is actually on the other end of it, so it gets an avatar
+    // and a status line instead of just a heading.
+    <Sheet fill centered title={
+      <span className="row g10">
+        <span className="voice-avatar">{Icon.mic({ width: 16, height: 16 })}</span>
+        <span className="col" style={{ lineHeight: 1.3, gap: 1 }}>
+          <span>{t('Saarthi', 'सारथी', 'सारथी')}</span>
+          <span className="tiny" style={{ fontWeight: 500, color: 'var(--muted)' }}>
+            <span className="voice-online-dot" aria-hidden="true" />
+            {t('Voice guide', 'वॉइस गाइड', 'व्हॉइस गाइड')}
+          </span>
+        </span>
+      </span>
+    } onClose={onClose}>
       <div className="col g12" style={{ height: '100%', minHeight: 0 }}>
-        {/* Says what Saarthi is about to ask for, before it asks. Someone told
-            out of nowhere to say their date of birth to a microphone is right
-            to hesitate; someone told first why, and what will never be asked,
-            is not being surprised.
-
-            Folded to one line, because it was taking a third of the panel on
-            every turn of every conversation and the thing it makes room for is
-            the conversation. The half that matters — what is never asked for —
-            stays on the visible line rather than behind the toggle: a promise
-            about your Aadhaar number is worth nothing if you have to go looking
-            for it. Opens on hover and on click, and it is a real <details>, so
-            it also opens on Enter from the keyboard. */}
-        <div className="row between g10" style={{ flex: 'none' }}>
-          {/* The speaker was decoration on a notice. It is a control now: the
-              one thing a voice panel must let you do is make it stop. */}
-          <button
-            className="btn btn-g btn-sm"
-            aria-pressed={muted}
-            title={muted ? t('Saarthi is muted', 'सारथी म्यूट है') : t('Mute Saarthi', 'सारथी को म्यूट करें')}
-            onClick={() => {
-              const next = !muted;
-              setMuted(next);
-              // Muting stops the sentence in progress, not just the next one.
-              if (next) hush();
-              try { localStorage.setItem(MUTE_KEY, next ? '1' : '0'); } catch { /* private browsing */ }
-            }}
-          >
-            {muted ? Icon.speakerOff() : Icon.speaker()}
-            <span className="tiny">{muted ? t('Muted', 'म्यूट') : t('Speaking', 'बोल रहा है')}</span>
-          </button>
-
-          {/* One word, and everything behind it. The notice was five lines at
-              the top of every conversation; what it says matters once, on the
-              first visit, and is worth a hover after that. */}
-          <details
-            className="disclose"
-            onMouseEnter={e => { e.currentTarget.open = true; }}
-            onMouseLeave={e => { e.currentTarget.open = false; }}
-          >
-            <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
-            <div className="flat disclose-body">
-              <b>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card.',
-                    'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता।')}</b>
-              <p className="tiny" style={{ marginTop: 7 }}>
-                {t('It asks your name, date of birth, state and what you want to drive — that is all. Document checks are simulated in this prototype, and nothing here is a government service. Hindi or English is fine.',
-                  'यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है — बस इतना। इस प्रोटोटाइप में दस्तावेज़ जाँच नकली है, और यह कोई सरकारी सेवा नहीं है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}
-              </p>
-            </div>
-          </details>
-        </div>
-
         {/* Points at the one sign-in rather than carrying a second copy of it.
             Saarthi fills the form on the citizen's behalf, so it has to know
             whose form — but the place to say so is the same place everything
@@ -504,17 +491,17 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             become unreachable — the scrollbar simply will not go up. A first
             child with margin-top:auto pushes a short conversation down to the
             input in the same way and leaves the overflow scrollable. */}
-        <div ref={log} className="col g10" aria-live="polite"
+        <div ref={log} className="voice-log col g10" aria-live="polite"
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 3 }}>
           <div style={{ marginTop: 'auto', flex: 'none' }} />
           {turns.map((turn, index) => (
-            <div key={index} className="flat" style={{ alignSelf: turn.who === 'citizen' ? 'flex-end' : 'flex-start', maxWidth: '90%', padding: '11px 13px', background: turn.who === 'citizen' ? 'var(--brand-soft)' : undefined }}>
+            <div key={index} className="flat" style={{ alignSelf: turn.who === 'citizen' ? 'flex-end' : 'flex-start', maxWidth: 'min(90%, 480px)', padding: '11px 13px', background: turn.who === 'citizen' ? 'var(--brand-soft)' : undefined }}>
               <span className="tiny" style={{ display: 'block', marginBottom: 3, fontWeight: 600 }}>{turn.who === 'citizen' ? t('You', 'आप') : t('Saarthi', 'सारथी')}</span>
               {turn.text}
             </div>
           ))}
           {working && (
-            <div className="flat col g6" style={{ alignSelf: 'flex-start', maxWidth: '90%', padding: '11px 13px' }} aria-live="polite">
+            <div className="flat col g6" style={{ alignSelf: 'flex-start', maxWidth: 'min(90%, 480px)', padding: '11px 13px' }} aria-live="polite">
               <span className="tiny" style={{ fontWeight: 600 }}>Saarthi</span>
               <span className="tiny">
                 {waited < 3
@@ -534,6 +521,27 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           )}
         </div>
 
+        {/* The only way to see a reply is stuck reading itself. Sat mute, "Speaking…"
+            with no visible effect from pressing anything read as the panel having
+            frozen mid-turn rather than as Saarthi mid-sentence. */}
+        {speaking && (
+          <div className="flat row between g10" style={{ padding: '10px 13px', flex: 'none' }}>
+            <span className="row g8">
+              <span className="voice-eq" aria-hidden="true"><i /><i /><i /></span>
+              <span className="tiny" style={{ fontWeight: 600 }}>{t('Speaking…', 'बोल रही हूँ…')}</span>
+            </span>
+            <div className="row g8">
+              {/* The mute toggle lives here now rather than as its own bar at the
+                  top — this is the one moment it's actually relevant, and pressing
+                  it does the same thing Stop does, but remembered for next time. */}
+              <button className="btn btn-g btn-sm" aria-pressed={muted} title={muted ? t('Saarthi is muted', 'सारथी म्यूट है') : t('Mute Saarthi', 'सारथी को म्यूट करें')} onClick={toggleMute}>
+                {muted ? Icon.speakerOff() : Icon.speaker()}
+              </button>
+              <button className="btn btn-g btn-sm" onClick={stopSpeaking}>{t('Stop', 'रोकें')}</button>
+            </div>
+          </div>
+        )}
+
         {pending && (
           <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)' }}>
             <b>{t('Confirm before Saarthi acts', 'सारथी के काम करने से पहले पुष्टि करें')}</b>
@@ -545,27 +553,99 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           </div>
         )}
 
+        {/* A visible line, not just a gap — the chips and the input used to sit close
+            enough to the transcript above that a fresh conversation and the controls
+            for starting one read as a single block, with nothing marking where the
+            citizen's own messages would start appearing. */}
+        <hr className="hr" style={{ flex: 'none' }} />
+
         {/* Everything below waits on the number above it. Left live, the first
             question would fail on a session that could not be opened, and the
             citizen would read that as Saarthi being broken rather than as a
             step they have not done yet. */}
-        <div className="row g10" style={{ alignItems: 'stretch' }}>
-          <button className="btn btn-p" style={{ minWidth: 82 }} disabled={!phone || working || Boolean(pending)} onClick={listen}>
-            {listening ? t('Listening…', 'सुन रही हूँ…') : `🎙 ${t('Speak', 'बोलिए')}`}
-          </button>
-          <input className="input grow" value={input} disabled={!phone || working || Boolean(pending)} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void send(); }} placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : canRecogniseSpeech() ? t('Or type your question…', 'या अपना सवाल लिखिए…') : t('Type your question…', 'अपना सवाल लिखिए…')} />
-          <button className="btn btn-s" disabled={!phone || working || Boolean(pending) || !input.trim()} onClick={() => void send()}>{t('Send', 'भेजें')}</button>
-        </div>
-        <div className="row g8 wrapf">
-          {/* Starters in the citizen's own language — a Hindi chip pressed by an
-              English speaker pins the whole conversation to Hindi, because the
-              service answers in the language of the last thing it was sent. */}
-          {(lang === 'hi'
-            ? ['मुझे लर्नर लाइसेंस बनवाना है', 'टेस्ट के लिए स्लॉट दिखाओ', 'मेरा नंबर और इंतज़ार कितना है?']
-            : ['I want a learner licence', 'Show me test slots', 'What is my token and wait?']
-          ).map(example => (
-            <button key={example} className="btn btn-g btn-sm" disabled={!phone || working || Boolean(pending)} onClick={() => void send(example)}>{example}</button>
-          ))}
+        <div className="col g8" style={{ flex: 'none' }}>
+          {/* A horizontal slider, not a wrapping row — three chips at this width used
+              to wrap to a second line and push the input down by a full row's height
+              on every single turn. Sliding costs nothing when there's room for all of
+              them; it only ever matters on a narrow panel, which is exactly when a
+              second line was most expensive. */}
+          <div className="voice-chips">
+            {/* Starters in the citizen's own language — a Hindi chip pressed by an
+                English speaker pins the whole conversation to Hindi, because the
+                service answers in the language of the last thing it was sent. */}
+            {STARTER_ICONS.map((chipIcon, i) => {
+              const example = (lang === 'hi' ? STARTERS_HI : STARTERS_EN)[i];
+              return (
+                <button key={example} className="voice-chip" disabled={!phone || working || Boolean(pending)} onClick={() => void send(example)}>
+                  {chipIcon({ width: 14, height: 14 })} {example}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* The microphone is its own button again, not something the input's
+              trailing icon turns into — it's the one control this whole panel exists
+              for, and burying it inside the text field made it easy to miss. The
+              field still gets its own send arrow, but only once there's something to
+              send; empty, a send arrow just sits there looking pressable and does
+              nothing. */}
+          <div className="row g10" style={{ alignItems: 'center' }}>
+            <button
+              type="button"
+              className={'voice-mic-btn' + (listening ? ' is-listening' : '')}
+              disabled={!phone || working || Boolean(pending)}
+              aria-label={listening ? t('Stop listening', 'सुनना बंद करें') : t('Speak', 'बोलिए')}
+              onClick={listen}
+            >
+              {Icon.mic({ width: 20, height: 20 })}
+            </button>
+            <div className="voice-inputbar grow">
+              <input
+                className="input"
+                value={input}
+                disabled={!phone || working || Boolean(pending)}
+                onChange={event => setInput(event.target.value)}
+                onKeyDown={event => { if (event.key === 'Enter') void send(); }}
+                placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : t('Or type your question', 'या अपना सवाल लिखिए')}
+              />
+              {input.trim() && (
+                <button type="button" className="voice-inputbtn" disabled={!phone || working || Boolean(pending)} aria-label={t('Send', 'भेजें')} onClick={() => void send()}>
+                  {Icon.right()}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* One caption line does what the old top bar and the disclosure box used
+              to do between them: says what to do, and keeps the one promise that
+              matters — what Saarthi never asks for — one press away rather than gone. */}
+          {listening ? (
+            <div className="row g8" style={{ justifyContent: 'center' }}>
+              <span className="voice-livedot" aria-hidden="true" />
+              <span className="tiny" style={{ color: 'var(--bad)' }}>{t('Listening… speak now', 'सुन रही हूँ… बोलिए')}</span>
+            </div>
+          ) : (
+            <div className="tiny row g6" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+              {/* Always on screen, muted or not — the toggle inside the Speaking bar only
+                  exists while something is actually being read aloud, so on its own it was
+                  a dead end: mute once, and nothing ever speaks again to bring that bar
+                  back, with no other control anywhere in the panel to undo it. */}
+              <button
+                type="button"
+                className="voice-mute-mini"
+                aria-pressed={muted}
+                title={muted ? t('Saarthi is muted — tap to unmute', 'सारथी म्यूट है — अनम्यूट करने के लिए दबाएँ') : t('Mute Saarthi', 'सारथी को म्यूट करें')}
+                onClick={toggleMute}
+              >
+                {muted ? Icon.speakerOff({ width: 13, height: 13 }) : Icon.speaker({ width: 13, height: 13 })}
+              </button>
+              <span>
+                {muted
+                  ? t('Muted — replies won’t be read aloud', 'म्यूट है — जवाब बोलकर नहीं सुनाए जाएँगे')
+                  : canRecogniseSpeech() ? t('Press the blue button and speak', 'नीला बटन दबाकर बोलिए') : t('Type your question below', 'नीचे अपना सवाल लिखें')}
+              </span>
+            </div>
+          )}
         </div>
         {error && <Note tone="warn">{error}</Note>}
       </div>

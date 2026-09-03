@@ -142,7 +142,7 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
  * conversation wants to sit at the bottom of the space it has and grow upward,
  * which a panel that scrolls as a whole cannot do.
  */
-export function Sheet({ title, onClose, children, fill }: { title: ReactNode; onClose: () => void; children: ReactNode; fill?: boolean }) {
+export function Sheet({ title, onClose, children, fill, centered }: { title: ReactNode; onClose: () => void; children: ReactNode; fill?: boolean; centered?: boolean }) {
   // Escape closes it. Until now the only ways out were the X and the backdrop,
   // both of which need a pointer — so anyone driving this from the keyboard was
   // shut inside a panel covering the page, with the rest of the site still
@@ -165,8 +165,8 @@ export function Sheet({ title, onClose, children, fill }: { title: ReactNode; on
   }, [onClose]);
 
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet" onClick={e => e.stopPropagation()}>
+    <div className={`sheet-bg${centered ? ' centered' : ''}`} onClick={onClose}>
+      <div className={`sheet${centered ? ' centered' : ''}`} onClick={e => e.stopPropagation()}>
         {/* No longer position:sticky — the panel is a column and the body
             scrolls, so the header stays put by being outside the scroller. */}
         <div className="row between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', flex: 'none', background: 'var(--surface)' }}>
