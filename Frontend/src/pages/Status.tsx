@@ -109,6 +109,20 @@ export function Status({ go, state, update }: PageProps) {
   const classCodes = (application?.licence_classes?.length ? application.licence_classes : (form.classes || []).map(id => CLASSES.find(c => c.id === id)?.code).filter(Boolean) as string[]).join(', ') || SEED_STATUS.cls;
   const rtoName = application?.rto?.name || '—';
 
+  /**
+   * Whether a test appointment is already held.
+   *
+   * The record is the authority, because the record is what this page is
+   * displaying: keying this off the local journey instead put "no slot booked"
+   * on the same screen as an "Appointment held" pill for the same application.
+   * The local journey stays as a fallback for the gap between booking a slot and
+   * the next poll returning it.
+   */
+  const booked = application?.status === 'slot_booked'
+    || application?.status === 'checked_in'
+    || Boolean(application?.booking_id)
+    || Boolean(state.slot);
+
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
@@ -238,7 +252,56 @@ export function Status({ go, state, update }: PageProps) {
             <h3>{t('Test result and allotment', 'टेस्ट परिणाम और आवंटन', 'टेस्ट निकाल आणि वाटप')}</h3>
             {state.stage === 'issued'
               ? <div className="row between g12 wrapf"><span className="sub">{t('Recording LL test results', 'LL टेस्ट परिणाम दर्ज करना', 'LL टेस्ट निकाल नोंदवणे')}</span><Pill tone="ok">{t('Passed · licence generated', 'पास · लाइसेंस बना', 'उत्तीर्ण · लायसन्स तयार')}</Pill></div>
-              : <div className="row between g12 wrapf"><span className="sub">{t('Recording LL test results', 'LL टेस्ट परिणाम दर्ज करना', 'LL टेस्ट निकाल नोंदवणे')}</span><Pill>{t('Not yet — test pending', 'अभी नहीं — टेस्ट लंबित', 'अजून नाही — टेस्ट प्रलंबित')}</Pill></div>}
+              : (
+                <>
+                  <div className="row between g12 wrapf">
+                    <span className="sub">{t('Recording LL test results', 'LL टेस्ट परिणाम दर्ज करना')}</span>
+                    <Pill>{booked
+                      ? t('Appointment held — test pending', 'अपॉइंटमेंट तय — टेस्ट लंबित')
+                      : t('Not yet — no slot booked', 'अभी नहीं — कोई स्लॉट बुक नहीं')}</Pill>
+                  </div>
+
+                  {/* The way out, on the screen that says a step is pending.
+                      This card's own closing line promises to say "what is
+                      actually pending and what unblocks it" — and it said the
+                      first half and stopped, so somebody tracking an application
+                      read "test pending" and had nowhere to go. The official
+                      portal's failure quoted just below is that it tells you
+                      nothing; telling you something and then leaving you on a
+                      dead end is not much better.
+
+                      Which button shows depends on where the journey actually
+                      is: with no appointment the next move is booking one, with
+                      one held it is sitting the test. Practice is offered beside
+                      either, because it is the only thing here that changes the
+                      outcome and it costs nothing to try. */}
+                  <div className="col g8">
+                    <span className="sub">
+                      {booked
+                        ? t('The appointment is held. Passing the test is the last thing between you and the licence.',
+                          'अपॉइंटमेंट तय है। लाइसेंस से पहले टेस्ट पास करना ही आखिरी कदम है।')
+                        : t('Nothing is stuck. The next move is yours — book a slot for the test, and this line fills itself in once you have taken it.',
+                          'कुछ अटका नहीं है। अगला कदम आपका है — टेस्ट का स्लॉट बुक कीजिए, और टेस्ट देने पर यह पंक्ति खुद भर जाएगी।')}
+                    </span>
+                    <div className="row g10 wrapf">
+                      {booked
+                        ? (
+                          <button className="btn btn-p btn-sm" onClick={() => go('test')}>
+                            {t('Take the test', 'टेस्ट दें')} {Icon.right()}
+                          </button>
+                        )
+                        : (
+                          <button className="btn btn-p btn-sm" onClick={() => go('slot')}>
+                            {t('Book the test slot', 'टेस्ट स्लॉट बुक करें')} {Icon.right()}
+                          </button>
+                        )}
+                      <button className="btn btn-s btn-sm" onClick={() => go('learn')}>
+                        {t('Practise first', 'पहले अभ्यास करें')}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             <span className="tiny">{t('The official portal shows this as a Counter column reading "Allotment Information Unavailable", which tells you nothing. Here it says what is actually pending and what unblocks it.', 'आधिकारिक पोर्टल इसे एक Counter कॉलम में "Allotment Information Unavailable" के रूप में दिखाता है, जो कुछ नहीं बताता। यहां बताया जाता है कि वास्तव में क्या लंबित है और उसे क्या खोलता है।', 'अधिकृत पोर्टल हे एका Counter स्तंभात "Allotment Information Unavailable" असे दाखवते, जे काहीही सांगत नाही. इथे सांगितले जाते की प्रत्यक्षात काय प्रलंबित आहे आणि ते काय उघडते.')}</span>
           </div>
           <Note>{t('If a stage is ever Reverted on the real portal it means a document was rejected, and the reason is a code. Here it would say which document, what was wrong with it, and give you the one button that fixes it.', 'यदि असली पोर्टल पर कोई चरण कभी Reverted होता है तो इसका मतलब है कि एक दस्तावेज़ रद्द हुआ, और कारण एक कोड है। यहां बताया जाता कि कौन सा दस्तावेज़, उसमें क्या गलत था, और इसे ठीक करने वाला एक बटन दिया जाता।', 'खऱ्या पोर्टलवर एखादा टप्पा कधी Reverted झाला तर याचा अर्थ एक कागदपत्र नाकारले गेले, आणि कारण एक कोड आहे. इथे कोणते कागदपत्र, त्यात काय चुकीचे होते, आणि ते दुरुस्त करणारे एक बटण दिले जाईल.')}</Note>

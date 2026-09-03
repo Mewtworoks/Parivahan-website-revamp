@@ -79,31 +79,59 @@ export function Home({ go, update }: PageProps) {
                 : lang === 'mr'
                   ? <>तुमच्या लर्नर लायसन्ससाठी <span className="uline">ऑनलाइन अर्ज करा.</span></>
                   : <>Apply for your<br />learner's licence<br /><span className="uline">online.</span></>}</h1>
-              {/* A fixed 520 held on every screen, so as the hero grew the
-                sentence stayed a narrow column with the headline stretching
-                away above it. Still capped — this is prose — but it now tracks
-                the column it sits in. */}
+              {/* Was a list of the journey's five verbs, which is the same
+                  sentence the existing service leads with and says nothing about
+                  why this one is different. The stages are drawn four times
+                  further down the page; what the first paragraph owes a reader is
+                  the reason to keep going. Capped, because it is prose, but the
+                  cap tracks the column rather than sitting at a fixed 520. */}
               <p className="lede" style={{ maxWidth: 'min(620px, 100%)' }}>
-                {t('Check your eligibility, complete the application, pay the exact fee, book your RTO test slot and track the status — all in one place.',
-                  'अपनी पात्रता जाँचिए, आवेदन पूरा कीजिए, सही शुल्क दीजिए, आरटीओ टेस्ट का स्लॉट बुक कीजिए और स्थिति देखिए — सब एक ही जगह।',
-                  'तुमची पात्रता तपासा, अर्ज पूर्ण करा, नेमके शुल्क भरा, आरटीओ टेस्टचा स्लॉट बुक करा आणि स्थिती पाहा — सर्व एकाच ठिकाणी.')}
+                {t('Every fee is named before you begin. Slots show what is genuinely left. The form saves itself and survives a closed tab.',
+                  'हर शुल्क शुरू करने से पहले बताया जाता है। स्लॉट दिखाते हैं कि सच में कितनी जगह बची है। फ़ॉर्म अपने-आप सहेजा जाता है और टैब बंद होने पर भी बचा रहता है।',
+                  'प्रत्येक शुल्क सुरुवातीआधी सांगितले जाते. स्लॉट खरोखर किती जागा उरली आहे ते दाखवतात. फॉर्म आपोआप जतन होतो आणि टॅब बंद झाल्यावरही टिकतो.')}
               </p>
+              {/* The loudest control on the page is now the door.
+                  It used to be "Check if I qualify", which is a three-question
+                  quiz, while the actual start button sat in a panel below the
+                  fold — so somebody who already knew they qualified had to
+                  scroll past the primary action to find the real one. Eligibility
+                  keeps its place as the second button, because for a first-time
+                  applicant it is a genuine question and not an obstacle. */}
               <div className="row g12 wrapf" style={{ marginTop: 4 }}>
-                <button className="btn btn-p" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')} {Icon.right()}</button>
-                <button className="btn btn-s" onClick={() => go('status')}>{t('Track an application', 'आवेदन ट्रैक करें', 'अर्ज ट्रॅक करा')}</button>
+                <button className="btn btn-p" onClick={() => { update({ module: 'll' }); go('apply'); }}>
+                  {t('Start the application', 'आवेदन शुरू करें', 'अर्ज सुरू करा')} {Icon.right()}
+                </button>
+                <button className="btn btn-s" onClick={() => go('elig')}>{t('Check if I qualify', 'जांचें कि मैं पात्र हूं', 'मी पात्र आहे का ते तपासा')}</button>
+                {/* Track is not here. Three controls on one line wrapped the
+                    third onto a row of its own where it read as a stray link,
+                    and the top bar already carries Track on every screen. */}
               </div>
+
+              {/* The four numbers that decide whether somebody starts, in the
+                  band where they decide it. They were only on a panel further
+                  down, so the hero made a promise and left the terms to a scroll
+                  — and cost and whether you must attend in person are exactly
+                  what a reader is looking for before the first click. */}
+              <ul className="hero-facts">
+                {LL_FACTS.map(([en, hi, mr]) => <li key={en}>{t(en, hi, mr)}</li>)}
+              </ul>
             </div>
             <div className="hero-art hide-m">
-              {/* A specimen, so every identifying field is masked. The data was
-                  always synthetic, but a full name, parentage, date of birth,
-                  blood group and home address rendered on a licence read as a
-                  real person's record whatever the footer says — and this card is
-                  the first thing on the page. What stays is what carries no
-                  identity: the state, the classes, the dates and the office.
-                  Issued.tsx passes the citizen's own details and is untouched. */}
-              <LicenceCard documentTitle="Learner's Licence" stateName="Maharashtra" licenceNo="MH02 ••••••/••••"
-                name="•••••• •• •••••" relation="•••••• •••••" dob="••/••/••••" blood="••"
-                addressLine1="•••••••••••••••••••••••••" addressLine2="•••••••••••••••••"
+              {/* A stamped specimen rather than a redaction.
+                  Every identifying field used to be replaced with bullets. The
+                  reasoning was sound — a name, parentage, date of birth, blood
+                  group and address rendered on a licence read as a real person's
+                  record whatever the footer says, and this card is the first
+                  object on the page. But the result was a hero whose only
+                  illustration was a blanked-out document, which looks like a
+                  loading state and tells a reader nothing. The SPECIMEN stamp is
+                  the same guarantee made explicit, so the fields can say plainly
+                  what they are. Issued.tsx passes the citizen's own details, has
+                  no stamp, and is untouched. */}
+              <LicenceCard specimen documentTitle="Learner's Licence" stateName="Maharashtra"
+                licenceNo="MH02 20260012345"
+                name="Specimen" dob="01/01/2000" blood="—"
+                addressLine1="No holder" addressLine2="No address held"
                 classCodes="LMV-NT, MCWG" issueDate="20/08/2026" validTill="19/02/2027" rtoCode="MH-02" />
             </div>
           </div>
@@ -206,9 +234,12 @@ export function Home({ go, update }: PageProps) {
         <div className="col g16">
           <div className="row between g16 wrapf">
             <div className="col g8"><span className="eyebrow">{t('Do not take our word', 'हमारी बात न मानें', 'आमचा शब्द मानू नका')}</span><h2>{t('Or check the claims yourself', 'या फिर दावों को खुद जांचें', 'किंवा दावे स्वतः तपासा')}</h2></div>
-            <span className="sub">{t('Three screens, all reading the live service', 'तीन स्क्रीन, सभी लाइव सेवा से पढ़ रही हैं', 'तीन स्क्रीन, सर्व लाइव्ह सेवेतून वाचत आहेत')}</span>
+            <span className="sub">{t('Both screens read the live service', 'दोनों स्क्रीन लाइव सेवा से पढ़ती हैं', 'दोन्ही स्क्रीन लाइव्ह सेवेतून वाचतात')}</span>
           </div>
-          <div className="grid3" style={{ gap: 20 }}>
+          {/* Two cards, not three: "Where people actually fail" moved to the
+              Government brain page, which is the whole subject of that page and
+              explained there rather than summarised here. */}
+          <div className="grid2" style={{ gap: 20 }}>
             <div className="card card-p col g12">
               <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
               <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
@@ -222,13 +253,6 @@ export function Home({ go, update }: PageProps) {
               <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit — each one fired at the live service while you watch.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव — हर एक आपके सामने लाइव सेवा पर चलाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही — प्रत्येक तुमच्यासमोर लाइव्ह सेवेवर चालवली जाते.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
-            </div>
-            <div className="card card-p col g12">
-              <Pill>{t('Aggregate', 'समग्र', 'एकत्रित')}</Pill>
-              <h3>{t('Where people actually fail', 'लोग असल में कहाँ अटकते हैं', 'लोक खरोखर कुठे अडतात')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('Which road rule most people get wrong, and which form field loses them. No names anywhere.', 'कौन-सा नियम सबसे ज़्यादा लोग गलत करते हैं, और कौन-सी फ़ील्ड उन्हें खो देती है। कहीं कोई नाम नहीं।', 'कोणता नियम सर्वाधिक लोक चुकतात, आणि कोणते फील्ड त्यांना गमावते. कुठेही नाव नाही.')}</p>
-              <div className="grow" />
-              <div><button className="btn btn-s" onClick={() => go('learning')}>{t('See what it learns', 'देखें यह क्या सीखती है', 'ती काय शिकते ते पहा')} {Icon.right()}</button></div>
             </div>
           </div>
         </div>

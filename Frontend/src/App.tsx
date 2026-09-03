@@ -83,6 +83,21 @@ const PAGES: Record<Route, ComponentType<PageProps>> = {
 const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
 
 /**
+ * Routes that render without the service's top bar and footer.
+ *
+ * One so far, and it earns it by not being the service. `future` is the pitch
+ * for the idea rather than a screen of the thing — full-bleed, its own palette,
+ * one sculpture behind the text. The site chrome does not merely look wrong
+ * around it: a light bar with a backdrop blur sitting over a dark full-bleed
+ * page is the join showing, and the footer's near-black mass lands directly
+ * under the page's own near-black panel as a second ending.
+ *
+ * A page in here owes the reader its own way out, since the wordmark goes with
+ * the bar. `Future` carries three: one in its bar, two in its closing row.
+ */
+const CHROMELESS_ROUTES: Route[] = ['future'];
+
+/**
  * The screens that need to know whose journey this is.
  *
  * Only the form. Everything before it — checking whether you qualify, playing
@@ -190,11 +205,17 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('theme', theme); } catch { /* private browsing, etc. — theme just won't persist */ }
+    // index.html carries a single light theme-color, because the page no longer
+    // follows the OS. Somebody who switches to dark here would otherwise keep a
+    // cream address bar above a near-black page.
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#051914' : '#F5EEDF');
   }, [theme]);
 
   const ActivePage = PAGES[route] || Home;
   const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
   const inFullScreenFlow = FULL_SCREEN_FLOW_ROUTES.includes(route);
+  const chromeless = CHROMELESS_ROUTES.includes(route);
 
   const handleFooterLink = (e: MouseEvent, target: FooterTarget) => {
     e.preventDefault();
@@ -206,7 +227,7 @@ export default function App() {
 
   return (
     <>
-      <header className="tb">
+      <header className="tb" hidden={chromeless}>
         <div className="wrap tb-in">
           <button className="mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
             <Mark size={34} />
@@ -329,7 +350,7 @@ export default function App() {
           hold the left, the service's own links take the right, and the
           utilities sit in the last row with the legal line where somebody looks
           for them. */}
-      <footer className="footer">
+      <footer className="footer" hidden={chromeless}>
         <div className="wrap col g24">
           <div className="foot-top">
             <div className="col g12 foot-id">
@@ -367,7 +388,10 @@ export default function App() {
           </div>
         </div>
       </footer>
-      <BackToTop />
+      {/* Goes with the rest of the chrome. On the one chromeless route it landed
+          as a green pill from the service's palette over a page that has none of
+          it, in the corner that page uses for its own scroll readout. */}
+      {!chromeless && <BackToTop />}
       <ToastHost />
       {/* Saarthi gets `go` because it fills the form on the citizen's behalf and
           then has somewhere to send them — the panel covers the page, so

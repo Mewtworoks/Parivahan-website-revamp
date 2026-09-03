@@ -99,17 +99,17 @@ export function DrivingLicence({ go, state }: PageProps) {
     const StepComponent = [ConfirmForm4, Form1Again, PayDlFee, BookTest, TakeTest][step];
     return (
       <div className="wrap fade" style={{ padding: '32px 24px 0' }}>
-        <div className="row between g16 wrapf" style={{ marginBottom: 24 }}>
-          <div className="col g4"><span className="eyebrow">Driving licence · Form 4 · {stateName}</span><h1 style={{ fontSize: '1.9rem' }}>{DL_STEPS[step]}</h1></div>
+        <div className="row between g16 wrapf applyhead" style={{ marginBottom: 24 }}>
+          <div className="col g4"><span className="eyebrow">Driving licence · Form 4 · {stateName}</span><h1>{DL_STEPS[step]}</h1></div>
         </div>
-        <div style={{ display: 'grid', gap: 36, gridTemplateColumns: '250px minmax(0,1fr)' }} className="applygrid">
+        <div className="applygrid">
           <aside className="hide-m"><div style={{ position: 'sticky', top: 88 }}>
             <Stepper steps={DL_STEPS} cur={step} onJump={setStep} />
             <hr className="hr" style={{ margin: '16px 0' }} />
             <p className="tiny" style={{ padding: '0 12px', lineHeight: 1.5 }}>Same five stages as the real Form 4 process, in the same order.</p>
           </div></aside>
           <div className="col g20" style={{ maxWidth: 670 }}>
-            <div className="only-m"><Progress cur={step} total={DL_STEPS.length} label={DL_STEPS[step]} /></div>
+            <div className="only-mb"><Progress cur={step} total={DL_STEPS.length} label={DL_STEPS[step]} /></div>
             <StepComponent {...dlProps} />
             <Bar back="Back" onBack={goBack} next={step === DL_STEPS.length - 1 ? 'Submit application' : 'Continue'} onNext={goNext} disabled={!valid} />
           </div>

@@ -1047,3 +1047,354 @@ a {
 .pixwrap {
    background: var(--surface2)
 }
+
+/* --- hero, second pass ------------------------------------------------------
+
+   The band above argued that the hero should be paper so that the licence card
+   is the one thing carrying colour — figure and ground, in that order. Then the
+   gradient block near the end of this file painted it with a three-hue wash
+   from mint through cream to peach, which is the same mistake in a nicer
+   dressing gown: a green card standing on a green-to-orange wall.
+
+   So the wash goes, and what replaces it is a single vertical step of the paper
+   the band is already made of. The hero is still lighter than the page and
+   still closed by the saffron rule; it simply stops competing with the object
+   standing on it. Declared here rather than by editing the block below, so the
+   two arguments sit next to their own rules. */
+.hero {
+   background: linear-gradient(180deg,
+      color-mix(in oklab, var(--hero-bg) 100%, transparent) 0%,
+      color-mix(in oklab, var(--hero-bg) 82%, var(--bg)) 100%);
+}
+
+/* The hero was 660px tall with its lower third empty, because the facts that
+   belong in it were on a panel below. Now that they are here, the band does not
+   also need the padding of an empty one. */
+.hero .in {
+   padding-top: clamp(56px, 4.5vw, 78px);
+   padding-bottom: clamp(56px, 4.5vw, 78px);
+}
+
+/* --- the facts row ---------------------------------------------------------
+
+   Four short facts, ruled rather than boxed. Boxes would make four more cards
+   on a page that already opens with one, and these are not four things to
+   choose between — they are one set of terms, read together. The rule above
+   each is what groups them. */
+.hero-facts {
+   list-style: none;
+   margin: 8px 0 0;
+   padding: 0;
+   /* Two by two, fixed. On `auto-fit` it resolved to three columns inside a
+      620px measure and dropped the fourth fact onto a row of its own, where its
+      rule lined up with nothing and the set stopped reading as one set. */
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 4px 26px;
+   max-width: min(620px, 100%);
+}
+
+.hero-facts li {
+   border-top: 1px solid var(--line2);
+   padding: 9px 0 2px;
+   font-size: 0.82rem;
+   line-height: 1.45;
+   color: var(--ink2);
+   font-variant-numeric: tabular-nums;
+}
+
+/* --- the specimen stamp ----------------------------------------------------
+
+   A tag in the card's header, under the document title, rather than a diagonal
+   overprint across the middle. The overprint was tried first and it failed the
+   way the bullets it replaced did: outlined text on a dark green card at that
+   size read as a smudge, and it lay directly across the address lines and the
+   signature panel, hiding the fields whose legibility was the entire reason for
+   the change. Up here it is unambiguous and costs nothing. */
+.lic-stamp {
+   font-family: var(--mono);
+   font-size: 0.62rem;
+   font-weight: 600;
+   letter-spacing: 0.18em;
+   text-transform: uppercase;
+   color: oklch(0.98 0.02 90/.72);
+   border: 1px solid oklch(0.98 0.02 90/.42);
+   border-radius: 3px;
+   padding: 2px 6px;
+   white-space: nowrap;
+}
+
+/* --- one ground, textured, and no orange -----------------------------------
+
+   Three changes that belong together, because they are all the same decision:
+   the top of this page was built as a masthead — its own paper, closed by a
+   saffron rule — and a masthead is a division. Read on a screen it cut the page
+   in two a third of the way down, and the cut was the loudest thing on it.
+
+   So the hero stops being a separate sheet. It shares the page's ground, the
+   rule goes, and the boundary between the hero and what follows is now only the
+   panel that follows it. */
+.hero {
+   background: none;
+   border-bottom: 0;
+}
+
+/* The saffron went with it, in both the places it was decorative.
+ *
+ * The argument for it was provenance — saffron and green are the flag's, so on a
+ * road-transport service they read as origin rather than as decoration. That
+ * holds on the near-black footer, where a warm rule against dark is a masthead
+ * device. It does not hold in light mode: on cream paper the same orange is only
+ * a few steps of value from the ground, so it stops reading as a flag and starts
+ * reading as a highlighter — and the one word in the headline doing real work
+ * was wearing it.
+ *
+ * Green takes the emphasis instead. It is the service's own colour, it is the
+ * colour of the button directly beneath it, and the sentence now points at the
+ * thing it wants you to press. Saffron survives where it is semantic: warnings.
+ */
+.hero .uline {
+   color: var(--brand-hi);
+}
+
+.hero .uline:after {
+   background: var(--brand-hi);
+}
+
+:root[data-theme="dark"] .hero .uline {
+   color: oklch(0.782 0.128 158);
+}
+
+:root[data-theme="dark"] .hero .uline:after {
+   background: oklch(0.782 0.128 158);
+}
+
+/* The footer needs no rule at all. Near-black arriving under cream is already
+   the strongest boundary on the page; a 3px orange line on top of it was a
+   second boundary drawn over the first, and in light mode it was the only
+   orange left above the fold. */
+.footer {
+   border-top: 0;
+}
+
+/* --- paper -----------------------------------------------------------------
+
+   A texture on the page ground, so it reads as a sheet rather than a flat fill.
+   One SVG turbulence tile, generated by the browser and never fetched, drawn
+   once as a fixed layer — fixed rather than scrolling with the page, because
+   grain that moves reads as a pattern and grain that stays put reads as the
+   surface the page is printed on.
+
+   This replaces a first attempt that was measurably invisible. That one was an
+   overlay *above* the content at 10% multiply, argued for as film grain across
+   one printed surface. Magnified eight times on empty ground it was a faint
+   mottling; at 1:1 on a real screen it was nothing, which is why the page still
+   looked flat after it shipped. Two things were wrong with it, and they pulled
+   against each other:
+
+   - `baseFrequency: .72` with four octaves is very fine noise. On a 2× display
+     most of it lands inside one device pixel and averages back out to the
+     ground colour. Paper tooth needs a coarser cell than screen grain does.
+   - It could not simply be turned up. Over the content, at the strength where
+     the ground has tooth, the same wash sits on every line of type — and body
+     copy at 15px does not survive being dirtied.
+
+   So the layer moves *behind* the content instead, `z-index: -1`: above the
+   body's own background, below everything in flow. That buys the strength,
+   because nothing it crosses is text. Cards keep their own opaque surface and
+   stay clean, which is the right division anyway — a textured ground with
+   smooth cards on it is how the printed thing this imitates actually looks.
+
+   Blended rather than laid on: multiply darkens the tooth on paper, screen
+   lifts it on the near-black, and both leave the hue where it was. A flat
+   overlay would wash the ground toward grey. */
+body::before {
+   content: "";
+   position: fixed;
+   inset: 0;
+   /* Behind content, above the body background. `pointer-events: none` is
+      belt-and-braces at this depth, but the layer is decorative and should not
+      be able to take a press under any stacking accident. */
+   z-index: -1;
+   pointer-events: none;
+   opacity: 0.5;
+   mix-blend-mode: multiply;
+   /* `numOctaves` 3, not 4, and a coarser base frequency: fewer, larger cells
+      that survive a high-DPI screen. `stitchTiles` keeps the 200px tile from
+      showing a seam where it repeats. The alpha ramp is what makes it specks
+      rather than a grey veil — without it the tile is a mid-grey block whose
+      only visible effect is to darken the ground uniformly. */
+   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' seed='4'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.62' intercept='-0.16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] body::before {
+   /* Screen on the dark ground lifts less than multiply bites on cream, so dark
+      needs more of it than light to read as the same surface — but not as much
+      more as it first looked: at 0.62 the ground read as static rather than as
+      tooth, because the dark ground is also a much lower-chroma field for the
+      same noise to sit on. */
+   opacity: 0.5;
+   mix-blend-mode: screen;
+}
+
+/* Somebody who asked for less motion did not ask for less texture, so the grain
+   stays there. A page going to a printer or rendered in forced colours should
+   not carry it. */
+@media print, (forced-colors: active) {
+   body::before { content: none; }
+}
+
+/* --- the apply wizard on a phone -------------------------------------------
+
+   Three faults, reported as one — "it crumbles while in application" — and they
+   compound, which is why the screen looked broken rather than merely cramped.
+
+   1. The wizard is a two-column grid, `250px minmax(0,1fr)`: the stepper rail
+      and the form. That was written as an inline style with `className
+      ="applygrid"` beside it, and `.applygrid` was never given a rule anywhere
+      in the codebase. So the grid never collapsed. On a phone the rail is
+      `hide-m`, which is `display: none !important` — and an element that is
+      display:none is not a grid item, so the *form* became the first item and
+      was placed in the 250px track. Measured on a 390px viewport: a 250px
+      content column with 116px of empty page beside it. Every card, every
+      field and the bottom bar were rendering at 73% of the width available.
+
+      The declaration moves here, where a media query can reach it. It has to
+      leave the inline style to be overridable at all — an inline
+      `grid-template-columns` beats any stylesheet short of `!important`, and
+      `!important` on a layout rule is a thing you have to then fight forever.
+
+   2. The progress header — "Who is applying / Step 2/9" and its bar — is
+      wrapped in `.only-m`. That class exists for one element, the top bar's
+      menu button, and says so in its own comment; at =<860px it is
+      `display: inline-flex !important`. As a flex *item* (the wizard column is
+      a flex column) that blockifies to `flex`, so the wrapper stretched to the
+      track width but its single child became a shrink-to-fit flex item: a
+      140px box holding 160px of text. `space-between` with negative free space
+      does not space anything, which is why the label and the step count were
+      printed touching — "Who is applyingStep 2/9" — above a progress track
+      stopping short of the card below it.
+
+      So the block case gets its own class. Same breakpoint, no flex.
+
+   3. The bottom bar is `position: sticky; bottom: 0` over a gradient that is
+      opaque for its bottom 55% and transparent above that. On a desktop
+      viewport the bar is one row and the feather reads as a soft edge. On a
+      phone a spacer with `flex-basis: 100%` forces Back and Continue onto
+      separate rows, so the bar measured 166px tall on an 844px screen — a
+      fifth of the display — and the card's live text showed straight through
+      the transparent upper half, behind the Back button. That is the floating
+      detached box in the report.
+
+      Below the breakpoint the bar becomes one row, opaque, with a hairline top
+      edge and a short feather above it rather than through it.
+   --------------------------------------------------------------------------- */
+
+.applygrid {
+   display: grid;
+   gap: 36px;
+   grid-template-columns: 250px minmax(0, 1fr);
+}
+
+/* The step title. 1.9rem was set inline on the h1, which is why the mobile type
+   scale never reached it — and why the rule below had to be written twice: this
+   one to hold the size the wizard was designed at, and the one in the media
+   query to be allowed to change it. */
+.applyhead h1 {
+   font-size: 1.9rem;
+}
+
+/* Fault 3 applies at every width, not just the reported one.
+   `.sticky-cta` is a gradient that is opaque for its bottom 55% and clear above
+   that, so whatever is scrolling underneath prints through the top of the bar —
+   on a desktop viewport, the next card's heading behind the Back button. The
+   feather is worth keeping; having it run *through* the controls is not. So the
+   bar gets an opaque ground and the feather moves to a strip above it. */
+.sticky-cta {
+   background: var(--bg);
+   border-top: 1px solid var(--line);
+}
+
+.sticky-cta::before {
+   content: "";
+   position: absolute;
+   left: 0;
+   right: 0;
+   bottom: 100%;
+   height: 20px;
+   pointer-events: none;
+   background: linear-gradient(to top, var(--bg), transparent);
+}
+
+/* Mobile-only, as a block. `.only-m` is the top bar's menu button and makes its
+   children shrink-to-fit; this is for wrapping a block of content. */
+.only-mb {
+   display: none;
+}
+
+@media (max-width: 860px) {
+   /* One column, and no 36px gap to a rail that is not being rendered. */
+   .applygrid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+   }
+
+   .only-mb {
+      display: block;
+   }
+
+   /* The step title is set to 1.9rem inline, which beats the 1.68rem the mobile
+      type scale asks for. "Who is applying" fits either way; "Physical fitness
+      declaration" at 1.9rem is three lines of serif on a 390px screen before
+      the form has started. */
+   .applyhead h1 {
+      font-size: 1.45rem;
+      line-height: 1.2;
+   }
+
+   /* --- the bottom bar, one row ---
+      Back keeps its intrinsic width and Continue takes the rest. Both stay
+      above the 44px minimum, and the bar costs ~85px instead of 166. */
+   .sticky-cta {
+      padding-top: 12px;
+      /* Home-indicator gutter on the phones that have one; zero everywhere
+         else, and the fallback covers a browser that does not know `env()`. */
+      padding-bottom: 10px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      /* Full-bleed, measured rather than assumed. The first attempt hardcoded
+         the 16px page gutter and landed 8px short each side, because the
+         column also carries its own inset — so the strip stopped inside the
+         viewport and the card's own border showed past the end of it.
+         `50% - 50vw` is whatever the total inset actually is, at any width. */
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      padding-left: calc(50vw - 50%);
+      padding-right: calc(50vw - 50%);
+   }
+
+   /* The spacer that forced the second row. It is `.grow.only-m` with an inline
+      `flex-basis: 100%`, so it cannot be collapsed by width — only by being
+      taken out of the flex flow. */
+   .sticky-cta .only-m {
+      display: none !important;
+   }
+
+   .sticky-cta .row {
+      flex-wrap: nowrap;
+   }
+
+   /* Back is a label, not a target to hunt for: intrinsic width, no growing. */
+   .sticky-cta .btn-s {
+      flex: 0 0 auto;
+   }
+}
+
+/* A phone in landscape, or a small window, has the width for one row but very
+   little height. Trim the bar further rather than let it own a third of the
+   viewport. */
+@media (max-width: 860px) and (max-height: 480px) {
+   .sticky-cta {
+      padding-top: 8px;
+      padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+   }
+}

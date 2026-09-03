@@ -1,0 +1,418 @@
+/*
+ * The mock dashboard, and nothing else. Loaded by `Console.tsx`.
+ *
+ * Opaque, on its own surface, because it is the one section pretending to be a
+ * working screen rather than a page about one. The survey grid showing through a
+ * console would read as a transparency bug rather than as a motif.
+ *
+ * The two series colours are declared here as custom properties and consumed by
+ * the marks below. They were chosen against the surfaces in this file and
+ * checked with the palette validator in both modes: adjacent-pair separation
+ * clears the CVD gate (ΔE 10.0 protan light, 11.1 dark) and both clear 3:1 on
+ * their own surface. The grey deliberately sits below the chroma floor — that is
+ * what the de-emphasis half of an emphasis chart is for, and it is why the
+ * legend and the direct labels are not optional here.
+ */
+
+.gb-console {
+  background: var(--gb-ground2);
+}
+
+/* The card sits on the section, so it has to be lighter than it rather than the
+   other way round. On the previous design's warm grey these two were within
+   three points of lightness and the card had no edge at all. */
+.gb-console .gb-claim em { font-style: italic; }
+
+.gb-card {
+  --gb-caught: #c8410b;
+  --gb-said: #6f6a63;
+  --gb-card: oklch(0.995 0.003 106);
+  --gb-card-line: oklch(0.886 0.008 104);
+
+  width: 100%;
+  max-width: 1120px;
+  margin-top: 12px;
+  background: var(--gb-card);
+  border: 1px solid var(--gb-card-line);
+  border-radius: 10px;
+  padding: clamp(14px, 2vw, 22px);
+  display: grid;
+  gap: clamp(14px, 2vw, 20px);
+}
+
+/* Dark steps are selected against the dark surface, not flipped from the light
+   ones: the light accent falls below 3:1 on near-black, and the grey has to come
+   up to stay separable from it. */
+:root[data-theme="dark"] .gb-card {
+  --gb-caught: #e85a1e;
+  --gb-said: #8a847b;
+  --gb-card: oklch(0.262 0.006 100);
+  --gb-card-line: oklch(0.352 0.008 100);
+}
+
+.gb-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--gb-card-line);
+}
+
+.gb-card-top b { font-size: 0.92rem; }
+
+.gb-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gb-hot);
+}
+
+.gb-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gb-hot);
+  animation: gb-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.gb-tag-mock {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+  border: 1px dashed var(--gb-card-line);
+  border-radius: 4px;
+  padding: 3px 7px;
+}
+
+/* ---- the KPI row -------------------------------------------------------- */
+
+.gb-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  /* Hairline dividers made from the gap, so there is no double border where two
+     tiles meet. */
+  gap: 1px;
+  background: var(--gb-card-line);
+  border: 1px solid var(--gb-card-line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.gb-kpi {
+  background: var(--gb-card);
+  padding: 13px 15px;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+
+.gb-kpi-k {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+}
+
+.gb-kpi b {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* The one number the card leads with, and the only figure allowed to wear the
+   series colour — it is the series. */
+.gb-kpi.is-hero b {
+  font-size: clamp(2.1rem, 4.4vw, 3.1rem);
+  color: var(--gb-caught);
+}
+
+.gb-kpi b small {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-left: 3px;
+  color: var(--gb-ink2);
+}
+
+.gb-kpi-d {
+  font-size: 0.72rem;
+  color: var(--gb-ink2);
+}
+
+/* Delta text wears a text token, never a series colour. */
+.gb-kpi-d.is-up {
+  color: var(--gb-ink);
+  font-weight: 600;
+}
+
+/* ---- chart furniture ---------------------------------------------------- */
+
+.gb-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.gb-chart-head b { font-size: 0.92rem; }
+
+.gb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 7px;
+}
+
+.gb-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--gb-ink2);
+}
+
+.gb-legend i,
+.gb-tip i {
+  width: 10px;
+  height: 2px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.gb-legend i.is-caught,
+.gb-tip i.is-caught { background: var(--gb-caught); }
+
+.gb-legend i.is-said,
+.gb-tip i.is-said { background: var(--gb-said); }
+
+/* Filters in one row above the plot. */
+.gb-ranges {
+  display: flex;
+  gap: 4px;
+}
+
+.gb-ranges button {
+  border: 1px solid var(--gb-card-line);
+  background: transparent;
+  color: var(--gb-ink2);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.gb-ranges button:hover { color: var(--gb-ink); }
+
+.gb-ranges button.is-on {
+  background: var(--gb-ink);
+  border-color: var(--gb-ink);
+  color: var(--gb-card);
+}
+
+/* ---- the plot ----------------------------------------------------------- */
+
+.gb-plot-wrap { position: relative; }
+
+.gb-plot {
+  width: 100%;
+  height: auto;
+  display: block;
+  /* The plot tracks the pointer, but a finger dragging across it on a phone is
+     trying to scroll the page, not read week 9. */
+  touch-action: pan-y;
+}
+
+.gb-grid-line {
+  stroke: var(--gb-card-line);
+  stroke-width: 1;
+}
+
+.gb-axis {
+  fill: var(--gb-ink2);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.gb-area {
+  fill: var(--gb-caught);
+  opacity: 0.13;
+}
+
+.gb-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gb-line.is-caught { stroke: var(--gb-caught); }
+.gb-line.is-said { stroke: var(--gb-said); }
+
+/* A surface ring, so a marker sitting on its own line still reads as a marker. */
+.gb-dot {
+  stroke: var(--gb-card);
+  stroke-width: 2;
+}
+
+.gb-dot.is-caught { fill: var(--gb-caught); }
+.gb-dot.is-said { fill: var(--gb-said); }
+
+.gb-endlabel {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--gb-ink);
+}
+
+.gb-cross {
+  stroke: var(--gb-ink2);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.55;
+}
+
+.gb-tip {
+  position: absolute;
+  top: 4px;
+  translate: -50% 0;
+  pointer-events: none;
+  background: var(--gb-ink);
+  color: var(--gb-card);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.gb-tip b {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gb-tip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- the table view ----------------------------------------------------- */
+
+.gb-table-wrap { overflow-x: auto; }
+
+.gb-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.gb-table caption {
+  text-align: left;
+  padding-bottom: 8px;
+  font-size: 0.72rem;
+  color: var(--gb-ink2);
+}
+
+.gb-table th,
+.gb-table td {
+  text-align: right;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--gb-card-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-table th:first-child,
+.gb-table td:first-child { text-align: left; }
+
+.gb-table th {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+}
+
+/* ---- the arriving feed -------------------------------------------------- */
+
+.gb-feed {
+  border-top: 1px solid var(--gb-card-line);
+  padding-top: 14px;
+}
+
+.gb-feed-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+  margin-bottom: 8px;
+}
+
+.gb-feed ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gb-feed li {
+  display: grid;
+  /* Four content columns packed left, and the free space collected by a single
+     flexible track at the end that the count sits right-aligned in. Every
+     arrangement with a flexible track in the middle put a gulf between the field
+     and what happened to it, so the row read as two unrelated tables instead of
+     one sentence. */
+  grid-template-columns: 4.5em 5.5em auto auto 1fr;
+  /* Wider than the rest of the card's rhythm on purpose. Packed left against a
+     10px gap the four fields ran together into one phrase, and a log line has to
+     read as columns to be scannable. */
+  gap: 18px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--gb-card-line) 55%, transparent);
+}
+
+.gb-feed-t { color: var(--gb-ink2); }
+
+.gb-feed-n {
+  text-align: right;
+  color: var(--gb-hot);
+}
+
+@media (max-width: 620px) {
+  .gb-feed li { grid-template-columns: 4.5em 1fr 2.5em; }
+  .gb-feed li > span:nth-child(3) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-live i { animation: none; }
+}

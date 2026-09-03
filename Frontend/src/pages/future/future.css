@@ -1,0 +1,554 @@
+/*
+ * The Government brain page, and nothing else. Every rule is behind `.gb`.
+ *
+ * This is the third design for this page and the first one built to explain
+ * rather than to impress. The two before it were a ribbed sculpture and then a
+ * heat-mapped brain on a survey grid: both handsome, both atmosphere. A reader
+ * who had scrolled the whole thing could not say what had been built, which for
+ * a page whose only job is to explain a proposal is total failure however good
+ * it looks.
+ *
+ * So the language here is an editorial one, borrowed from the reference: a warm
+ * paper ground, a small red label out in the left margin, very large serif
+ * italic titles, short sans paragraphs, hairline rules, and a great deal of air.
+ * It is quiet on purpose. The one thing that moves is the hero, and it moves
+ * because it is a diagram of the mechanism rather than a mood.
+ *
+ * The page is still fenced off from the service. It is a pitch, not a screen of
+ * the thing, and a visual language this spacious would be wrong on a form.
+ */
+
+.gb {
+  --gb-ground: oklch(0.958 0.008 106);
+  --gb-ground2: oklch(0.978 0.005 106);
+  --gb-ink: oklch(0.256 0.012 96);
+  --gb-ink2: oklch(0.468 0.012 100);
+  --gb-ghost: oklch(0.796 0.012 104);
+  --gb-rule: oklch(0.878 0.01 104);
+  --gb-hot: oklch(0.552 0.212 27);
+  --gb-grid: oklch(0.878 0.01 104);
+
+  position: relative;
+  background: var(--gb-ground);
+  color: var(--gb-ink);
+  min-height: 100vh;
+  font-family: var(--sans);
+  overflow-x: clip;
+}
+
+:root[data-theme="dark"] .gb {
+  --gb-ground: oklch(0.188 0.006 100);
+  --gb-ground2: oklch(0.232 0.006 100);
+  --gb-ink: oklch(0.948 0.006 104);
+  --gb-ink2: oklch(0.706 0.008 102);
+  --gb-ghost: oklch(0.386 0.008 100);
+  --gb-rule: oklch(0.312 0.008 100);
+  --gb-hot: oklch(0.668 0.202 30);
+  --gb-grid: oklch(0.312 0.008 100);
+}
+
+/* ---- the bar ------------------------------------------------------------ */
+
+.gb-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px clamp(18px, 4vw, 56px);
+  background: color-mix(in oklab, var(--gb-ground) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.gb-word {
+  font-weight: 600;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+}
+
+.gb-bar .gb-spacer { flex: 1 1 auto; }
+
+.gb-back {
+  border: 0;
+  background: transparent;
+  color: var(--gb-ink2);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.gb-back:hover { color: var(--gb-ink); }
+
+/* ---- shared section furniture ------------------------------------------- */
+
+/*
+ * Every section is one grid: a narrow left column for the red label, and a wide
+ * one for the content. That single decision is most of the layout — the labels
+ * line up down the page whatever the section is, so the reader always knows
+ * which register they are in.
+ */
+.gb-sec {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: clamp(56px, 11vh, 132px) clamp(18px, 4vw, 56px);
+  border-top: 1px solid var(--gb-rule);
+}
+
+@media (min-width: 900px) {
+  .gb-sec {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 64px);
+  }
+}
+
+.gb-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--gb-hot);
+  align-self: start;
+}
+
+/* The one-sentence claim that opens a section, in the display serif. Large,
+   because it is the sentence somebody will remember. */
+.gb-claim {
+  margin: 0;
+  font-family: var(--disp);
+  font-size: clamp(1.5rem, 3.2vw, 2.45rem);
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  max-width: 30ch;
+}
+
+.gb-claim em {
+  font-style: italic;
+  color: var(--gb-hot);
+}
+
+.gb-body {
+  margin: 18px 0 0;
+  max-width: 58ch;
+  font-size: clamp(0.94rem, 1.15vw, 1.04rem);
+  line-height: 1.68;
+  color: var(--gb-ink2);
+}
+
+.gb-body + .gb-body { margin-top: 14px; }
+
+.gb-body strong { color: var(--gb-ink); font-weight: 600; }
+
+/* ---- hero --------------------------------------------------------------- */
+
+/*
+ * Split, as in the reference: the argument on the left, the picture on the
+ * right. On a phone the picture goes underneath, because a 44% column of a
+ * 390px screen is not a picture of anything.
+ */
+.gb-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(32px, 5vw, 56px);
+  align-items: center;
+  padding: clamp(36px, 6vh, 72px) clamp(18px, 4vw, 56px) clamp(56px, 9vh, 104px);
+}
+
+@media (min-width: 1000px) {
+  .gb-hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    min-height: 82vh;
+  }
+}
+
+.gb-hero-copy { display: grid; gap: 22px; justify-items: start; }
+
+.gb h1.gb-title {
+  margin: 0;
+  /* Restated because the service's own sheet puts every heading in the display
+     serif at its own size, and here the sans is the voice and the serif italic
+     is the accent inside it. */
+  font-family: var(--sans);
+  font-size: clamp(2rem, 4.4vw, 3.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+  font-weight: 500;
+  max-width: 21ch;
+}
+
+/* The reference's signature move: one phrase inside the headline set in serif
+   italic, so the sentence has a stress in it. Used exactly once per page. */
+.gb-title em {
+  font-family: var(--disp);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.gb-lede {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(0.98rem, 1.25vw, 1.1rem);
+  line-height: 1.62;
+  color: var(--gb-ink2);
+}
+
+.gb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--gb-hot);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gb-hot);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 11px 22px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.gb-pill:hover { background: var(--gb-hot); color: var(--gb-ground); }
+
+/* ---- the hero diagram --------------------------------------------------- */
+
+.gb-journey {
+  background: var(--gb-ground2);
+  border: 1px solid var(--gb-rule);
+  border-radius: 12px;
+  padding: clamp(16px, 2vw, 26px);
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.gb-journey-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--gb-rule);
+}
+
+.gb-journey-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gb-hot);
+}
+
+.gb-journey-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gb-hot);
+  animation: gb-pulse 1.9s ease-in-out infinite;
+}
+
+@keyframes gb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.gb-journey-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.gb-journey-steps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 14px;
+  border-radius: 7px;
+  /* A transparent border rather than none, so the row does not shift sideways
+     by a pixel when the active one gains its edge. */
+  border-left: 2px solid transparent;
+  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+}
+
+.gb-journey-steps li.is-hit {
+  background: color-mix(in oklab, var(--gb-hot) 9%, transparent);
+  border-left-color: var(--gb-hot);
+}
+
+.gb-journey-n {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--gb-ghost);
+}
+
+.gb-journey-steps li.is-hit .gb-journey-n { color: var(--gb-hot); }
+
+.gb-journey-name { font-size: 0.95rem; flex: 1 1 auto; }
+
+.gb-journey-steps li.is-hit .gb-journey-name { font-weight: 600; }
+
+.gb-journey-tag {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--gb-ground);
+  background: var(--gb-hot);
+  border-radius: 4px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  animation: gb-slide 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes gb-slide {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.gb-journey-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gb-rule);
+}
+
+.gb-journey-foot > div { display: grid; gap: 5px; }
+
+.gb-journey-k {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+}
+
+.gb-journey-foot b {
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.gb-journey-foot > div:first-child b { color: var(--gb-hot); }
+
+.gb-journey-note {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+}
+
+/* ---- the focus list ----------------------------------------------------- */
+
+.gb-focus { list-style: none; margin: 0; padding: 0; }
+
+.gb-focus li {
+  border-bottom: 1px solid var(--gb-rule);
+  padding: clamp(34px, 6vh, 62px) 0;
+  text-align: center;
+  color: var(--gb-ghost);
+  transition: color 0.45s ease;
+}
+
+.gb-focus li:first-child { border-top: 1px solid var(--gb-rule); }
+.gb-focus li.is-on { color: var(--gb-ink); }
+
+.gb-focus-tag {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.7;
+  margin-bottom: 10px;
+}
+
+.gb-focus li.is-on .gb-focus-tag { color: var(--gb-hot); opacity: 1; }
+
+.gb-focus h3 {
+  margin: 0;
+  font-family: var(--disp);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.9rem, 5.2vw, 3.6rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  color: inherit;
+}
+
+/*
+ * The explanation. Its height animates rather than being toggled, so the list
+ * keeps its rhythm; `grid-template-rows` on a wrapper is the only way to
+ * animate to a content-determined height without measuring it in script.
+ */
+.gb-focus p {
+  margin: 0 auto;
+  max-width: 44ch;
+  font-size: clamp(0.92rem, 1.1vw, 1.02rem);
+  line-height: 1.66;
+  color: var(--gb-ink2);
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.45s ease, opacity 0.45s ease, margin-top 0.45s ease;
+}
+
+.gb-focus li.is-on p {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 20px;
+}
+
+@supports not (grid-template-rows: 1fr) {
+  /* Older engines cannot animate to a content height. They get the paragraphs
+     open all the time, which is the content intact and only the effect lost. */
+  .gb-focus p { grid-template-rows: none; opacity: 1; margin-top: 20px; }
+}
+
+/* ---- the signal table --------------------------------------------------- */
+
+.gb-kinds {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+.gb-kinds caption {
+  text-align: left;
+  padding-bottom: 14px;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--gb-ink2);
+  max-width: 58ch;
+}
+
+.gb-kinds th,
+.gb-kinds td {
+  text-align: left;
+  padding: 13px 16px 13px 0;
+  border-bottom: 1px solid var(--gb-rule);
+  vertical-align: baseline;
+}
+
+.gb-kinds thead th {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--gb-ink2);
+  font-weight: 400;
+}
+
+.gb-kinds tbody th {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--gb-hot);
+  white-space: nowrap;
+}
+
+.gb-kinds td { color: var(--gb-ink2); line-height: 1.6; }
+
+/* ---- the built / not built split ---------------------------------------- */
+
+.gb-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: clamp(22px, 4vw, 52px);
+  margin-top: 8px;
+}
+
+.gb-split > div { display: grid; gap: 10px; align-content: start; padding-top: 16px; }
+
+/* Built is red-ruled, imagined is grey-ruled and dashed. The rule is the whole
+   distinction, and it survives a screenshot of one column. */
+.gb-split > div:first-child { border-top: 2px solid var(--gb-hot); }
+.gb-split > div:last-child { border-top: 2px dashed var(--gb-ghost); }
+
+.gb-split h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.gb-split ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+
+.gb-split li {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--gb-ink2);
+  padding-left: 18px;
+  position: relative;
+}
+
+.gb-split li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 7px;
+  height: 1px;
+  background: var(--gb-ghost);
+}
+
+.gb-split > div:first-child li::before { background: var(--gb-hot); }
+
+/* ---- close -------------------------------------------------------------- */
+
+.gb-close {
+  border-top: 1px solid var(--gb-rule);
+  padding: clamp(64px, 12vh, 148px) clamp(18px, 4vw, 56px);
+  display: grid;
+  gap: 24px;
+  justify-items: center;
+  text-align: center;
+}
+
+.gb-close h2 {
+  margin: 0;
+  font-family: var(--disp);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(2rem, 6vw, 4.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.026em;
+  max-width: 20ch;
+}
+
+.gb-close .gb-body { margin: 0; text-align: left; }
+
+.gb-acts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+.gb-act {
+  border: 1px solid var(--gb-ink);
+  background: var(--gb-ink);
+  color: var(--gb-ground);
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 11px 20px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gb-act.is-quiet {
+  background: transparent;
+  color: var(--gb-ink);
+  border-color: var(--gb-rule);
+}
+
+.gb-act.is-quiet:hover { border-color: var(--gb-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-journey-live i,
+  .gb-journey-tag { animation: none; }
+  .gb-focus p { transition: none; }
+}

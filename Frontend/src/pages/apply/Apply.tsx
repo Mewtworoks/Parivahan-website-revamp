@@ -147,8 +147,8 @@ export function Apply({ go, state, update }: PageProps) {
 
   return (
     <div className="wrap fade" style={{ padding: '32px 24px 0' }}>
-      <div className="row between g16 wrapf" style={{ marginBottom: 24 }}>
-        <div className="col g4"><span className="eyebrow">{t("New learner's licence", 'नई लर्नर लाइसेंस', 'नवीन लर्नर लायसन्स')} · {form.state || 'Maharashtra'}</span><h1 style={{ fontSize: '1.9rem' }}>{currentLabelTranslated}</h1></div>
+      <div className="row between g16 wrapf applyhead" style={{ marginBottom: 24 }}>
+        <div className="col g4"><span className="eyebrow">{t("New learner's licence", 'नई लर्नर लाइसेंस', 'नवीन लर्नर लायसन्स')} · {form.state || 'Maharashtra'}</span><h1>{currentLabelTranslated}</h1></div>
         <div className="row g10 wrapf" style={{ alignItems: 'center' }}>
           {/* Demo shortcut. Labelled for what it is rather than hidden, because
               an audience seeing nine stages fill themselves should be told that
@@ -159,7 +159,7 @@ export function Apply({ go, state, update }: PageProps) {
           <Pill tone="ok">{Icon.check()} {t('Saved a moment ago', 'कुछ समय पहले सेव किया गया', 'काही वेळापूर्वी सेव्ह केले')}</Pill>
         </div>
       </div>
-      <div style={{ display: 'grid', gap: 36, gridTemplateColumns: '250px minmax(0,1fr)' }} className="applygrid">
+      <div className="applygrid">
         <aside className="hide-m"><div style={{ position: 'sticky', top: 88 }}>
           <Stepper steps={visibleSteps.map(s => t(s.t, s.tHi, s.tMr))} cur={visibleSteps.findIndex(s => s.t === currentLabel)} onJump={i => setStep(STEPS.findIndex(s => s.t === visibleSteps[i].t))} />
           <hr className="hr" style={{ margin: '16px 0' }} />
@@ -167,7 +167,7 @@ export function Apply({ go, state, update }: PageProps) {
           <p className="tiny" style={{ padding: '10px 12px 0' }}>Same stages as the official portal, in the same order. Saved after every step.</p>
         </div></aside>
         <div className="col g20" style={{ maxWidth: 670 }}>
-          <div className="only-m"><Progress cur={visibleSteps.findIndex(s => s.t === currentLabel)} total={visibleSteps.length} label={currentLabelTranslated} /></div>
+          <div className="only-mb"><Progress cur={visibleSteps.findIndex(s => s.t === currentLabel)} total={visibleSteps.length} label={currentLabelTranslated} /></div>
           <StepComponent {...stepProps} />
           {error && (
             <Note tone="warn">
