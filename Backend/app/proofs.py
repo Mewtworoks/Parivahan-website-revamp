@@ -182,12 +182,16 @@ def booking_load(applicants: int = 120) -> dict[str, Any]:
     # made the card read "a hundred and twenty people, eighteen slots" over a
     # result that said eight. The demonstration has to be the same size every
     # time or the number stops meaning anything.
+    # Measured once. Inside the loop this was an ensure_day and a slot query per
+    # candidate, for a number that cannot move: the reference day is three
+    # hundred out and nothing ever books it.
+    full_grid = _full_grid_size()
     day, free = None, []
     for offset in range(_PROOF_DAYS["load"], _PROOF_DAYS["load"] + 90):
         candidate = date.today() + timedelta(days=offset)
         be.ensure_day("mh01", candidate)
         free = be.list_free_slots("mh01", candidate)
-        if len(free) == _full_grid_size():
+        if len(free) == full_grid:
             day = candidate
             break
         if free and day is None:
@@ -293,16 +297,43 @@ def ledger_tamper() -> dict[str, Any]:
     app = be.get_application(app.id)
 
     def rows() -> list[dict[str, Any]]:
-        return [{"seq": e.seq, "status": e.status.value, "note": e.note,
-                 "hash": e.hash[:12], "prev_hash": e.prev_hash[:12] or "genesis",
-                 "intact": e.compute_hash() == e.hash}
-                for e in app.ledger]
+        """
+        The chain as the receipt reads it, with the break carried forward.
+
+        `intact` used to compare each event against its own hash and nothing
+        else. That is true about the row and useless about the chain: editing a
+        note leaves every stored hash alone, so every later event still verified
+        against itself and still printed "intact". The panel showed one altered
+        line sitting in an otherwise healthy record, which is the opposite of
+        what is being claimed — a chain cannot be broken in one place only.
+
+        So a row is unverifiable if its own hash fails or if any row before it
+        did. That is deliberately not the walk `verify_ledger` does: that one
+        stops at the first failure and compares against stored hashes, because
+        all it has to answer is whether the receipt holds. This has to say where.
+        """
+        out: list[dict[str, Any]] = []
+        broken = False
+        for e in app.ledger:
+            broken = broken or e.compute_hash() != e.hash
+            out.append({"seq": e.seq, "status": e.status.value, "note": e.note,
+                        "hash": e.hash[:12], "prev_hash": e.prev_hash[:12] or "genesis",
+                        "intact": not broken})
+        return out
 
     before = {"chain_valid": app.verify_ledger(), "events": rows()}
 
     # Edit a middle row the way someone with database access would: change the
     # text and leave the stored hash alone, because recomputing it is the part
     # they would not know to do.
+    #
+    # The edit is made to this snapshot rather than to the row, and deliberately.
+    # What is being demonstrated is the detection — a note that no longer agrees
+    # with the hash filed beside it — and that is identical either way, because
+    # `get_application` reads the stored hash back rather than recomputing it. An
+    # UPDATE would demonstrate nothing further and would put a window in a live
+    # demo where a killed process leaves a broken chain behind. Say "rewrites a
+    # recorded step", not "edits the database", and the claim matches the code.
     target = min(1, len(app.ledger) - 1)
     original = app.ledger[target].note
     app.ledger[target].note = "Documents verified after payment received in cash."
