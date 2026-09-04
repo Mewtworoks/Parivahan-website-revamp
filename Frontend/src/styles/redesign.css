@@ -38,7 +38,9 @@
 
 :root {
    /* Paper. The hue is held at ~85 across every neutral so the greys stay warm;
-      a single cool grey in this palette reads as a mistake. */
+      a single cool grey in this palette reads as a mistake. This block is
+      superseded for colour by the later :root further down — --bg here just
+      keeps this ramp internally consistent for whatever still reads it. */
    --bg: oklch(0.973 0.012 85);
    --surface: oklch(0.995 0.004 85);
    --surface2: oklch(0.951 0.016 85);
@@ -86,9 +88,15 @@
    --sh: none;
    --sh-lg: 0 1px 2px oklch(0.24 0.02 60/.07), 0 14px 34px -14px oklch(0.24 0.02 60/.3);
 
-   --sans: "IBM Plex Sans", system-ui, sans-serif;
-   --disp: "IBM Plex Serif", Georgia, serif;
-   --mono: "IBM Plex Mono", ui-monospace, monospace;
+   /* One family for every text role now. --disp used to point at a separate
+      serif (Newsreader) for headings — mixing a serif display face with a
+      sans body read as two unrelated typefaces on the same page rather than
+      as a deliberate pairing, so headings now just get the body font at
+      weight. --disp stays a distinct token, not a deleted one, so a heading
+      style can still be told apart from a paragraph style in the CSS itself. */
+   --sans: "Inter", system-ui, sans-serif;
+   --disp: var(--sans);
+   --mono: "JetBrains Mono", ui-monospace, monospace;
 
    --stripe-1: oklch(0.885 0.016 85);
    --stripe-2: oklch(0.94 0.012 85);
@@ -104,12 +112,11 @@
       against it. */
    --hero-bg: oklch(0.998 0.003 85);
 
-   /* The footer field: near-black and warm, not green. A dark foot under a paper
-      body is contrast the page can use; a green foot under a green head was two
-      walls of the same paint. Green survives on it as link and accent colour,
-      which is where green was always strongest. */
-   --field: oklch(0.216 0.012 70);
-   --field-ink: oklch(0.972 0.012 90);
+   /* The footer field is the page's own background now, not a separate band —
+      header, body and footer all read as one continuous surface. The hairline
+      border below is what marks the footer, not a colour change. */
+   --field: var(--bg);
+   --field-ink: var(--ink);
 
    /* Saffron, used as a second voice and only in three places: the hero's
       underline, the rule that closes the hero band, and warnings. Two accents is
@@ -200,8 +207,7 @@ h4 {
    carrying a sentence somebody has to read, it is the wrong tool. */
 .eyebrow,
 .kicker,
-.strip-n,
-.steps .n {
+.strip-n {
    font-family: var(--mono);
    letter-spacing: .04em
 }
@@ -312,7 +318,6 @@ th,
 .card,
 .start,
 .purpose,
-.steps,
 .claims,
 .strip,
 .lookup,
@@ -339,12 +344,6 @@ th,
 .claim-ic,
 .strip-n {
    border-radius: 4px
-}
-
-/* The step number was a filled circle. Squared off and outlined, it reads as a
-   stage marker rather than a bullet. */
-.steps .n i {
-   border-radius: 3px
 }
 
 /* --- buttons ----------------------------------------------------------------
@@ -409,9 +408,11 @@ a {
 .tb {
    /* Declared twice on purpose: a browser without color-mix drops the second
       line and keeps the opaque bar, rather than parsing nothing and leaving the
-      sticky bar transparent over the page scrolling beneath it. */
-   background: var(--surface);
-   background: color-mix(in oklab, var(--surface) 82%, transparent);
+      sticky bar transparent over the page scrolling beneath it. --bg rather
+      than --surface now, so the bar reads as the page continuing under it
+      rather than as a separate white shelf sitting on top of the cream. */
+   background: var(--bg);
+   background: color-mix(in oklab, var(--bg) 82%, transparent);
    /* 8px, not the 18 this started at. A backdrop-filter on a sticky element is
       recomputed for every scrolled frame, over the full width of the viewport,
       and blur cost climbs with radius — so the one place the radius is most
@@ -423,7 +424,7 @@ a {
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
    .tb {
-      background: var(--surface)
+      background: var(--bg)
    }
 }
 
@@ -610,16 +611,20 @@ a {
    of an <img>. This rule had nothing left to select. */
 
 .foot-mark .mark-t {
-   font-family: var(--disp);
-   font-weight: 600;
+   font-family: var(--sans);
+   font-weight: 700;
    font-size: 1.02rem;
    color: var(--field-ink)
 }
 
+
+/* Mixed against --field-ink rather than a fixed white, so this stays legible
+   whichever theme is up: field-ink is dark on the light footer and light on
+   the dark one, so the mix follows it instead of assuming a dark field. */
 .foot-line {
    font-size: .875rem;
    line-height: 1.62;
-   color: oklch(1 0 0/.72)
+   color: color-mix(in oklab, var(--field-ink) 72%, transparent)
 }
 
 /* Column headings in mono, matching the field labels everywhere else. They read
@@ -633,7 +638,7 @@ a {
    /* Was .58, which is the sort of value that looks right and measures wrong:
       at .72rem, uppercase, tracked out, on a mid-dark field, it lands under AA.
       Small tracked type needs more contrast than its size suggests, not less. */
-   color: oklch(1 0 0/.74)
+   color: color-mix(in oklab, var(--field-ink) 74%, transparent)
 }
 
 .footer .linkcol {
@@ -641,34 +646,39 @@ a {
 }
 
 .footer .linkcol a {
-   color: oklch(1 0 0/.87);
+   color: color-mix(in oklab, var(--field-ink) 87%, transparent);
    text-decoration: none
 }
 
-/* Green on near-black, which is where this green is at its best — the hue has
-   enough lightness at 0.688 to read as a colour rather than as dimmed white. */
+/* --brand-hi rather than a colour picked for one background — it is already
+   tuned per theme (dark-and-legible on the light footer, light-and-legible on
+   the dark one), which a value fixed for "near-black" cannot be.
+   Only the "Sewa" half now — the wordmark is two-tone everywhere else on the
+   site, and the footer should not be the one place it goes back to solid green. */
 .footer .linkcol a:hover,
-.foot-mark .mark-t {
-   color: oklch(0.712 0.132 158);
+.foot-mark .mark-t-b {
+   color: var(--brand-hi);
    text-decoration: none
 }
 
 .footer .linkcol a:hover {
    text-decoration: underline;
-   text-decoration-color: oklch(0.712 0.132 158);
+   text-decoration-color: var(--brand-hi);
    text-decoration-thickness: 1.5px;
    text-underline-offset: 3px
 }
 
 .footer .hr {
-   background: oklch(1 0 0/.2)
+   background: color-mix(in oklab, var(--field-ink) 20%, transparent)
 }
 
 /* The disclaimer lives here. It is the one paragraph on the site that has a
    reason to be read by somebody who is looking for a reason not to trust the
-   build, so it does not get to be the faintest text on the page. */
+   build, so it does not get to be the faintest text on the page. Mixed off
+   --field-ink like the other footer text, so it still holds up if the field
+   ever goes dark again. */
 .footer .tiny {
-   color: oklch(1 0 0/.7)
+   color: color-mix(in oklab, var(--field-ink) 70%, transparent)
 }
 
 @media(max-width:860px) {
@@ -783,7 +793,14 @@ a {
       plus its own padding, which is the only pair of values that produces two
       concentric curves instead of a rounded rectangle sitting inside a slightly
       differently rounded one. */
-   border-radius: 8px
+   border-radius: 8px;
+   /* Overrides .pixcanvas's own `pixelated` — first step toward the flat,
+      hero-illustration look asked for here: the browser's own upscaling
+      filter softens every hard pixel edge without touching a single draw call
+      in RoadScene.tsx. The chase-camera view, the projection, the scenario
+      logic — none of that moved; only how the finished 320x180 frame gets
+      stretched to the size it is actually shown at. */
+   image-rendering: auto
 }
 
 .pixwrap:has(.roadcanvas) {
@@ -914,31 +931,31 @@ a {
    ============================================================================= */
 
 :root {
-   /* Cream, not white. The old surface was oklch(0.995 0.004) — white with a
-      rumour of warmth in it. Cards are cream now too, a step up from the page
-      rather than a different material, and the page itself is deep enough to be
-      a colour rather than a failed white. */
-   --bg: oklch(0.951 0.021 88);
-   --surface: oklch(0.979 0.014 88);
-   --surface2: oklch(0.929 0.028 88);
-   --line: oklch(0.866 0.025 84);
-   --line2: oklch(0.771 0.033 84);
+   /* The exact palette from the reference build: cream page, white cards,
+      forest-green brand. Named literally rather than re-derived in oklch, so
+      the values stay pixel-identical to what was asked for. */
+   --bg: #FBF8F3;
+   --surface: #FFFFFF;
+   --surface2: #F1E9DC;
+   --line: #E6E1D8;
+   --line2: #D9D0BE;
 
-   --ink: oklch(0.232 0.019 62);
-   --ink2: oklch(0.402 0.019 62);
-   --muted: oklch(0.532 0.021 66);
+   --ink: #1C2421;
+   --ink2: #1C2421CC;
+   --muted: #1C242199;
 
-   /* Chroma up from 0.098 to 0.152. The interface green was mixed to be
-      inoffensive next to grey and now has to hold its own next to a gradient. */
-   --brand: oklch(0.492 0.152 158);
-   --brand-hi: oklch(0.424 0.145 158);
-   --brand-soft: oklch(0.944 0.048 160);
-   --brand-line: oklch(0.821 0.088 158);
-   --accent: oklch(0.492 0.152 158);
-   --accent-ink: oklch(0.424 0.145 158);
-   --accent-soft: oklch(0.944 0.048 160);
-   --ok: oklch(0.492 0.152 158);
-   --ok-soft: oklch(0.944 0.048 160);
+   /* A medium emerald rather than the near-black forest it replaced — the old
+      value read as "dark green" before it read as "brand" on anything smaller
+      than a full-width band. */
+   --brand: #059669;
+   --brand-hi: #047857;
+   --brand-soft: #05966914;
+   --brand-line: #05966933;
+   --accent: #059669;
+   --accent-ink: #047857;
+   --accent-soft: #05966914;
+   --ok: #059669;
+   --ok-soft: #05966914;
 
    /* Teal is the third hue, and it exists so the green has a direction to move
       in. A gradient between two tints of one hue is a wash; between two hues it
@@ -999,7 +1016,7 @@ a {
 }
 
 .footer {
-   background: var(--grad-foot)
+   background: var(--field)
 }
 
 /* Depth back on the static panels. The no-shadow rule was right when the ground
@@ -1008,7 +1025,6 @@ a {
 .card,
 .start,
 .purpose,
-.steps,
 .claims,
 .strip,
 .lookup,
@@ -1037,8 +1053,7 @@ a {
 /* The mono labels pick up the brand hue instead of staying grey — at this size
    they are closer to punctuation than to text, and grey punctuation on a
    coloured page is where the last version leaked its life out. */
-.eyebrow,
-.steps .n {
+.eyebrow {
    color: var(--brand)
 }
 
@@ -1169,77 +1184,25 @@ a {
    background: oklch(0.782 0.128 158);
 }
 
-/* The footer needs no rule at all. Near-black arriving under cream is already
-   the strongest boundary on the page; a 3px orange line on top of it was a
-   second boundary drawn over the first, and in light mode it was the only
-   orange left above the fold. */
+/* The footer field is close in value to the page now — a lavender-grey, not
+   the near-black that used to be boundary enough on its own — so light theme
+   gets a hairline back. Dark keeps the old reasoning: its field is still dark
+   enough under a dark page that a second line on top would be redundant. */
 .footer {
+   border-top: 1px solid var(--line);
+}
+
+:root[data-theme="dark"] .footer {
    border-top: 0;
 }
 
 /* --- paper -----------------------------------------------------------------
 
-   A texture on the page ground, so it reads as a sheet rather than a flat fill.
-   One SVG turbulence tile, generated by the browser and never fetched, drawn
-   once as a fixed layer — fixed rather than scrolling with the page, because
-   grain that moves reads as a pattern and grain that stays put reads as the
-   surface the page is printed on.
+   A fixed SVG-turbulence grain used to sit behind the page here, so the ground
+   read as a sheet rather than a flat fill. Read as visibly grainy rather than
+   as paper tooth, so it is gone — the ground is just `--bg`, a flat cream,
+   now. */
 
-   This replaces a first attempt that was measurably invisible. That one was an
-   overlay *above* the content at 10% multiply, argued for as film grain across
-   one printed surface. Magnified eight times on empty ground it was a faint
-   mottling; at 1:1 on a real screen it was nothing, which is why the page still
-   looked flat after it shipped. Two things were wrong with it, and they pulled
-   against each other:
-
-   - `baseFrequency: .72` with four octaves is very fine noise. On a 2× display
-     most of it lands inside one device pixel and averages back out to the
-     ground colour. Paper tooth needs a coarser cell than screen grain does.
-   - It could not simply be turned up. Over the content, at the strength where
-     the ground has tooth, the same wash sits on every line of type — and body
-     copy at 15px does not survive being dirtied.
-
-   So the layer moves *behind* the content instead, `z-index: -1`: above the
-   body's own background, below everything in flow. That buys the strength,
-   because nothing it crosses is text. Cards keep their own opaque surface and
-   stay clean, which is the right division anyway — a textured ground with
-   smooth cards on it is how the printed thing this imitates actually looks.
-
-   Blended rather than laid on: multiply darkens the tooth on paper, screen
-   lifts it on the near-black, and both leave the hue where it was. A flat
-   overlay would wash the ground toward grey. */
-body::before {
-   content: "";
-   position: fixed;
-   inset: 0;
-   /* Behind content, above the body background. `pointer-events: none` is
-      belt-and-braces at this depth, but the layer is decorative and should not
-      be able to take a press under any stacking accident. */
-   z-index: -1;
-   pointer-events: none;
-   opacity: 0.5;
-   mix-blend-mode: multiply;
-   /* `numOctaves` 3, not 4, and a coarser base frequency: fewer, larger cells
-      that survive a high-DPI screen. `stitchTiles` keeps the 200px tile from
-      showing a seam where it repeats. The alpha ramp is what makes it specks
-      rather than a grey veil — without it the tile is a mid-grey block whose
-      only visible effect is to darken the ground uniformly. */
-   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' seed='4'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.62' intercept='-0.16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)'/%3E%3C/svg%3E");
-}
-
-:root[data-theme="dark"] body::before {
-   /* Screen on the dark ground lifts less than multiply bites on cream, so dark
-      needs more of it than light to read as the same surface — but not as much
-      more as it first looked: at 0.62 the ground read as static rather than as
-      tooth, because the dark ground is also a much lower-chroma field for the
-      same noise to sit on. */
-   opacity: 0.5;
-   mix-blend-mode: screen;
-}
-
-/* Somebody who asked for less motion did not ask for less texture, so the grain
-   stays there. A page going to a printer or rendered in forced colours should
-   not carry it. */
 @media print, (forced-colors: active) {
    body::before { content: none; }
 }

@@ -147,9 +147,26 @@ export function Sheet({ title, onClose, children, fill }: { title: ReactNode; on
   // both of which need a pointer — so anyone driving this from the keyboard was
   // shut inside a panel covering the page, with the rest of the site still
   // clickable underneath and no way to reach it.
+  //
+  // The page behind it used to stay scrollable too — a wheel over the dimmed
+  // backdrop scrolled the site underneath while the sheet sat still on top of
+  // it, which reads as the panel not actually being in front of the page.
+  // Locked and unlocked off the same `openSheets` stack the Escape handler
+  // already keeps, so a sheet opened from inside another sheet does not
+  // unlock the page the moment the inner one closes — only the outer one
+  // closing, with the stack back to empty, gives scrolling back.
   useEffect(() => {
     const mine = Symbol('sheet');
+    const wasEmpty = openSheets.length === 0;
     openSheets.push(mine);
+    if (wasEmpty) {
+      // Locking overflow removes the scrollbar, which shifts every fixed and
+      // sticky element left by its width — compensated here so the page does
+      // not visibly flinch open a sheet.
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (openSheets[openSheets.length - 1] !== mine) return;
@@ -161,6 +178,10 @@ export function Sheet({ title, onClose, children, fill }: { title: ReactNode; on
       document.removeEventListener('keydown', onKey);
       const at = openSheets.indexOf(mine);
       if (at !== -1) openSheets.splice(at, 1);
+      if (openSheets.length === 0) {
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+      }
     };
   }, [onClose]);
 

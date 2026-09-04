@@ -36,13 +36,13 @@ export function Mark({ size = 34 }: { size?: number }) {
       {/* The two carriageway edges. They stop short of the top so the mark has a
           horizon rather than running off the tile — the gap is what makes it
           read as distance instead of as a triangle. */}
-      <g stroke="var(--field-ink, #fff)" strokeWidth="2.4" strokeLinecap="square" fill="none">
+      <g stroke="#fff" strokeWidth="2.4" strokeLinecap="square" fill="none">
         <path d="M5 27 L12.4 9" />
         <path d="M27 27 L19.6 9" />
       </g>
       {/* Centre line, dashing away. Each dash is shorter and narrower than the
           one before it, which is the whole of the perspective in three marks. */}
-      <g fill="var(--field-ink, #fff)">
+      <g fill="#fff">
         <rect x="14.7" y="21.5" width="2.6" height="5" rx="0.6" />
         <rect x="15.1" y="15.5" width="1.8" height="3.4" rx="0.5" />
         <rect x="15.4" y="11.4" width="1.2" height="2.1" rx="0.4" />

@@ -27,17 +27,26 @@ import type { RoadActor, RoadSign, RoadSpec } from '../types';
  * visibly alongside while the question stays "what do you check before turning".
  */
 
-// Small canvas upscaled with `image-rendering: pixelated`, so this is the same
-// pixel art as the rest of the game rather than a smooth 3D panel dropped into
-// it. 16:9 at an exact 3x.
-const W = 320;
-const H = 180;
+// Was 320x180 upscaled with `image-rendering: pixelated` — the same pixel art
+// as the rest of the game. Now drawn at native display size instead: a circle
+// six pixels across cannot read as round no matter how it is scaled up
+// afterward, it needs the pixels to draw a curve with in the first place. `PX`
+// is every one of the hand-picked pixel constants below scaled together, so
+// the composition — what is where, how big relative to the frame — is
+// unchanged; only how many device pixels each thing gets to be drawn with.
+const PX = 3;
+const W = 320 * PX;
+const H = 180 * PX;
 
 const HORIZON = Math.round(H * 0.42);
-const FOV = 165;
+// FOV converts world units to pixels, so it scales with PX like every other
+// pixel quantity — the field of view itself (how much world fits in frame) is
+// untouched, only its unit changed from "old pixels" to "new pixels".
+const FOV = 165 * PX;
 // Eye height above the road: higher than a driver's, because the camera sits
 // above and behind the roof. This is what tilts the road open enough to read
-// lane position, which several scenarios turn on.
+// lane position, which several scenarios turn on. World-space, not pixels —
+// does not scale with PX.
 const CAM_H = 2.9;
 const ROAD_HALF = 5.2;
 const DRAW_Z = 120;
@@ -96,7 +105,7 @@ function haze(z: number) {
 
 function glyphBendRight(g: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   g.strokeStyle = '#1b1d21';
-  g.lineWidth = Math.max(1, r * 0.3);
+  g.lineWidth = Math.max(PX, r * 0.3);
   g.beginPath();
   g.moveTo(cx - r * 0.1, cy + r * 0.62);
   g.lineTo(cx - r * 0.1, cy - r * 0.06);
@@ -106,7 +115,7 @@ function glyphBendRight(g: CanvasRenderingContext2D, cx: number, cy: number, r: 
 
 function glyphNarrows(g: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   g.strokeStyle = '#1b1d21';
-  g.lineWidth = Math.max(1, r * 0.24);
+  g.lineWidth = Math.max(PX, r * 0.24);
   g.beginPath();
   g.moveTo(cx - r * 0.55, cy + r * 0.6); g.lineTo(cx - r * 0.16, cy - r * 0.5);
   g.moveTo(cx + r * 0.55, cy + r * 0.6); g.lineTo(cx + r * 0.16, cy - r * 0.5);
@@ -117,10 +126,10 @@ function glyphChildren(g: CanvasRenderingContext2D, cx: number, cy: number, r: n
   // Two figures, the taller leading the shorter — the standard school-zone mark,
   // reduced to what survives at eight pixels tall.
   g.fillStyle = '#1b1d21';
-  g.fillRect(Math.round(cx - r * 0.5), Math.round(cy - r * 0.5), Math.max(1, Math.round(r * 0.26)), Math.round(r * 1.05));
-  g.fillRect(Math.round(cx + r * 0.16), Math.round(cy - r * 0.18), Math.max(1, Math.round(r * 0.24)), Math.round(r * 0.72));
-  g.beginPath(); g.arc(cx - r * 0.37, cy - r * 0.66, Math.max(1, r * 0.2), 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(cx + r * 0.28, cy - r * 0.34, Math.max(1, r * 0.17), 0, Math.PI * 2); g.fill();
+  g.fillRect(Math.round(cx - r * 0.5), Math.round(cy - r * 0.5), Math.max(PX, Math.round(r * 0.26)), Math.round(r * 1.05));
+  g.fillRect(Math.round(cx + r * 0.16), Math.round(cy - r * 0.18), Math.max(PX, Math.round(r * 0.24)), Math.round(r * 0.72));
+  g.beginPath(); g.arc(cx - r * 0.37, cy - r * 0.66, Math.max(PX, r * 0.2), 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(cx + r * 0.28, cy - r * 0.34, Math.max(PX, r * 0.17), 0, Math.PI * 2); g.fill();
 }
 
 /**
@@ -131,7 +140,7 @@ function glyphChildren(g: CanvasRenderingContext2D, cx: number, cy: number, r: n
  */
 function glyphLevelCrossing(g: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   g.strokeStyle = '#1b1d21';
-  g.lineWidth = Math.max(1, r * 0.26);
+  g.lineWidth = Math.max(PX, r * 0.26);
   g.beginPath();
   g.moveTo(cx - r * 0.6, cy - r * 0.55); g.lineTo(cx + r * 0.6, cy + r * 0.55);
   g.moveTo(cx + r * 0.6, cy - r * 0.55); g.lineTo(cx - r * 0.6, cy + r * 0.55);
@@ -140,7 +149,7 @@ function glyphLevelCrossing(g: CanvasRenderingContext2D, cx: number, cy: number,
 
 function glyphArrow(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, dir: 'up' | 'left', color: string) {
   g.fillStyle = color;
-  const t = Math.max(1, r * 0.28);
+  const t = Math.max(PX, r * 0.28);
   if (dir === 'up') {
     g.fillRect(Math.round(cx - t / 2), Math.round(cy - r * 0.15), Math.round(t), Math.round(r * 0.85));
     g.beginPath();
@@ -156,14 +165,14 @@ function glyphArrow(g: CanvasRenderingContext2D, cx: number, cy: number, r: numb
 
 function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
   const { sx, sy, scale } = project(s.x, s.z);
-  if (scale < 3) return;
-  const size = Math.max(7, scale * 0.66);
-  const postH = Math.max(9, scale * 1.2);
+  if (scale < 3 * PX) return;
+  const size = Math.max(7 * PX, scale * 0.66);
+  const postH = Math.max(9 * PX, scale * 1.2);
   const f = haze(s.z) * 0.8;
   const sky = night ? NIGHT_LOW : SKY_LOW;
 
   ctx.fillStyle = mix('#8a8f96', sky, f);
-  ctx.fillRect(Math.round(sx - Math.max(1, size * 0.055)), Math.round(sy - postH), Math.max(1, Math.round(size * 0.11)), Math.round(postH));
+  ctx.fillRect(Math.round(sx - Math.max(PX, size * 0.055)), Math.round(sy - postH), Math.max(PX, Math.round(size * 0.11)), Math.round(postH));
 
   const cx = Math.round(sx);
   const cy = Math.round(sy - postH - size * 0.34);
@@ -181,7 +190,7 @@ function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
     // The border width carries the classification — triangle-with-red-border is
     // cautionary, and that distinction is literally the answer to two of these
     // questions — so it is stroked properly rather than hinted at one pixel.
-    ctx.lineWidth = Math.max(1.5, r * 0.26); ctx.strokeStyle = red; ctx.stroke();
+    ctx.lineWidth = Math.max(1.5 * PX, r * 0.26); ctx.strokeStyle = red; ctx.stroke();
     const gc = cy + r * 0.14;
     if (s.glyph === 'bend-right') glyphBendRight(ctx, cx, gc, r * 0.5);
     else if (s.glyph === 'narrows') glyphNarrows(ctx, cx, gc, r * 0.5);
@@ -191,13 +200,13 @@ function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
     const r = size * 0.56;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = face; ctx.fill();
-    ctx.lineWidth = Math.max(1.5, r * 0.28); ctx.strokeStyle = red; ctx.stroke();
+    ctx.lineWidth = Math.max(1.5 * PX, r * 0.28); ctx.strokeStyle = red; ctx.stroke();
     if (s.glyph === 'no-entry') {
       // The single horizontal bar. This is No Entry, and the question that asks
       // about it offers No Parking and No Overtaking as the wrong answers — so
       // the bar has to be unmistakably one horizontal bar and nothing else.
       ctx.fillStyle = face;
-      ctx.fillRect(Math.round(cx - r * 0.62), Math.round(cy - r * 0.17), Math.round(r * 1.24), Math.max(1, Math.round(r * 0.34)));
+      ctx.fillRect(Math.round(cx - r * 0.62), Math.round(cy - r * 0.17), Math.round(r * 1.24), Math.max(PX, Math.round(r * 0.34)));
     }
   } else if (s.shape === 'circle-blue') {
     const r = size * 0.56;
@@ -214,13 +223,13 @@ function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
     ctx.fillStyle = blue;
     ctx.fillRect(Math.round(cx - rw / 2), Math.round(cy - rh / 2), Math.round(rw), Math.round(rh));
     ctx.fillStyle = face;
-    ctx.strokeStyle = face; ctx.lineWidth = 1;
-    ctx.strokeRect(Math.round(cx - rw / 2) + 0.5, Math.round(cy - rh / 2) + 0.5, Math.round(rw) - 1, Math.round(rh) - 1);
+    ctx.strokeStyle = face; ctx.lineWidth = PX;
+    ctx.strokeRect(Math.round(cx - rw / 2) + PX / 2, Math.round(cy - rh / 2) + PX / 2, Math.round(rw) - PX, Math.round(rh) - PX);
     if (s.glyph === 'arrow-up') glyphArrow(ctx, cx, cy, rh * 0.42, 'up', face);
     else {
       for (let i = 0; i < 2; i++) {
         const bw = rw * (i === 0 ? 0.5 : 0.32);
-        ctx.fillRect(Math.round(cx - rw * 0.34), Math.round(cy - rh * 0.2 + i * rh * 0.34), Math.round(bw), Math.max(1, Math.round(rh * 0.14)));
+        ctx.fillRect(Math.round(cx - rw * 0.34), Math.round(cy - rh * 0.2 + i * rh * 0.34), Math.round(bw), Math.max(PX, Math.round(rh * 0.14)));
       }
     }
     void ink;
@@ -236,15 +245,15 @@ function drawSign(ctx: CanvasRenderingContext2D, s: RoadSign, night: boolean) {
  */
 function drawSignal(ctx: CanvasRenderingContext2D, spec: NonNullable<RoadSpec['signal']>, time: number, night: boolean) {
   const { sx, sy, scale } = project(-ROAD_HALF - 1.1, spec.z);
-  if (scale < 3) return;
+  if (scale < 3 * PX) return;
   const f = haze(spec.z) * 0.7;
   const sky = night ? NIGHT_LOW : SKY_LOW;
-  const postH = Math.max(14, scale * 2.3);
-  const bw = Math.max(4, scale * 0.42);
+  const postH = Math.max(14 * PX, scale * 2.3);
+  const bw = Math.max(4 * PX, scale * 0.42);
   const lamp = bw * 0.66;
 
   ctx.fillStyle = mix('#5d6167', sky, f);
-  ctx.fillRect(Math.round(sx - Math.max(1, bw * 0.09)), Math.round(sy - postH), Math.max(1, Math.round(bw * 0.18)), Math.round(postH));
+  ctx.fillRect(Math.round(sx - Math.max(PX, bw * 0.09)), Math.round(sy - postH), Math.max(PX, Math.round(bw * 0.18)), Math.round(postH));
 
   const bx = Math.round(sx - bw / 2);
   const by = Math.round(sy - postH - lamp * 3.3);
@@ -260,7 +269,7 @@ function drawSignal(ctx: CanvasRenderingContext2D, spec: NonNullable<RoadSpec['s
     const lit = on === name;
     const cx = Math.round(sx);
     const cy = Math.round(by + lamp * (0.75 + i * 1.15));
-    const r = Math.max(1.2, lamp * 0.36);
+    const r = Math.max(1.2 * PX, lamp * 0.36);
     if (lit) {
       // A soft halo, so a lit lamp reads as emitting rather than as a coloured
       // dot. Radius kept small; a big glow at night swallows the head.
@@ -279,7 +288,7 @@ function drawSignal(ctx: CanvasRenderingContext2D, spec: NonNullable<RoadSpec['s
     // main lamps where junctions actually mount it.
     const px = Math.round(sx + bw * 0.75);
     const py = Math.round(by + lamp * 2.2);
-    const s = Math.max(4, lamp * 1.5);
+    const s = Math.max(4 * PX, lamp * 1.5);
     ctx.fillStyle = mix('#25282d', sky, f * 0.5);
     ctx.fillRect(px, py, Math.round(s), Math.round(s));
     glyphArrow(ctx, px + s / 2, py + s / 2, s * 0.34, 'left', '#35b76a');
@@ -290,16 +299,16 @@ function drawSignal(ctx: CanvasRenderingContext2D, spec: NonNullable<RoadSpec['s
     // for one question — whether another phase going red is your cue to move —
     // and the answer depends on being able to see that it is not your signal.
     const c = project(ROAD_HALF + 2.2, spec.z + 2.5);
-    const ch = Math.max(9, c.scale * 1.7);
-    const cbw = Math.max(3, c.scale * 0.3);
+    const ch = Math.max(9 * PX, c.scale * 1.7);
+    const cbw = Math.max(3 * PX, c.scale * 0.3);
     ctx.fillStyle = mix('#5d6167', sky, f);
-    ctx.fillRect(Math.round(c.sx), Math.round(c.sy - ch), Math.max(1, Math.round(cbw * 0.2)), Math.round(ch));
+    ctx.fillRect(Math.round(c.sx), Math.round(c.sy - ch), Math.max(PX, Math.round(cbw * 0.2)), Math.round(ch));
     ctx.fillStyle = mix('#25282d', sky, f * 0.5);
     ctx.fillRect(Math.round(c.sx - cbw / 2), Math.round(c.sy - ch - cbw * 2), Math.round(cbw), Math.round(cbw * 2));
     const colour = spec.cross === 'red' ? '#e04a2f' : spec.cross === 'amber' ? '#f0b429' : '#35b76a';
     ctx.fillStyle = colour;
     ctx.beginPath();
-    ctx.arc(Math.round(c.sx), Math.round(c.sy - ch - cbw * (spec.cross === 'green' ? 0.5 : spec.cross === 'amber' ? 1 : 1.5)), Math.max(1, cbw * 0.28), 0, Math.PI * 2);
+    ctx.arc(Math.round(c.sx), Math.round(c.sy - ch - cbw * (spec.cross === 'green' ? 0.5 : spec.cross === 'amber' ? 1 : 1.5)), Math.max(PX, cbw * 0.28), 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -359,49 +368,49 @@ function lateralX(a: RoadActor, travelled: number) {
 function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: number, night: boolean, time: number) {
   const z = actorZ(a, travelled);
   const { sx, sy, scale } = project(lateralX(a, travelled), z);
-  if (scale < 2.2 || z > DRAW_Z) return;
+  if (scale < 2.2 * PX || z > DRAW_Z) return;
   const f = haze(z);
   const sky = night ? NIGHT_LOW : SKY_LOW;
   const body = mix(a.body || BODY[a.kind] || '#c0c0c0', sky, f);
 
   const shadow = (w: number) => {
     ctx.fillStyle = `rgba(16,18,14,${0.26 * (1 - f)})`;
-    ctx.fillRect(Math.round(sx - w / 2) - 1, Math.round(sy) - 1, Math.round(w) + 2, 2);
+    ctx.fillRect(Math.round(sx - w / 2) - PX, Math.round(sy) - PX, Math.round(w) + PX * 2, PX * 2);
   };
 
   if (a.kind === 'pothole') {
     // Flat on the road, so it is an ellipse in projection rather than a circle.
-    const w = Math.max(2, scale * 0.9);
+    const w = Math.max(2 * PX, scale * 0.9);
     ctx.fillStyle = mix('#22252a', sky, f * 0.8);
-    ctx.beginPath(); ctx.ellipse(sx, sy, w, Math.max(1, w * 0.34), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx, sy, w, Math.max(PX, w * 0.34), 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = mix('#4a4e55', sky, f * 0.8);
-    ctx.beginPath(); ctx.ellipse(sx, sy - Math.max(0.5, w * 0.12), w * 0.82, Math.max(1, w * 0.24), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx, sy - Math.max(0.5 * PX, w * 0.12), w * 0.82, Math.max(PX, w * 0.24), 0, 0, Math.PI * 2); ctx.fill();
     return;
   }
 
   if (a.kind === 'ped') {
-    const h = Math.max(4, scale * 1.05);
-    const w = Math.max(2, h * 0.34);
+    const h = Math.max(4 * PX, scale * 1.05);
+    const w = Math.max(2 * PX, h * 0.34);
     // A slow sway, so a person waiting is alive and a person crossing is walking.
     const sway = Math.sin(time * 2.6 + a.x) * (h * 0.04);
     shadow(w * 1.2);
     ctx.fillStyle = mix('#3a4c7a', sky, f);
     ctx.fillRect(Math.round(sx - w / 2 + sway), Math.round(sy - h * 0.62), Math.round(w), Math.round(h * 0.62));
     ctx.fillStyle = mix('#c8996b', sky, f);
-    ctx.beginPath(); ctx.arc(Math.round(sx + sway), Math.round(sy - h * 0.78), Math.max(1, h * 0.17), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(Math.round(sx + sway), Math.round(sy - h * 0.78), Math.max(PX, h * 0.17), 0, Math.PI * 2); ctx.fill();
     return;
   }
 
   if (a.kind === 'cow') {
-    const h = Math.max(4, scale * 0.95);
-    const w = Math.max(4, h * 1.7);
+    const h = Math.max(4 * PX, scale * 0.95);
+    const w = Math.max(4 * PX, h * 1.7);
     shadow(w);
     ctx.fillStyle = mix('#cfc6b4', sky, f);
     ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.78), Math.round(w), Math.round(h * 0.56));
     // Head low and to one side, which is how a standing cow reads in silhouette.
     ctx.fillRect(Math.round(sx + w * 0.34), Math.round(sy - h * 0.95), Math.round(w * 0.3), Math.round(h * 0.36));
     ctx.fillStyle = mix('#8b8272', sky, f);
-    for (let i = 0; i < 4; i++) ctx.fillRect(Math.round(sx - w * 0.4 + i * w * 0.26), Math.round(sy - h * 0.24), Math.max(1, Math.round(w * 0.09)), Math.round(h * 0.24));
+    for (let i = 0; i < 4; i++) ctx.fillRect(Math.round(sx - w * 0.4 + i * w * 0.26), Math.round(sy - h * 0.24), Math.max(PX, Math.round(w * 0.09)), Math.round(h * 0.24));
     return;
   }
 
@@ -431,8 +440,8 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
     // skipped entirely for a crossing vehicle, which is why the car from the
     // right came out as a plain beige rectangle. A vehicle seen side-on is a
     // different object: long, low, with wheels under it and a cabin set back.
-    const lw = Math.max(6, scale * dw * 2.1);
-    const lh = Math.max(3, scale * dh * 0.72);
+    const lw = Math.max(6 * PX, scale * dw * 2.1);
+    const lh = Math.max(3 * PX, scale * dh * 0.72);
     const lx = Math.round(sx - lw / 2);
     const ly = Math.round(sy - lh);
     // Facing: something from the right is travelling leftward, so its nose is on
@@ -442,7 +451,7 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
 
     shadow(lw);
     ctx.fillStyle = mix('#1c1c1f', sky, f);
-    const wr = Math.max(1, lh * 0.3);
+    const wr = Math.max(PX, lh * 0.3);
     ctx.fillRect(Math.round(lx + lw * 0.16), Math.round(sy - wr), Math.round(wr * 1.6), Math.round(wr));
     ctx.fillRect(Math.round(lx + lw * 0.68), Math.round(sy - wr), Math.round(wr * 1.6), Math.round(wr));
 
@@ -452,30 +461,34 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
     const cabX = nose < 0 ? lx + lw * 0.3 : lx + lw * 0.16;
     ctx.fillRect(Math.round(cabX), ly, Math.round(lw * 0.52), Math.round(lh * 0.4));
     ctx.fillStyle = `rgba(255,255,255,${0.16 * (1 - f)})`;
-    ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), 1);
+    ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), PX);
     // Glass along the cabin.
     ctx.fillStyle = `rgba(30,40,48,${0.5 * (1 - f)})`;
     ctx.fillRect(Math.round(cabX + lw * 0.05), ly + Math.round(lh * 0.08), Math.round(lw * 0.42), Math.round(lh * 0.24));
     // One lamp at the leading end, so which way it is going is unambiguous.
     ctx.fillStyle = mix('#e8e3cf', sky, f);
-    const lampX = nose < 0 ? lx + 1 : lx + lw - Math.max(1, lw * 0.06) - 1;
-    ctx.fillRect(Math.round(lampX), ly + Math.round(lh * 0.5), Math.max(1, Math.round(lw * 0.06)), Math.max(1, Math.round(lh * 0.18)));
+    const lampX = nose < 0 ? lx + PX : lx + lw - Math.max(PX, lw * 0.06) - PX;
+    ctx.fillRect(Math.round(lampX), ly + Math.round(lh * 0.5), Math.max(PX, Math.round(lw * 0.06)), Math.max(PX, Math.round(lh * 0.18)));
     return;
   }
 
-  const w = Math.max(3, scale * dw);
-  const h = Math.max(3, scale * dh);
+  const w = Math.max(3 * PX, scale * dw);
+  const h = Math.max(3 * PX, scale * dh);
   const left = Math.round(sx - w / 2);
   const top = Math.round(sy - h);
 
   shadow(w);
   ctx.fillStyle = body;
-  ctx.fillRect(left, top, Math.round(w), Math.round(h));
+  // Radius scales with the box and caps out small — a distant vehicle a few
+  // pixels across gets an effectively sharp corner either way, so there is no
+  // radius large enough to clip into a shape that small.
+  const vr = Math.min(3 * PX, Math.round(w) * 0.22, Math.round(h) * 0.22);
+  ctx.beginPath(); ctx.roundRect(left, top, Math.round(w), Math.round(h), Math.max(0, vr)); ctx.fill();
 
   // A lit top row: one line of sky landing on a horizontal surface, which is
   // most of what stops a flat rectangle reading as a sticker.
   ctx.fillStyle = `rgba(255,255,255,${0.16 * (1 - f)})`;
-  ctx.fillRect(left, top, Math.round(w), 1);
+  ctx.fillRect(left, top, Math.round(w), PX);
 
   {
     ctx.fillStyle = `rgba(30,40,48,${0.55 * (1 - f)})`;
@@ -483,23 +496,23 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
     if (a.oncoming) {
       // Headlights, and at night a glare that actually dazzles — which is the
       // entire content of the full-beam question.
-      const hw = Math.max(1, Math.round(w * 0.18));
+      const hw = Math.max(PX, Math.round(w * 0.18));
       ctx.fillStyle = night ? '#fffbe8' : mix('#e8e3cf', sky, f);
-      ctx.fillRect(left + Math.round(w * 0.08), top + Math.round(h * 0.55), hw, Math.max(1, Math.round(h * 0.2)));
-      ctx.fillRect(left + Math.round(w * 0.74), top + Math.round(h * 0.55), hw, Math.max(1, Math.round(h * 0.2)));
+      ctx.fillRect(left + Math.round(w * 0.08), top + Math.round(h * 0.55), hw, Math.max(PX, Math.round(h * 0.2)));
+      ctx.fillRect(left + Math.round(w * 0.74), top + Math.round(h * 0.55), hw, Math.max(PX, Math.round(h * 0.2)));
       if (night) {
-        const g = ctx.createRadialGradient(sx, sy - h * 0.45, 0, sx, sy - h * 0.45, Math.max(8, w * 2.6));
+        const g = ctx.createRadialGradient(sx, sy - h * 0.45, 0, sx, sy - h * 0.45, Math.max(8 * PX, w * 2.6));
         g.addColorStop(0, 'rgba(255,250,225,0.55)');
         g.addColorStop(0.5, 'rgba(255,250,225,0.16)');
         g.addColorStop(1, 'rgba(255,250,225,0)');
         ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(sx, sy - h * 0.45, Math.max(8, w * 2.6), 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy - h * 0.45, Math.max(8 * PX, w * 2.6), 0, Math.PI * 2); ctx.fill();
       }
     } else {
-      const lw = Math.max(1, Math.round(w * 0.15));
+      const lw = Math.max(PX, Math.round(w * 0.15));
       ctx.fillStyle = mix('#d24a32', sky, f);
-      ctx.fillRect(left + Math.round(w * 0.07), top + Math.round(h * 0.62), lw, Math.max(1, Math.round(h * 0.18)));
-      ctx.fillRect(left + Math.round(w * 0.78), top + Math.round(h * 0.62), lw, Math.max(1, Math.round(h * 0.18)));
+      ctx.fillRect(left + Math.round(w * 0.07), top + Math.round(h * 0.62), lw, Math.max(PX, Math.round(h * 0.18)));
+      ctx.fillRect(left + Math.round(w * 0.78), top + Math.round(h * 0.62), lw, Math.max(PX, Math.round(h * 0.18)));
     }
   }
 }
@@ -509,12 +522,19 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
  * so it holds a fixed size while the world moves around it.
  */
 function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) {
+  // Every offset below this point is unchanged from the original 320x180
+  // version — a scale transform does the ×PX for the whole sprite in one
+  // place, rather than every one of its several dozen hand-placed numbers
+  // needing its own multiplication. W and H divide back down to that original
+  // coordinate space for the same reason.
+  ctx.save();
+  ctx.scale(PX, PX);
   const lane = spec.lane || 0;
   const bike = spec.player === 'bike';
   const cw = bike ? 26 : 56;
   const ch = bike ? 34 : 30;
-  const cx = Math.round(W / 2 + lane * 26);
-  const top = Math.round(H - ch - 16 + bob);
+  const cx = Math.round(W / PX / 2 + lane * 26);
+  const top = Math.round(H / PX - ch - 16 + bob);
   const left = Math.round(cx - cw / 2);
 
   // Contact shadow in rows of falling alpha. A hard-edged shadow is a black
@@ -554,6 +574,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) 
         ctx.fillRect(cx - 4, ry - 3, 8, 1);
       }
     }
+    ctx.restore();
     return;
   }
 
@@ -562,20 +583,18 @@ function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) 
   ctx.fillRect(left - 2, top + ch - 9, 8, 9);
   ctx.fillRect(left + cw - 6, top + ch - 9, 8, 9);
 
-  // Each block inset a pixel at its top and bottom row — that is how pixel art
-  // rounds a corner, so the silhouette stops being a rectangle without a single
-  // blurred edge.
+  // A true rounded rect, where this used to fake a corner with a one-pixel
+  // inset on the top and bottom row — the pixel-art way to round a corner
+  // without a blurred edge. The edge is allowed to be smooth now, so it just
+  // is one, same silhouette otherwise.
   ctx.fillStyle = body;
-  ctx.fillRect(left + 2, top + 10, cw - 4, 1);
-  ctx.fillRect(left, top + 11, cw, ch - 14);
-  ctx.fillRect(left + 2, top + ch - 3, cw - 4, 1);
+  ctx.beginPath(); ctx.roundRect(left, top + 10, cw, ch - 12, 4); ctx.fill();
   ctx.fillStyle = '#dd4c37';
   ctx.fillRect(left + 3, top + 11, cw - 6, 1);
   ctx.fillStyle = '#8f2418';
   ctx.fillRect(left + 1, top + ch - 4, cw - 2, 1);
   ctx.fillStyle = body;
-  ctx.fillRect(left + 9, top + 2, cw - 18, 1);
-  ctx.fillRect(left + 7, top + 3, cw - 14, 9);
+  ctx.beginPath(); ctx.roundRect(left + 7, top + 2, cw - 14, 10, 3); ctx.fill();
 
   ctx.fillStyle = '#233038';
   ctx.fillRect(left + 10, top + 4, cw - 20, 7);
@@ -589,6 +608,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) 
   ctx.fillRect(left + cw / 2 - 8, top + 16, 16, 6);
   ctx.fillStyle = '#2a2a2e';
   ctx.fillRect(left + cw / 2 - 6, top + 18, 12, 2);
+  ctx.restore();
 }
 
 export function RoadScene({ spec, progress = 0, revealed = false }: { spec: RoadSpec; progress?: number; revealed?: boolean }) {
@@ -605,7 +625,11 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
+    // Was false, for the crisp-pixel look the CSS upscaling used to match.
+    // The CSS now smooths the frame on its way up to display size instead of
+    // stepping it, so the canvas's own smoothing should agree with that
+    // rather than fight it on the few drawImage-style ops that use it.
+    ctx.imageSmoothingEnabled = true;
 
     let frame = 0;
     let frozenAt: number | null = null;
@@ -680,20 +704,16 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       const sz = adv(s.stopline);
       const hz = adv(s.hump);
 
-      // Two flat sky bands. A 180px canvas upscaled 3x steps a smooth gradient
-      // anyway, so it is better to choose where the step falls.
-      const seam = Math.round(HORIZON * 0.58);
-      ctx.fillStyle = skyTop; ctx.fillRect(0, 0, W, seam);
-      ctx.fillStyle = skyLow; ctx.fillRect(0, seam, W, HORIZON - seam);
-      // Ordered dither through the seam: two bands meeting on one row is a hard
-      // line drawn across the sky, and six rows of checkerboard read as a
-      // graduation at this scale without introducing a gradient to band.
-      for (let i = 0; i < 6; i++) {
-        const y = seam - 3 + i;
-        if (y < 0 || y >= HORIZON) continue;
-        ctx.fillStyle = skyLow;
-        for (let x = i % 2; x < W; x += 2) if (noise(x * 13 + i * 71) < (i + 1) / 7) ctx.fillRect(x, y, 1, 1);
-      }
+      // A real gradient. The two flat bands plus an ordered-dither seam were
+      // how this faked one at 320x180 — dithered speckle hid inside a single
+      // device pixel there, but at this resolution the same dither would just
+      // be a visible speckle rather than a blend, so a genuine gradient
+      // replaces the trick instead of the trick getting bigger dots.
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
+      skyGrad.addColorStop(0, skyTop);
+      skyGrad.addColorStop(1, skyLow);
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, HORIZON);
 
       // Skyline, in two planes of aerial perspective: hills furthest and palest,
       // the tree line nearer and less faded. Drawing both at full strength puts
@@ -702,16 +722,16 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       ctx.fillStyle = mix('#5f8f6b', skyLow, night ? 0.72 : 0.6);
       for (let i = 0; i < 26; i++) {
         const n = noise(i * 3);
-        ctx.beginPath(); ctx.arc((i / 25) * (W + 40) - 20, HORIZON + 2, 12 + n * 26, Math.PI, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc((i / 25) * (W + 40 * PX) - 20 * PX, HORIZON + 2 * PX, (12 + n * 26) * PX, Math.PI, Math.PI * 2); ctx.fill();
       }
       ctx.fillStyle = mix('#3f6b45', skyLow, night ? 0.5 : 0.34);
       for (let i = 0; i < 34; i++) {
         const n = noise(i * 7 + 5);
-        const cx = Math.round((i / 33) * (W + 30) - 15 + n * 6);
-        const h = 6 + n * 11;
-        const w = 4 + n * 5;
+        const cx = Math.round((i / 33) * (W + 30 * PX) - 15 * PX + n * 6 * PX);
+        const h = (6 + n * 11) * PX;
+        const w = (4 + n * 5) * PX;
         ctx.fillRect(Math.round(cx - w / 2), Math.round(HORIZON - h), Math.round(w), Math.round(h));
-        ctx.fillRect(cx - 1, HORIZON - 2, 2, 3);
+        ctx.fillRect(cx - PX, HORIZON - 2 * PX, 2 * PX, 3 * PX);
       }
 
       const wet = !!s.wet;
@@ -721,7 +741,7 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       // they lie flat on the tarmac and this loop is the only place that knows
       // the exact distance of each row.
       for (let y = HORIZON; y < H; y++) {
-        const z = (CAM_H * FOV) / Math.max(y - HORIZON, 0.5);
+        const z = (CAM_H * FOV) / Math.max(y - HORIZON, 0.5 * PX);
         if (z > DRAW_Z * 3) continue;
         const halfW = (ROAD_HALF * FOV) / z;
         const cx = W / 2;
@@ -749,7 +769,7 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
 
         const edgeInJunction = jz !== undefined && Math.abs(z - jz) < 3.4;
         if (!edgeInJunction) {
-          const ew = Math.max(1, (0.28 * FOV) / z);
+          const ew = Math.max(PX, (0.28 * FOV) / z);
           ctx.fillStyle = mix('#eceadf', skyLow, f * 0.9);
           ctx.fillRect(Math.round(cx - halfW + ew * 0.4), y, Math.round(ew), 1);
           ctx.fillRect(Math.round(cx + halfW - ew * 1.4), y, Math.round(ew), 1);
@@ -762,7 +782,7 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
         if (centre !== 'none' && !edgeInJunction) {
           const drawIt = centre === 'solid' || (z + scroll) % 8 < 4.2;
           if (drawIt) {
-            const mw = Math.max(1, (0.22 * FOV) / z);
+            const mw = Math.max(PX, (0.22 * FOV) / z);
             // White when solid, yellow when broken. Not a style choice: the
             // question about this asks what a "solid single white centre line"
             // permits, and answering it over a yellow line would be showing the
@@ -811,18 +831,18 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
         if (jz !== undefined && Math.abs(z - jz) < 5) continue;
         for (const side of [-1, 1]) {
           const { sx, sy, scale } = project(side * (ROAD_HALF + 2.4), z);
-          const h = Math.max(3, scale * 2.5);
-          const w = Math.max(1, scale * 0.18);
+          const h = Math.max(3 * PX, scale * 2.5);
+          const w = Math.max(PX, scale * 0.18);
           const f = haze(z);
           if ((i + (side > 0 ? 1 : 0)) % 3 === 0) {
             ctx.fillStyle = mix('#e8e4d8', skyLow, f);
-            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.42), Math.max(1, Math.round(w)), Math.round(h * 0.42));
+            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.42), Math.max(PX, Math.round(w)), Math.round(h * 0.42));
             ctx.fillStyle = mix('#c8452f', skyLow, f);
-            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.42), Math.max(1, Math.round(w)), Math.max(1, Math.round(h * 0.1)));
+            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.42), Math.max(PX, Math.round(w)), Math.max(PX, Math.round(h * 0.1)));
           } else {
             ctx.fillStyle = mix('#6b5540', skyLow, f);
-            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.5), Math.max(1, Math.round(w)), Math.round(h * 0.5));
-            const cr = Math.max(2, scale * 0.62);
+            ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h * 0.5), Math.max(PX, Math.round(w)), Math.round(h * 0.5));
+            const cr = Math.max(2 * PX, scale * 0.62);
             ctx.fillStyle = mix('#3f7a42', skyLow, f);
             ctx.beginPath(); ctx.arc(Math.round(sx), Math.round(sy - h * 0.55), cr, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = mix('#4e9150', skyLow, f);
@@ -843,9 +863,14 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
       // the scene that is not part of the world, so it has to look like a piece
       // of the car rather than a floating panel.
       if (s.mirror && s.mirror.length) {
+        // Fixed-pixel, like the player sprite — scaled the same way, by
+        // drawing in the original coordinate space inside a ×PX transform
+        // rather than multiplying each of its own offsets individually.
+        ctx.save();
+        ctx.scale(PX, PX);
         const mw = 74;
         const mh = 20;
-        const mx = Math.round(W / 2 - mw / 2);
+        const mx = Math.round(W / PX / 2 - mw / 2);
         const my = 5;
         ctx.fillStyle = '#1e2126';
         ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
@@ -883,6 +908,7 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
         // A highlight along the top of the glass.
         ctx.fillStyle = 'rgba(255,255,255,0.12)';
         ctx.fillRect(mx, my, mw, 1);
+        ctx.restore();
       }
 
       // Night is a wash rather than a repaint: every colour above already mixes

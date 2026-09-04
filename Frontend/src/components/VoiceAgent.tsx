@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
 import { demoForm } from '../data/demoApplicant';
-import { loadConversation, saveConversation, type Turn } from '../lib/conversation';
+import { loadConversation, saveConversation, type DayOption, type SlotOption, type Turn } from '../lib/conversation';
 import { useIdentity } from '../lib/identity';
 import { useLanguage, useT, type Lang } from '../lib/language';
 import type { AppState, ApplicationForm, Route } from '../types';
@@ -15,7 +15,12 @@ import { toast } from '../ui/Toast';
  * English sentence returns Devanagari nonsense, so the citizen's question
  * reaches Saarthi as words they never said.
  */
-const SPEECH_LOCALE: Record<Lang, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
+// Saarthi's voice — recognition and synthesis — speaks Hindi and English only.
+// The site's own UI can still be read in Marathi; a citizen on the Marathi
+// interface who talks to Saarthi is heard and answered in Hindi instead of
+// asking the browser for an mr-IN voice that is rare enough to not exist on
+// most machines.
+const SPEECH_LOCALE: Record<Lang, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'hi-IN' };
 
 // Turn now lives in lib/conversation.ts, because the transcript outlives this
 // component — it is stored there and read back when the panel reopens.
@@ -132,18 +137,13 @@ const COLD = /espeak|festival|compact|desktop|\bdavid\b|\bzira\b|\bmark\b|\bhema
 /**
  * Which locales to try, best first.
  *
- * Devanagari settles the language outright. Otherwise the reply is English or
- * Hinglish, and both go to the locale the citizen is reading the site in.
- *
- * The fallbacks matter more than the first choice. Marathi voices exist on
- * almost no machine, and asking for a locale nobody has does not degrade to a
- * near neighbour \u2014 the browser hands back its default, which is usually en-US.
- * A Marathi sentence in an American accent is not an accent problem, it is
- * unintelligible, so mr falls to hi rather than to whatever is lying around.
+ * Devanagari settles the language outright \u2014 read as Hindi, since Saarthi's
+ * voice does not offer Marathi at all. Otherwise the reply is English or
+ * Hinglish, and both go to the locale the citizen is reading the site in,
+ * with Marathi itself mapped to Hindi by `SPEECH_LOCALE` above.
  */
 function localeChain(text: string, uiLang: Lang): string[] {
-  if (/[\u0900-\u097F]/.test(text)) return uiLang === 'mr' ? ['mr-IN', 'hi-IN'] : ['hi-IN'];
-  if (uiLang === 'mr') return ['mr-IN', 'hi-IN', 'en-IN'];
+  if (/[\u0900-\u097F]/.test(text)) return ['hi-IN'];
   return [SPEECH_LOCALE[uiLang], 'en-IN'];
 }
 
@@ -300,6 +300,7 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const [input, setInput] = useState('');
   const [muted, setMuted] = useState(storedMute);
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   /**
    * The live recogniser, or null.
    *
@@ -324,6 +325,16 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     const tick = setInterval(() => setWaited(Math.floor((Date.now() - started) / 1000)), 250);
     return () => clearInterval(tick);
   }, [working]);
+
+  // `speak()` fires utterances at the synthesiser directly and does not report
+  // back, so the status row polls the one thing the browser does expose —
+  // whether it is talking right now — rather than threading a callback through
+  // a module-level function every caller of `speak` would then have to supply.
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const id = setInterval(() => setSpeaking(window.speechSynthesis.speaking), 200);
+    return () => clearInterval(id);
+  }, []);
 
   // The newest line is the whole point of a voice panel, and the transcript is a
   // fixed-height scroller — without this the reply lands below the fold and the
@@ -436,7 +447,23 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   }, [phone, lang]);
 
   const acceptReply = (reply: api.VoiceReply) => {
-    appendTurn({ who: 'saarthi', text: reply.reply });
+    // find_slot_days and find_slots are real lookups against the same booking
+    // engine the wizard uses, not sample content — the day pills and time
+    // cards below read straight off whatever the tool actually returned, so a
+    // day showing "0 left" is drawn disabled rather than left off the list.
+    let days: DayOption[] | undefined;
+    let slots: SlotOption[] | undefined;
+    for (const event of reply.tool_events) {
+      const result = event.result as Record<string, unknown> | undefined;
+      if (!result) continue;
+      if (event.tool === 'find_slot_days' && Array.isArray(result.days)) {
+        days = result.days as DayOption[];
+      }
+      if (event.tool === 'find_slots' && Array.isArray(result.slots)) {
+        slots = result.slots as SlotOption[];
+      }
+    }
+    appendTurn({ who: 'saarthi', text: reply.reply, days, slots });
     setPending(reply.pending_confirmation?.label || null);
     // Only speak if the panel is still open. A reply that arrives after the
     // citizen closed it used to start talking at them from a panel that was no
@@ -617,70 +644,20 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     }
   };
 
+  const canAct = Boolean(phone) && !working && !pending;
+
   return (
     // The title followed the script rather than the picker: "सारथी" was shown
     // to somebody who had chosen English, on the one panel whose whole promise
     // is that it answers in the language you use.
     <Sheet fill title={t('Saarthi · Voice guide', 'सारथी · वॉइस गाइड', 'सारथी · व्हॉइस गाइड')} onClose={onClose}>
-      <div className="col g12" style={{ height: '100%', minHeight: 0 }}>
-        {/* Says what Saarthi is about to ask for, before it asks. Someone told
-            out of nowhere to say their date of birth to a microphone is right
-            to hesitate; someone told first why, and what will never be asked,
-            is not being surprised.
-
-            Folded to one line, because it was taking a third of the panel on
-            every turn of every conversation and the thing it makes room for is
-            the conversation. The half that matters — what is never asked for —
-            stays on the visible line rather than behind the toggle: a promise
-            about your Aadhaar number is worth nothing if you have to go looking
-            for it. Opens on hover and on click, and it is a real <details>, so
-            it also opens on Enter from the keyboard. */}
-        <div className="row between g10" style={{ flex: 'none' }}>
-          {/* The speaker was decoration on a notice. It is a control now: the
-              one thing a voice panel must let you do is make it stop. */}
-          <button
-            className="btn btn-g btn-sm"
-            aria-pressed={muted}
-            title={muted ? t('Saarthi is muted', 'सारथी म्यूट है') : t('Mute Saarthi', 'सारथी को म्यूट करें')}
-            onClick={() => {
-              const next = !muted;
-              setMuted(next);
-              // Muting stops the sentence in progress, not just the next one.
-              if (next) hush();
-              try { localStorage.setItem(MUTE_KEY, next ? '1' : '0'); } catch { /* private browsing */ }
-            }}
-          >
-            {muted ? Icon.speakerOff() : Icon.speaker()}
-            <span className="tiny">{muted ? t('Muted', 'म्यूट') : t('Speaking', 'बोल रहा है')}</span>
-          </button>
-
-          {/* One word, and everything behind it. The notice was five lines at
-              the top of every conversation; what it says matters once, on the
-              first visit, and is worth a hover after that. */}
-          <details
-            className="disclose"
-            onMouseEnter={e => { e.currentTarget.open = true; }}
-            onMouseLeave={e => { e.currentTarget.open = false; }}
-          >
-            <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
-            {/* One weight, one paragraph.
-                This was a bold sentence with a lighter one under it, which reads
-                as a headline over body copy — a shape that tells the reader the
-                second half is optional. In a notice about what will never be
-                asked of them, none of it is optional. */}
-            <div className="flat disclose-body">
-              <p>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card. It asks your name, date of birth, state and what you want to drive. Nothing here is a government service, and document checks are simulated. Hindi or English is fine.',
-                'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता। यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है। यह कोई सरकारी सेवा नहीं है, और दस्तावेज़ जाँच नकली है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}</p>
-            </div>
-          </details>
-        </div>
-
+      <div className="col g10" style={{ height: '100%', minHeight: 0 }}>
         {/* Points at the one sign-in rather than carrying a second copy of it.
             Saarthi fills the form on the citizen's behalf, so it has to know
             whose form — but the place to say so is the same place everything
             else on the site says it. One press, and the panel comes back. */}
         {!phone && (
-          <div className="flat row between g12 wrapf" style={{ padding: 14, borderColor: 'var(--brand-line)' }}>
+          <div className="flat row between g12 wrapf" style={{ padding: 14, borderColor: 'var(--brand-line)', flex: 'none' }}>
             <span className="sub" style={{ flex: '1 1 220px' }}>
               {t('Sign in first, so I open the application that is yours.',
                 'पहले साइन इन करें, ताकि मैं वही आवेदन खोलूँ जो आपका है।')}
@@ -702,38 +679,63 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             become unreachable — the scrollbar simply will not go up. A first
             child with margin-top:auto pushes a short conversation down to the
             input in the same way and leaves the overflow scrollable. */}
-        <div ref={log} className="col g10" aria-live="polite"
+        <div ref={log} className="voice-log col g14" aria-live="polite"
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 3 }}>
           <div style={{ marginTop: 'auto', flex: 'none' }} />
           {turns.map((turn, index) => (
-            <div key={index} className="flat" style={{ alignSelf: turn.who === 'citizen' ? 'flex-end' : 'flex-start', maxWidth: '90%', padding: '11px 13px', background: turn.who === 'citizen' ? 'var(--brand-soft)' : undefined }}>
-              <span className="tiny" style={{ display: 'block', marginBottom: 3, fontWeight: 600 }}>{turn.who === 'citizen' ? t('You', 'आप') : t('Saarthi', 'सारथी')}</span>
-              {turn.text}
+            <div key={index} className="voice-turn" data-who={turn.who}>
+              <span className="voice-who">{turn.who === 'citizen' ? t('You', 'आप') : t('Saarthi', 'सारथी')}</span>
+              <div className="voice-bubble">{turn.text}</div>
+              {/* Real day/time options off find_slot_days and find_slots — a
+                  day or time with nothing left is shown, not hidden, so the
+                  list still answers "what did Saarthi actually see". */}
+              {!!turn.days?.length && (
+                <div className="voice-pills">
+                  {turn.days.map(d => (
+                    <button key={d.date} className="voice-pill" disabled={!d.left || !canAct} onClick={() => void send(d.label)}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!!turn.slots?.length && (
+                <div className="voice-slotgrid">
+                  {turn.slots.map(s => (
+                    <button key={s.start} className="voice-slotcard" disabled={!s.slot_id || !canAct} onClick={() => void send(s.time)}>
+                      {Icon.clock()}
+                      <span className="grow">{s.time}</span>
+                      <span className={`voice-slotleft${s.left <= 3 ? ' is-low' : ''}`}>
+                        {s.left ? t(`${s.left} left`, `${s.left} बचे`) : t('Full', 'पूरा भरा')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {working && (
-            <div className="flat col g6" style={{ alignSelf: 'flex-start', maxWidth: '90%', padding: '11px 13px' }} aria-live="polite">
-              <span className="tiny" style={{ fontWeight: 600 }}>Saarthi</span>
-              <span className="tiny">
-                {waited < 3
-                  ? t('Checking the journey…', 'यात्रा देखी जा रही है…')
-                  : waited < 7
-                    ? t('Looking up the licence service…', 'लाइसेंस सेवा से जानकारी ली जा रही है…')
-                    : t('Still working — this one is taking longer than usual.', 'अभी भी काम जारी है — इसमें सामान्य से ज़्यादा समय लग रहा है।')}
-                {' '}<span className="mono">{waited}s</span>
-              </span>
-              {/* A bar that fills over the six seconds a turn usually takes. It
-                  keeps moving past that rather than completing and sitting
-                  still, which would claim the reply had arrived. */}
-              <span style={{ display: 'block', height: 3, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: '100%', borderRadius: 999, background: 'var(--brand)', width: `${Math.min(92, 12 + waited * 14)}%`, transition: 'width .25s linear' }} />
-              </span>
+            <div className="voice-turn" data-who="saarthi" aria-live="polite">
+              <span className="voice-who"><i className="voice-livedot" />{t('Saarthi', 'सारथी')}</span>
+              <div className="voice-bubble col g6">
+                <span className="tiny">
+                  {waited < 3
+                    ? t('Checking the journey…', 'यात्रा देखी जा रही है…')
+                    : waited < 7
+                      ? t('Looking up the licence service…', 'लाइसेंस सेवा से जानकारी ली जा रही है…')
+                      : t('Still working — this one is taking longer than usual.', 'अभी भी काम जारी है — इसमें सामान्य से ज़्यादा समय लग रहा है।')}
+                  {' '}<span className="mono">{waited}s</span>
+                </span>
+                {/* A bar that fills over the six seconds a turn usually takes. It
+                    keeps moving past that rather than completing and sitting
+                    still, which would claim the reply had arrived. */}
+                <span className="voice-progress"><span style={{ width: `${Math.min(92, 12 + waited * 14)}%` }} /></span>
+              </div>
             </div>
           )}
         </div>
 
         {pending && (
-          <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)' }}>
+          <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)', flex: 'none' }}>
             <b>{t('Confirm before Saarthi acts', 'सारथी के काम करने से पहले पुष्टि करें')}</b>
             <span className="sub">{pending}</span>
             <div className="row g10 wrapf">
@@ -743,17 +745,87 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           </div>
         )}
 
-        {/* Everything below waits on the number above it. Left live, the first
-            question would fail on a session that could not be opened, and the
-            citizen would read that as Saarthi being broken rather than as a
-            step they have not done yet. */}
-        <div className="row g10" style={{ alignItems: 'stretch' }}>
-          <button className="btn btn-p" style={{ minWidth: 82 }} disabled={!phone || working || Boolean(pending)} onClick={listen}>
-            {listening ? t('Listening…', 'सुन रही हूँ…') : `🎙 ${t('Speak', 'बोलिए')}`}
+        {/* Mic and send share the one bar rather than sitting beside it as
+            their own buttons — everything below waits on the phone number
+            above, so both are disabled together rather than independently. */}
+        <div className="voice-inputbar" style={{ flex: 'none' }}>
+          <input
+            className="voice-input grow"
+            value={input}
+            disabled={!canAct}
+            onChange={event => setInput(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Enter') void send(); }}
+            placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : t('Ask Saarthi or type your question…', 'सारथी से पूछें या अपना सवाल लिखें…')}
+          />
+          <button
+            className="voice-mic-btn"
+            aria-pressed={listening}
+            disabled={!canAct}
+            title={listening ? t('Listening… press to stop', 'सुन रही हूँ… रोकने के लिए दबाएँ') : canRecogniseSpeech() ? t('Speak', 'बोलिए') : t('Voice input works in Chrome', 'बोलकर पूछना Chrome में काम करता है')}
+            onClick={listen}
+          >
+            {Icon.mic()}
           </button>
-          <input className="input grow" value={input} disabled={!phone || working || Boolean(pending)} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void send(); }} placeholder={!phone ? t('Enter your number above to begin…', 'शुरू करने के लिए ऊपर नंबर डालें…') : canRecogniseSpeech() ? t('Or type your question…', 'या अपना सवाल लिखिए…') : t('Type your question…', 'अपना सवाल लिखिए…')} />
-          <button className="btn btn-s" disabled={!phone || working || Boolean(pending) || !input.trim()} onClick={() => void send()}>{t('Send', 'भेजें')}</button>
+          {/* Hidden rather than merely disabled until there is something to
+              send — an always-on send button next to an empty box invites a
+              press that does nothing, which reads as broken rather than as
+              "nothing typed yet". */}
+          {!!input.trim() && (
+            <button className="voice-send-btn" disabled={!canAct} onClick={() => void send()} aria-label={t('Send', 'भेजें')}>
+              {Icon.up()}
+            </button>
+          )}
         </div>
+
+        {/* Says what Saarthi is about to ask for, before it asks. Someone told
+            out of nowhere to say their date of birth to a microphone is right
+            to hesitate; someone told first why, and what will never be asked,
+            is not being surprised. One word, and everything behind it — the
+            notice matters once, on the first visit, and is worth a hover
+            after that. It is a real <details>, so it also opens on Enter. */}
+        <div className="voice-statusrow" style={{ flex: 'none' }}>
+          <button
+            className="voice-speaking-toggle"
+            aria-pressed={muted}
+            title={muted ? t('Saarthi is muted', 'सारथी म्यूट है') : t('Mute Saarthi', 'सारथी को म्यूट करें')}
+            onClick={() => {
+              const next = !muted;
+              setMuted(next);
+              // Muting stops the sentence in progress, not just the next one.
+              if (next) hush();
+              try { localStorage.setItem(MUTE_KEY, next ? '1' : '0'); } catch { /* private browsing */ }
+            }}
+          >
+            {muted
+              ? <>{Icon.speakerOff()} <span>{t('Muted', 'म्यूट')}</span></>
+              : speaking
+                ? <><span className="voice-eq"><i /><i /><i /></span> <span>{t('Speaking', 'बोल रहा है')}</span></>
+                : <>{Icon.speaker()} <span>{t('Voice on', 'आवाज़ चालू')}</span></>}
+          </button>
+          <details
+            className="disclose voice-disclaimer"
+            onMouseEnter={e => { e.currentTarget.open = true; }}
+            onMouseLeave={e => { e.currentTarget.open = false; }}
+          >
+            <summary className="tiny">{Icon.bang()} {t('Disclaimer', 'अस्वीकरण')}</summary>
+            {/* One weight, one paragraph.
+                This was a bold sentence with a lighter one under it, which reads
+                as a headline over body copy — a shape that tells the reader the
+                second half is optional. In a notice about what will never be
+                asked of them, none of it is optional. */}
+            <div className="flat disclose-body">
+              <p>{t('Saarthi never asks for an Aadhaar number, an OTP, a password or a card. It asks your name, date of birth, state and what you want to drive. Nothing here is a government service, and document checks are simulated. Hindi or English is fine.',
+                'सारथी कभी आधार नंबर, OTP, पासवर्ड या कार्ड नहीं मांगता। यह आपका नाम, जन्मतिथि, राज्य और आप क्या चलाना चाहते हैं पूछता है। यह कोई सरकारी सेवा नहीं है, और दस्तावेज़ जाँच नकली है। हिंदी या अंग्रेज़ी, दोनों ठीक हैं।')}</p>
+            </div>
+          </details>
+        </div>
+        {/* Names what Saarthi's voice actually speaks, not what the site's UI
+            offers to read in — SPEECH_LOCALE above maps mr to hi-IN, so
+            Marathi is not a third voice, it is Hindi with the site's text
+            still readable in Marathi around it. */}
+        <p className="tiny" style={{ textAlign: 'center', flex: 'none' }}>
+          {t('Supports Hindi and English', 'हिंदी और अंग्रेज़ी में उपलब्ध')}
+        </p>
         {/* No starter chips.
             Three suggested questions sat here, and they cost more than the row
             they occupied. Saarthi's opening line is already built from the

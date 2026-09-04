@@ -10,9 +10,28 @@
  * Stored per citizen reference, because the transcript is theirs. Signing out
  * drops it rather than showing the next person what the last one said.
  */
+/** A day from `find_slot_days`, offered as a pill under the turn that asked. */
+export interface DayOption {
+  date: string;
+  label: string;
+  left: number;
+}
+
+/** A time from `find_slots`, offered as a card under the turn that asked. */
+export interface SlotOption {
+  time: string;
+  start: string;
+  left: number;
+  slot_id: string | null;
+}
+
 export interface Turn {
   who: 'citizen' | 'saarthi';
   text: string;
+  /** Present only on the saarthi turn that just read these back — real
+      results from find_slot_days/find_slots, not decoration. */
+  days?: DayOption[];
+  slots?: SlotOption[];
 }
 
 interface Stored {
