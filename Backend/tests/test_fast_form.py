@@ -43,9 +43,9 @@ def _start(ref: str, language: str = "en") -> str:
                        json={"citizen_ref": ref, "language": language}).json()["session_id"]
 
 
-def _open_day_number(rto_id: str = "mh01") -> str:
+def _open_day(rto_id: str = "mh01") -> str:
     """
-    The day number Saarthi is actually offering, rather than one written down.
+    The first day Saarthi is actually offering, rather than one written down.
 
     A calendar date used to be typed straight into the test below. The grid only
     offers days that still have time left on them, so once the last slot of that
@@ -55,7 +55,26 @@ def _open_day_number(rto_id: str = "mh01") -> str:
     answer names was never the point.
     """
     days = dispatch_tool("find_slot_days", {"rto_id": rto_id})["days"]
-    return str(date.fromisoformat(next(d for d in days if d["left"])["date"]).day)
+    return next(d for d in days if d["left"])["date"]
+
+
+def _open_day_number(rto_id: str = "mh01") -> str:
+    """That day as a citizen says it: the day of the month, on its own."""
+    return str(date.fromisoformat(_open_day(rto_id)).day)
+
+
+def _open_time_on(day: str, rto_id: str = "mh01") -> str:
+    """
+    A time still on offer that day, rather than one written down.
+
+    The same trap as the day, one level down, and it outlived the first fix: the
+    time was hard-coded as "9:30" while the grid stops offering a start once it
+    has gone. The first open day is usually today, so the suite passed before
+    half past nine and failed after it — for a test that has nothing to do with
+    what time it is. A bare time is a bare time whichever one it is.
+    """
+    slots = dispatch_tool("find_slots", {"rto_id": rto_id, "day": day})["slots"]
+    return slots[0]["time"].lstrip("0")
 
 
 def _say(sid: str, text: str, language: str = "en") -> dict:
@@ -404,11 +423,12 @@ def test_a_bare_time_does_not_change_the_language(monkeypatch):
 
     days = _say(sid, "मेरा स्लॉट बुक करो", "hi")
     assert DEVANAGARI.search(days["reply"]), days["reply"]
-    times = _say(sid, _open_day_number(), "hi")
+    day = _open_day()
+    times = _say(sid, str(date.fromisoformat(day).day), "hi")
     assert DEVANAGARI.search(times["reply"]), times["reply"]
 
     # The reported turn: a bare time, and everything after it must stay Hindi.
-    picked = _say(sid, "9:30", "hi")
+    picked = _say(sid, _open_time_on(day), "hi")
     assert picked["pending_confirmation"], picked["reply"]
     assert DEVANAGARI.search(picked["reply"]), picked["reply"]
     assert DEVANAGARI.search(picked["pending_confirmation"]["label"]), \
