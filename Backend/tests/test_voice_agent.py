@@ -21,6 +21,19 @@ from app.models import PASS_THRESHOLD, QUESTIONS_PER_TEST  # noqa: E402
 client = TestClient(app)
 
 
+def _issue_licence(citizen_ref: str) -> None:
+    """
+    Pass the theory test, as the service records it.
+
+    Saarthi will not offer an appointment until the learner's licence has been
+    issued: the learner's test is taken online, and the only thing there is to
+    book is the driving test a month later. So a test about booking has to put
+    the journey where booking is actually allowed, the same way a test about
+    booking already has to file an application first.
+    """
+    be.record_learner_pass(citizen_ref)
+
+
 def test_voice_tool_schema_hides_server_identifiers():
     for tool in voice_agent._chat_tools():
         props = tool["function"]["parameters"]["properties"]
@@ -251,10 +264,11 @@ def test_harmony_channel_markers_are_stripped_from_tool_names(monkeypatch):
     monkeypatch.setattr(voice_agent, "_call_nvidia",
                         lambda messages, tools=None, language=None, form='': replies.pop(0))
     session = client.post("/agent/voice/start", json={"citizen_ref": "voice-harmony"}).json()
-    # Slot lookups are refused before an application exists, so give this one
-    # the application it would have. The subject here is the mangled tool name,
-    # not the gate.
+    # Slot lookups are refused until the licence is issued, so give this one the
+    # journey it would have. The subject here is the mangled tool name, not the
+    # gate.
     filed = dispatch_tool("apply_for_licence", applicant("voice-harmony"))
+    _issue_licence("voice-harmony")
     voice_agent._SESSIONS[session["session_id"]].application_id = filed["application_id"]
     body = client.post("/agent/voice/turn", json={
         "session_id": session["session_id"], "transcript": "slot dikhao",
@@ -582,6 +596,7 @@ def test_an_unbookable_slot_never_reaches_the_confirm_button(monkeypatch):
     nothing. The model is sent back to find_slots on that same turn instead.
     """
     applied = dispatch_tool("apply_for_licence", applicant("voice-stale-slot", rto_id="mh01"))
+    _issue_licence("voice-stale-slot")
     on = (date.today() + timedelta(days=4)).isoformat()
     slot = dispatch_tool("find_slots", {"rto_id": "mh01", "date": on})["slots"][0]
     # Somebody else takes it between the agent reading it out and booking it.
@@ -778,6 +793,11 @@ def test_the_whole_apply_to_booked_journey_over_voice(monkeypatch):
 
     session = voice_agent._SESSIONS[sid]
     assert session.application_id and session.rto_id == "br01"
+
+    # The learner's test, sat between the two halves of this journey. It is not
+    # Saarthi's to administer — it is taken on a screen — but the appointment
+    # below is the driving test, which does not exist until this has happened.
+    _issue_licence("voice-journey")
 
     # Booking: days, then times, then the action — all inside one turn.
     found = dispatch_tool("find_slots", {"rto_id": "br01", "date": on})
@@ -1185,3 +1205,74 @@ def test_the_qualifier_is_not_bolted_onto_unrelated_answers(monkeypatch):
     body = client.post("/agent/voice/turn", json={
         "session_id": sid, "transcript": "what times are free"}).json()
     assert "simulated" not in body["reply"].lower()
+
+
+def test_saarthi_will_not_book_before_the_licence_is_issued(monkeypatch):
+    """
+    The only appointment on this service is the driving test, and it comes a
+    month after the learner's licence is issued. An application that merely
+    exists is several steps short of it, so a slot grid offered then invents a
+    journey the citizen is not on.
+
+    The redirect is the same mechanism that already sends a half-filled form
+    back to its next question — not an apology, a pointer at the real next step.
+    """
+    replies = [
+        {"content": "", "tool_calls": [{"id": "g1", "function": {
+            "name": "find_slot_days", "arguments": "{}"}}]},
+        {"content": "पहले लर्नर टेस्ट देना होगा।"},
+    ]
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
+
+    ref = "voice-not-issued"
+    filed = dispatch_tool("apply_for_licence", applicant(ref))
+    session = client.post("/agent/voice/start", json={"citizen_ref": ref}).json()
+    voice_agent._SESSIONS[session["session_id"]].application_id = filed["application_id"]
+
+    body = client.post("/agent/voice/turn", json={
+        "session_id": session["session_id"], "transcript": "slot dikhao"}).json()
+
+    assert [e["status"] for e in body["tool_events"]] == ["redirected"]
+    assert not body.get("pending_confirmation"), "a button was raised for an unbookable test"
+
+
+def test_saarthi_books_once_the_licence_is_issued(monkeypatch):
+    """The other half: the same request, after the theory test, is answered."""
+    replies = [
+        {"content": "", "tool_calls": [{"id": "g1", "function": {
+            "name": "find_slot_days", "arguments": "{}"}}]},
+        {"content": "ये दिन खुले हैं।"},
+    ]
+    monkeypatch.setattr(voice_agent, "_call_nvidia",
+                        lambda messages, tools=None, language=None, form='': replies.pop(0))
+
+    ref = "voice-now-issued"
+    filed = dispatch_tool("apply_for_licence", applicant(ref))
+    _issue_licence(ref)
+    session = client.post("/agent/voice/start", json={"citizen_ref": ref}).json()
+    voice_agent._SESSIONS[session["session_id"]].application_id = filed["application_id"]
+
+    body = client.post("/agent/voice/turn", json={
+        "session_id": session["session_id"], "transcript": "slot dikhao"}).json()
+
+    assert [e["status"] for e in body["tool_events"]] == ["complete"]
+
+
+def test_a_booked_licence_can_still_be_checked_in(monkeypatch):
+    """
+    The gate reads the ledger rather than the current status, because the status
+    moves on the moment the appointment is made. Comparing against the exact
+    value closed the gate again the instant it first opened.
+    """
+    ref = "voice-issued-then-booked"
+    filed = dispatch_tool("apply_for_licence", applicant(ref, rto_id="mh01"))
+    _issue_licence(ref)
+    slot = dispatch_tool("find_slots", {"rto_id": "mh01",
+                                        "date": BOOKABLE_DAY.isoformat()})["slots"][0]
+    dispatch_tool("book_slot", {"application_id": filed["application_id"],
+                                "slot_id": slot["slot_id"]})
+
+    session = voice_agent.VoiceSession(id="x", citizen_ref=ref, created_at=voice_agent._now())
+    session.application_id = filed["application_id"]
+    assert voice_agent._licence_issued(session) is True

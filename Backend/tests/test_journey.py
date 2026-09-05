@@ -359,3 +359,88 @@ def test_booking_a_time_that_has_gone_is_refused():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def _pass_the_theory_test(citizen_ref: str) -> str:
+    """Sit the whole test and answer every question correctly."""
+    attempt_id = client.post("/test/start",
+                             json={"citizen_id": citizen_ref}).json()["attempt_id"]
+    for _ in range(QUESTIONS_PER_TEST):
+        sc = client.get(f"/test/{attempt_id}/next").json()["scenario"]
+        client.post(f"/test/{attempt_id}/answer", json={
+            "scenario_id": sc["id"],
+            "chosen_option_id": scenario_by_id(sc["id"]).correct_option_id,
+            "time_taken_s": 2.0,
+        })
+    return attempt_id
+
+
+def test_passing_the_theory_test_is_recorded_on_the_application():
+    """
+    The learner's journey ends at the online test, so the pass has to reach the
+    sealed record. It used to live only in the browser: clearing site data lost
+    a licence, and nothing on the server could answer whether this citizen had
+    finished — which is what the driving-test screen and Saarthi have to ask
+    before offering an appointment.
+    """
+    ref = "cit_pass_recorded"
+    app_obj = be.apply(ref, be.LicenceKind.LL, DEFAULT_RTO, "pass-key-1",
+                       dob="2000-04-11", applicant_name="Pass Recorded",
+                       licence_classes=["MCWG"])
+    assert be.get_application(app_obj.id).status.value == "verified"
+
+    _pass_the_theory_test(ref)
+
+    after = be.get_application(app_obj.id)
+    assert after.status.value == "issued"
+    assert "Theory test passed" in after.ledger[-1].note
+    # The chain still has to verify — the pass is an appended event, not an edit.
+    assert after.verify_ledger() is True
+
+
+def test_the_pass_is_recorded_once_however_often_it_is_asked_for():
+    """
+    The ledger's composite key refuses a rewrite at a position already taken. It
+    does not refuse a second event at the next one, so the guard against a
+    double pass has to be an explicit status check rather than the schema.
+    """
+    ref = "cit_pass_twice"
+    app_obj = be.apply(ref, be.LicenceKind.LL, DEFAULT_RTO, "pass-key-2",
+                       dob="2000-04-11", applicant_name="Pass Twice",
+                       licence_classes=["MCWG"])
+    _pass_the_theory_test(ref)
+    before = len(be.get_application(app_obj.id).ledger)
+
+    be.record_learner_pass(ref)
+    be.record_learner_pass(ref)
+
+    assert len(be.get_application(app_obj.id).ledger) == before
+
+
+def test_a_pass_without_an_application_is_not_an_error():
+    """Anyone may sit the test — including somebody practising before applying."""
+    assert be.record_learner_pass("cit_never_applied") is None
+
+
+def test_an_idempotency_key_does_not_hand_over_another_citizens_application():
+    """
+    The key is the retry guarantee, and it used to be a bearer token as well:
+    presenting one returned whatever it had created, whoever asked. The agent
+    derives its keys from the citizen reference, which is a phone number — so
+    knowing somebody's number was enough to read their name, date of birth,
+    ledger and appointment back out of a public endpoint.
+    """
+    mine = {"citizen_ref": "cit_owner", "licence_kind": "learner",
+            "rto_id": DEFAULT_RTO, "idempotency_key": "owned-key",
+            "applicant_name": "Real Owner", "dob": "2000-01-01"}
+    first = client.post("/apply", json=mine).json()
+    assert first["applicant_name"] == "Real Owner"
+
+    stolen = dict(mine, citizen_ref="cit_thief", applicant_name="Someone Else")
+    refused = client.post("/apply", json=stolen)
+    assert refused.status_code == 403
+    assert "Real Owner" not in refused.text
+
+    # The owner's own retry still returns the same application, unchanged.
+    again = client.post("/apply", json=mine).json()
+    assert again["application_id"] == first["application_id"]

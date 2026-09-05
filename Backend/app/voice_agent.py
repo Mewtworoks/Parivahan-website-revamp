@@ -26,13 +26,16 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
+from . import booking_engine as be
 from . import conversations as convo_store
 from . import drafts, signals
+from .booking_models import AppStatus
 from .agent_tools import (
     AGENT_TOOL_SCHEMA,
     DEFAULT_RTO,
     _default_rto_for,
     _office_name,
+    _read_state,
     dispatch_tool,
     existing_journey,
     looks_like_a_question,
@@ -197,12 +200,21 @@ MUTATING_TOOLS = {"apply_for_licence", "book_slot", "check_in"}
 # The answers the citizen gives to fill the form, accumulated on the session.
 _FORM_FIELDS = ("full_name", "dob", "state", "licence_classes", "phone")
 
-# Tools that only make sense once there is an application to attach them to.
-# Saarthi asked "which day would you like to book your test slot?" while it was
-# still three answers short of a filled form, which derails the one thing it was
-# in the middle of doing. There is nothing to book a slot against yet, so these
-# send it back to the form instead of answering.
-_NEEDS_APPLICATION = {"find_slot_days", "find_slots"}
+# Tools that only make sense once the learner's licence has been issued.
+#
+# It began as "once there is an application": Saarthi asked "which day would you
+# like to book your test slot?" while still three answers short of a filled
+# form. That gate was right and too narrow. The only appointment on this service
+# is the driving test, and it comes a month *after* the learner's licence is
+# issued — so an application that merely exists is still several steps short,
+# and offering a slot grid to somebody who has not sat the theory test invents a
+# journey they are not on.
+#
+# `book_slot` is in the set as well as the two searches. It is a mutating tool,
+# so it is already held behind the confirmation button, but a button offering to
+# book something the citizen is not yet entitled to is the wrong thing to raise
+# in the first place.
+_NEEDS_LICENCE = {"find_slot_days", "find_slots", "book_slot"}
 
 # A reply that promises to do one of the gated things. The model mostly calls
 # the tool, but roughly one turn in four it announces the action in words and
@@ -352,7 +364,9 @@ def _hydrate(row: dict[str, Any]) -> VoiceSession:
     return session
 
 
-def start_session(citizen_ref: str, language: str = "en") -> VoiceSession:
+def start_session(citizen_ref: str, language: str = "en",
+                  known_state: str | None = None,
+                  known_rto: str | None = None) -> VoiceSession:
     """
     Open a conversation, already knowing everything the record can tell us.
 
@@ -392,6 +406,30 @@ def start_session(citizen_ref: str, language: str = "en") -> VoiceSession:
     session.token_id = resumed.get("token_id") or session.token_id
     if not session.form_answers:
         session.form_answers = drafts.load(citizen_ref)
+
+    # The state the citizen picked at sign-in, seeded into the gap and never
+    # over the top of it. Three reasons for that shape:
+    #
+    # Into the gap, because the panel re-opens the session on every language
+    # switch — seeding over an answer would put the picker's state back after
+    # somebody had corrected it out loud.
+    #
+    # Validated, because nothing further down checks a value: `drafts.save`
+    # filters by key and `_form_state` only tests truthiness, so an unrecognised
+    # string would be stored happily and then match nothing.
+    #
+    # Written to the draft rather than only the session, because `_hydrate`
+    # re-reads the draft on the next turn and the seed would evaporate.
+    if known_state and not session.form_answers.get("state"):
+        picked = _read_state(known_state)
+        if picked:
+            session.form_answers["state"] = picked
+            session.rto_id = known_rto or session.rto_id
+            try:
+                drafts.save(citizen_ref, session.form_answers,
+                            drafts.current_field(citizen_ref))
+            except Exception:  # noqa: BLE001 - a lost seed must not lose the open
+                log.exception("could not seed the picked state for %s", citizen_ref[:6])
 
     # Abandonment is only visible from the far side of it. Nobody announces that
     # they are giving up on a form — they close the tab, and the fact of it can
@@ -511,9 +549,46 @@ def _form_state(session: VoiceSession) -> tuple[list[dict], dict[str, Any]]:
     return missing, answers
 
 
+def _licence_issued(session: VoiceSession) -> bool:
+    """
+    Whether the learner's licence has actually been issued.
+
+    Read from the record rather than the conversation. The theory test is taken
+    on a screen Saarthi has no part in, so the only trustworthy signal that the
+    learner's journey is over is the ledger event the service writes when the
+    test is passed.
+    """
+    if not session.application_id:
+        return False
+    app = be.get_application(session.application_id)
+    if app is None:
+        return False
+    # The ledger, not the current status. Status is where the application is
+    # now, and it moves on the moment the driving test is arranged —
+    # slot_booked, then checked_in, then completed — so a gate comparing against
+    # the exact value would close again the instant it first opened, refusing to
+    # let anyone rebook or check in. The ledger is where it happened at all.
+    return any(event.status == AppStatus.ISSUED for event in app.ledger)
+
+
 def _finish_the_form_first(session: VoiceSession) -> dict[str, Any]:
-    """The redirect handed back when a slot tool is reached mid-form."""
+    """
+    The redirect handed back when a booking tool is reached too early.
+
+    Two different "too early"s, and the citizen is owed the right one. Without
+    an application there is a form to finish; with one, there is a fee to pay
+    and a theory test to sit before any appointment exists to book.
+    """
     missing, answers = _form_state(session)
+    if session.application_id:
+        return {
+            "blocked": ("The learner's licence has not been issued yet, so there "
+                        "is no driving test to book."),
+            "next": ("Tell the citizen the learner's test is taken online, and "
+                     "that the driving test can be booked once they have passed "
+                     "it and their licence is issued. Do not offer days, times "
+                     "or slots."),
+        }
     return {
         "blocked": "There is no application yet, so there is nothing to book.",
         "have": {k: v for k, v in answers.items() if v},
@@ -837,6 +912,13 @@ def opening_line(session: VoiceSession) -> str:
             f"{appointment['office']} में है। पहुँचकर कहिए कि चेक-इन करना है।")
 
     if found.get("application_id"):
+        # The sentence ends by offering the days, so record that it was offered.
+        # `offered` is what makes a bare "yes" on the next turn mean anything,
+        # and it used to be set in exactly one place — after Confirm — while
+        # three other sentences asked the same question. Somebody who reopened
+        # Saarthi, heard this line and said "yes" fell through to the model for
+        # a word the service already knew the meaning of.
+        session.offered = "days"
         return _say(
             session,
             f"Welcome back. Your application {found.get('application_no', '')} is "
@@ -849,7 +931,12 @@ def opening_line(session: VoiceSession) -> str:
     # A form started and not finished. This is the sentence the whole draft
     # table exists for: somebody who answered two questions and closed the tab
     # is picked up where they stopped rather than asked all four again.
-    if session.form_answers:
+    # `form_answers` holding only a seeded state is not progress — nobody has
+    # said anything yet. Greeting a first-time citizen with "welcome back, I
+    # already have Bihar" is worse than saying nothing, because it claims a
+    # conversation that never happened. Only an answer that had to be spoken
+    # counts as one.
+    if _has_spoken_answer(session):
         missing, _ = _form_state(session)
         given = _spoken_given(session)
         if missing:
@@ -871,13 +958,40 @@ def opening_line(session: VoiceSession) -> str:
     # help: they opened Saarthi, so they have already said they want help, and a
     # turn spent confirming that is a turn nobody needed.
     session.asked_field = "full_name"
+    # Counted, not written down. It read "four" in both languages and became
+    # wrong the moment a state arrived from the picker — and a greeting that
+    # promises four questions then asks three is a small lie the citizen can
+    # count. Saying the state back is the other half of it: that is the one
+    # answer nobody spoke, so it is the one worth confirming before it is used.
+    outstanding, _ = _form_state(session)
+    n = len(outstanding)
+    state = str(session.form_answers.get("state") or "")
+    where = f"you are applying in {state}, so " if state else ""
+    where_hi = f"आप {_STATE_HI.get(state, state)} में आवेदन कर रहे हैं, तो " if state else ""
     return _say(
         session,
-        "Hello, I am Saarthi. I can fill your learner-licence form for you — "
-        "just answer four questions out loud. What is your full name, first "
-        "name and surname?",
-        "नमस्ते, मैं सारथी हूँ। मैं आपका लर्नर लाइसेंस फ़ॉर्म भर सकती हूँ — बस चार "
-        "सवालों के जवाब बोलिए। आपका पूरा नाम क्या है — नाम और सरनेम?")
+        f"Hello, I am Saarthi. I can fill your learner-licence form for you — "
+        f"{where}just answer {_COUNT_EN.get(n, str(n))} questions out loud. "
+        "What is your full name, first name and surname?",
+        f"नमस्ते, मैं सारथी हूँ। मैं आपका लर्नर लाइसेंस फ़ॉर्म भर सकती हूँ — {where_hi}बस "
+        f"{_COUNT_HI.get(n, str(n))} सवालों के जवाब बोलिए। आपका पूरा नाम क्या है — नाम और सरनेम?")
+
+
+# Spoken aloud, so words rather than numerals.
+_COUNT_EN = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+_COUNT_HI = {1: "एक", 2: "दो", 3: "तीन", 4: "चार", 5: "पाँच"}
+
+
+def _has_spoken_answer(session: VoiceSession) -> bool:
+    """
+    Whether anything in the draft could only have come from the citizen.
+
+    The state can arrive from the sign-in picker without a word being said, so
+    it cannot stand as evidence that a conversation happened. Every other field
+    in the form had to be spoken to get there.
+    """
+    return any(session.form_answers.get(f)
+               for f in _FORM_FIELDS if f != "state")
 
 
 def _spoken_given(session: VoiceSession) -> str:
@@ -955,6 +1069,8 @@ def _known_answer(session: VoiceSession, text: str) -> str | None:
                 f"with {appointment['tester']} at {appointment['office']}.",
                 f"आपका टेस्ट {appointment['day']} को {appointment['time']} बजे, "
                 f"{appointment['tester']} के साथ {appointment['office']} में है।")
+        # Offered, so recorded — see the note in `opening_line`.
+        session.offered = "days"
         return _say(session,
                     "You have no appointment yet. Shall I show you the days?",
                     "अभी कोई अपॉइंटमेंट नहीं है। दिन दिखाऊँ?")
@@ -1020,6 +1136,36 @@ def _confirm_sentence(session: VoiceSession) -> str:
         "पुष्टि दबाइए और मैं भेज दूँगी।")
 
 
+def _pending_payload(session: VoiceSession) -> dict[str, Any]:
+    """
+    The confirmation, and for an application the answers behind it.
+
+    The panel used to raise its own Confirm button and file from here, which
+    asked the citizen to approve a sentence rather than a form. Handing the
+    answers over lets the browser put them into the wizard and take the
+    confirmation against the fields themselves — so what is approved is what
+    gets filed, read off the screen rather than heard once.
+
+    Additive on purpose: `label` keeps its meaning and its callers.
+    """
+    if session.pending is None:
+        return {}
+    payload: dict[str, Any] = {"label": session.pending.label}
+    if session.pending.tool == "apply_for_licence":
+        a = session.pending.arguments
+        # The same shape `apply_for_licence` returns after filing, so the browser
+        # has one prefill to understand rather than two.
+        payload["form_prefill"] = {
+            "state": a.get("state") or None,
+            "rto": a.get("rto_id") or session.rto_id,
+            "full_name": a.get("full_name") or None,
+            "dob": a.get("dob"),
+            "phone": (str(a.get("phone") or "")).strip() or None,
+            "classes": [c for c in (a.get("licence_classes") or []) if c],
+        }
+    return payload
+
+
 def _queue_application(session: VoiceSession) -> dict[str, Any]:
     """Every answer is in. Raise the confirmation button, saying what it will do."""
     args = _tool_arguments(session, "apply_for_licence", {})
@@ -1028,7 +1174,7 @@ def _queue_application(session: VoiceSession) -> dict[str, Any]:
     return {
         "reply": _confirm_sentence(session),
         "tool_events": [{"tool": "apply_for_licence", "status": "awaiting_confirmation"}],
-        "pending_confirmation": {"label": session.pending.label},
+        "pending_confirmation": _pending_payload(session),
     }
 
 
@@ -1331,7 +1477,7 @@ def _queue_booking(session: VoiceSession, slot_id: str) -> dict[str, Any] | None
                       f"{details['tester']} के साथ {details['office']} में बुक करूँगी। "
                       "पुष्टि दबाइए।"),
         "tool_events": [{"tool": "book_slot", "status": "awaiting_confirmation"}],
-        "pending_confirmation": {"label": session.pending.label},
+        "pending_confirmation": _pending_payload(session),
     }
 
 
@@ -1815,7 +1961,7 @@ def _run_tool_calls(session: VoiceSession, tool_calls: list[dict[str, Any]],
 
         try:
             args = _tool_arguments(session, tool, _parse_tool_arguments(function.get("arguments")))
-            if tool in _NEEDS_APPLICATION and not session.application_id:
+            if tool in _NEEDS_LICENCE and not _licence_issued(session):
                 # Not an error to apologise for — a redirect back to the step the
                 # citizen is actually on, carrying the next question to ask.
                 result = _finish_the_form_first(session)
@@ -1862,7 +2008,7 @@ def _reply(session: VoiceSession, user_text: str,
         return {
             "reply": _fallback("press_confirm_first", session.language),
             "tool_events": [],
-            "pending_confirmation": {"label": session.pending.label},
+            "pending_confirmation": _pending_payload(session),
         }
 
     session.messages.append({"role": "user", "content": user_text[:1000]})
@@ -1955,7 +2101,7 @@ def _reply(session: VoiceSession, user_text: str,
             return {
                 "reply": _spoken_text(final) or _fallback("please_confirm", session.language),
                 "tool_events": events,
-                "pending_confirmation": {"label": session.pending.label},
+                "pending_confirmation": _pending_payload(session),
             }
 
     # Rounds spent, but the model has been gathering facts the whole way — a

@@ -30,6 +30,7 @@ Run:  python main.py      (or: uvicorn app.main:app --reload)
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import date
 from pathlib import Path
@@ -53,8 +54,10 @@ from .agent_tools import AGENT_TOOL_SCHEMA, DEFAULT_RTO, dispatch_tool
 from . import voice_agent
 from .booking_engine import AlreadyBooked, SlotPassed, SlotTaken
 from .booking_models import LicenceKind
-from .models import PASS_THRESHOLD, QUESTIONS_PER_TEST
+from .models import AttemptStatus, PASS_THRESHOLD, QUESTIONS_PER_TEST
 from .seed_scenarios import SCENARIOS, scenario_by_id
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Parivahan LL/DL Journey — Reimagined",
@@ -104,6 +107,17 @@ class VoiceStartBody(BaseModel):
     # English reader in Hindi is an invitation to answer in Hindi, which is not
     # what they chose.
     language: str = Field("en", max_length=8)
+    # What the citizen already chose at sign-in. Optional, and seeded only into
+    # a gap — asking somebody for their state a second time because the agent
+    # keeps a draft the rest of the site cannot see is the service failing to
+    # talk to itself.
+    #
+    # The office travels with it or not at all. A state on its own resolves to
+    # the first office in that state, which for Bihar is Samastipur — ninety
+    # kilometres from Patna, and exactly the mistake `read_office` exists to
+    # prevent.
+    state: str | None = Field(None, max_length=60)
+    rto_id: str | None = Field(None, max_length=40)
 
 
 class VoiceTurnBody(BaseModel):
@@ -177,17 +191,31 @@ def _application_view(a) -> dict:
                 "tester_id": b.tester_id,
             }
     if a.token_id:
-        out["queue"] = be.queue_status(a.token_id)
+        # A token the application still points at but the store no longer holds
+        # is survivable; a 500 on the tracker is not. `POST /demo/reset` clears
+        # the tokens while a browser goes on holding the id it was given, so the
+        # one screen whose whole purpose is "always readable, never a blank" was
+        # answering the reset button with a stack trace. The queue is the part
+        # that is missing, so the queue is the part that is left out.
+        try:
+            out["queue"] = be.queue_status(a.token_id)
+        except KeyError:
+            log.info("application %s points at a token that is gone", a.id)
     return out
 
 
 @app.post("/apply", tags=["journey"])
 def apply(body: ApplyBody):
     """Resilient, idempotent application. Retry-safe by design."""
-    app_obj = be.apply(body.citizen_ref, body.licence_kind, body.rto_id,
-                       body.idempotency_key, dob=body.dob,
-                       applicant_name=body.applicant_name,
-                       licence_classes=body.licence_classes)
+    try:
+        app_obj = be.apply(body.citizen_ref, body.licence_kind, body.rto_id,
+                           body.idempotency_key, dob=body.dob,
+                           applicant_name=body.applicant_name,
+                           licence_classes=body.licence_classes)
+    except PermissionError as e:
+        # A key that already created somebody else's application. Refused rather
+        # than answered, because the answer would be that person's record.
+        raise HTTPException(403, e.args[0])
     return _application_view(app_obj)
 
 
@@ -333,7 +361,10 @@ def book(body: BookBody):
         _note_lost_slot(body.application_id, body.slot_id, "passed")
         raise HTTPException(409, "That time has already passed — pick a later one.")
     except KeyError as e:
-        raise HTTPException(404, str(e))
+        # e.args[0], not str(e): str() on a KeyError includes the repr of the
+        # key, so the detail reached the browser as "'Unknown slot'" — quotes
+        # and all — and got rendered to the citizen that way.
+        raise HTTPException(404, e.args[0])
     tester = be.get_tester(b.tester_id)
     return {"booking_id": b.id, "start": b.start.strftime("%H:%M"),
             "time": b.start.strftime("%I:%M %p").lstrip("0").lower(),
@@ -347,7 +378,9 @@ def checkin(application_id: str):
     try:
         t = be.check_in(application_id)
     except KeyError as e:
-        raise HTTPException(400, str(e))
+        # Shown to the citizen verbatim on the tracker, so it has to read as a
+        # sentence rather than as a repr. See the note on /book above.
+        raise HTTPException(400, e.args[0])
     return {"token_id": t.id, "token_number": t.number, "tester_id": t.tester_id}
 
 
@@ -432,6 +465,21 @@ def answer_question(attempt_id: str, body: AnswerBody):
                        competency=scenario.competency.value,
                        scenario_id=body.scenario_id,
                        chosen_option_id=body.chosen_option_id)
+    # A pass is the end of the learner's journey, so it belongs on the sealed
+    # record rather than only in the browser that happened to be open. Recorded
+    # here rather than in the result route because this is the mutation — the
+    # answer that finishes the attempt — and a GET should not write.
+    #
+    # Never allowed to break the answer. Somebody who has just passed being
+    # shown a 500 instead of their result is a far worse failure than a missing
+    # ledger row, and `record_learner_pass` is idempotent, so a retry costs
+    # nothing.
+    if attempt.status == AttemptStatus.PASSED:
+        try:
+            be.record_learner_pass(attempt.citizen_id)
+        except Exception:  # noqa: BLE001 - the result is the citizen's, the row is ours
+            log.exception("could not record the pass for attempt %s", attempt_id)
+
     return {
         "correct": rec.correct,
         # feedback teaches, per the "learning not just pass/fail" goal
@@ -560,7 +608,9 @@ def agent_voice_start(body: VoiceStartBody):
     form — and costs no upstream call. The opening turn used to be the slowest
     one in the conversation, and it was spent producing "hello, I am Saarthi".
     """
-    session = voice_agent.start_session(body.citizen_ref, body.language)
+    session = voice_agent.start_session(body.citizen_ref, body.language,
+                                        known_state=body.state,
+                                        known_rto=body.rto_id)
     return {
         "session_id": session.id,
         "expires_in_minutes": voice_agent.SESSION_TTL_MINUTES,

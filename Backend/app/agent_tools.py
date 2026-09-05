@@ -428,10 +428,16 @@ _LL_STEPS = {
 # translate away from on every turn — and sometimes did not.
 _NEXT_ACTION = {
     AppStatus.SUBMITTED: "Wait for document verification — it is automatic.",
-    AppStatus.VERIFIED: "Choose a day and time for the driving test appointment.",
+    # Not the appointment. The learner's test is taken online, so a verified
+    # application's next step is the fee and then the test itself; the driving
+    # test is a month further on and only becomes the answer at ISSUED below.
+    # This line used to send everybody straight to a slot grid.
+    AppStatus.VERIFIED: "Pay the fee, then take the learner's test online.",
+    AppStatus.ISSUED: "Learner's licence issued. The driving test can be booked "
+                      "thirty days from now.",
     AppStatus.SLOT_BOOKED: "Arrive at the RTO at your slot time, then check in.",
     AppStatus.CHECKED_IN: "You are in the queue — watch your token and ETA.",
-    AppStatus.COMPLETED: "Test done. Download the licence from the receipt.",
+    AppStatus.COMPLETED: "Driving test done. Download the licence from the receipt.",
     AppStatus.REJECTED: "Application rejected — see the ledger for the reason.",
 }
 
@@ -540,9 +546,14 @@ _STATE_ALIASES = {
     "पुणे": "Maharashtra", "नागपुर": "Maharashtra", "अंधेरी": "Maharashtra",
     "वडाला": "Maharashtra", "बोरीवली": "Maharashtra", "ठाणे": "Maharashtra",
     "br": "Bihar", "patna": "Bihar", "darbhanga": "Bihar",
-    "samastipur": "Bihar", "muzaffarpur": "Bihar", "gaya": "Bihar",
+    "samastipur": "Bihar", "muzaffarpur": "Bihar",
     "बिहार": "Bihar", "पटना": "Bihar", "दरभंगा": "Bihar",
-    "समस्तीपुर": "Bihar", "मुज़फ़्फ़रपुर": "Bihar", "गया": "Bihar",
+    "समस्तीपुर": "Bihar", "मुज़फ़्फ़रपुर": "Bihar",
+    # Gaya is deliberately absent, in both scripts. It is a city in Bihar and
+    # it is also the commonest past-tense verb in Hindi — "form bhar gaya",
+    # "ho gaya", "भर गया" — so the alias filed people in Bihar for saying that
+    # something was done. No office in the catalogue serves Gaya, so the alias
+    # bought nothing and cost a wrong state, silently.
     "up": "Uttar Pradesh", "lucknow": "Uttar Pradesh", "kanpur": "Uttar Pradesh",
     "उत्तर प्रदेश": "Uttar Pradesh", "लखनऊ": "Uttar Pradesh", "कानपुर": "Uttar Pradesh",
     "mp": "Madhya Pradesh", "bhopal": "Madhya Pradesh", "indore": "Madhya Pradesh",
@@ -671,15 +682,41 @@ def _read_name(text: str) -> tuple[str, bool] | None:
                     for p in parts), announced
 
 
+# Two-letter aliases are registration codes, and every one of them is also an
+# ordinary word or the tail of one. A word boundary is not enough for them:
+# "up" is in "I want to sign up for a learner licence" and in "fill up the
+# form", and both of those filed the citizen in Uttar Pradesh without ever
+# saying so — the state is read from every utterance while it is outstanding,
+# stored, and written to the draft in silence.
+#
+# So a short alias has to be the whole answer rather than merely present in it.
+# Somebody who means the code says it on its own or with a word or two around
+# it; nobody says "MH" in the middle of a sentence about signing up.
+_SHORT_ALIAS_LIMIT = 3
+_ALIAS_ALONE = re.compile(r"^[^\wऀ-ॿ]*(?P<word>[\wऀ-ॿ&]+)[^\wऀ-ॿ]*$")
+
+
 def _read_state(text: str) -> str | None:
     lowered = " ".join(text.lower().split()).strip(" .,?!।")
+    alone = _ALIAS_ALONE.match(lowered)
+    bare = alone.group("word") if alone else None
     for alias, state in _STATE_ALIASES.items():
+        if len(alias) < _SHORT_ALIAS_LIMIT:
+            # "mh", "up", "br", "ap", "mp", "tn", "wb": only when the citizen
+            # said that and nothing else.
+            if bare == alias:
+                return state
+            continue
         if re.search(rf"(?<![\wऀ-ॿ]){re.escape(alias)}(?![\wऀ-ॿ])",
                      lowered):
             return state
     # Longest first, so "Andhra Pradesh" is not swallowed by a shorter match.
+    #
+    # Bounded like the aliases above rather than by substring. Without the
+    # boundary "goa" matched inside "my goal is to drive", which is a state
+    # recorded from a sentence that names none.
     for state in sorted(_STATES, key=len, reverse=True):
-        if state.lower() in lowered:
+        if re.search(rf"(?<![\wऀ-ॿ]){re.escape(state.lower())}(?![\wऀ-ॿ])", lowered):
             return state
     return None
 

@@ -26,6 +26,17 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.7"
 
+      # The slot grid is built against the server's own `date.today()` and the
+      # booking cutoff against its `datetime.now()` — deliberately, so the list
+      # and the rule cannot drift apart. Both are local time, and this container
+      # is UTC unless told otherwise, which puts the service five and a half
+      # hours behind everyone using it: between midnight and half past five in
+      # the morning it offers yesterday's dates and refuses this morning's
+      # times. India keeps no daylight saving, so naming the zone is the whole
+      # fix — nothing in the code has to know about it.
+      - key: TZ
+        value: Asia/Kolkata
+
       # Start as "*" so the first deploy works before the frontend URL exists,
       # then replace it with the deployed origin and redeploy. No request here
       # sends credentials, so "*" is safe either way — but naming the origin is
