@@ -26,9 +26,16 @@ from pydantic import BaseModel, Field
 class AppStatus(str, Enum):
     SUBMITTED = "submitted"        # received, idempotently
     VERIFIED = "verified"          # docs check passed (mock)
-    SLOT_BOOKED = "slot_booked"    # test appointment held
+    # The learner's journey ends here: the theory test is taken online, so
+    # passing it is the last thing that happens to a learner's application.
+    # Recorded because the alternative was worse — the pass lived only in the
+    # browser, so clearing site data lost a licence, and nothing on the server
+    # could answer "has this citizen finished?", which is the question the
+    # driving-test screen and Saarthi both have to ask before offering a slot.
+    ISSUED = "issued"              # theory test passed, learner's licence issued
+    SLOT_BOOKED = "slot_booked"    # driving-test appointment held
     CHECKED_IN = "checked_in"      # arrived at RTO, in queue
-    COMPLETED = "completed"        # test done
+    COMPLETED = "completed"        # driving test done at the counter
     REJECTED = "rejected"
 
 

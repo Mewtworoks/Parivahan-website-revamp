@@ -47,7 +47,13 @@ async function request<T>(path: string, init?: { method?: string; body?: unknown
 
 // ---------------------------------------------------------------- shapes
 
-export type AppStatusValue = 'submitted' | 'verified' | 'slot_booked' | 'checked_in' | 'completed' | 'rejected';
+/**
+ * Mirrors AppStatus in the service. `issued` is the end of the learner's
+ * journey — the theory test is taken online, so passing it is the last thing
+ * that happens to a learner's application; `completed` is the driving test
+ * being finished at the counter, a month later.
+ */
+export type AppStatusValue = 'submitted' | 'verified' | 'issued' | 'slot_booked' | 'checked_in' | 'completed' | 'rejected';
 
 export interface LedgerEvent {
   seq: number;
@@ -292,7 +298,12 @@ export interface VoiceReply {
   session_id: string;
   reply: string;
   tool_events: VoiceToolEvent[];
-  pending_confirmation?: { label: string };
+  /**
+   * Present when Saarthi is waiting to act. For an application it also carries
+   * the answers, so the browser can put them into the wizard and take the
+   * confirmation against the fields rather than against a spoken sentence.
+   */
+  pending_confirmation?: { label: string; form_prefill?: Record<string, unknown> };
 }
 
 // ---------------------------------------------------------------- calls
@@ -448,9 +459,20 @@ export interface VoiceStart {
   resumed: boolean;
 }
 
-export const startVoice = (citizenRef: string, language = 'en') =>
+/**
+ * Open a Saarthi conversation.
+ *
+ * `state` and `rtoId` are what the citizen already chose at sign-in. They are
+ * passed so the agent does not ask for a state the site has already been told,
+ * and they travel together: a state on its own resolves to the first office in
+ * that state, which is not necessarily the one the picker chose. The server
+ * seeds them only into a gap, so an answer given out loud is never overwritten.
+ */
+export const startVoice = (citizenRef: string, language = 'en',
+                           state?: string, rtoId?: string) =>
   request<VoiceStart>('/agent/voice/start', {
-    method: 'POST', body: { citizen_ref: citizenRef, language },
+    method: 'POST',
+    body: { citizen_ref: citizenRef, language, state, rto_id: rtoId },
   });
 
 /**

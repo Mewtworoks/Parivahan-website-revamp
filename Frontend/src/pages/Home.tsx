@@ -7,7 +7,7 @@ import { HeroScene } from '../ui/HeroScene';
 import { Icon } from '../ui/Icon';
 import { Pill } from '../ui/SharedUI';
 
-const JOURNEY_ICONS = [Icon.clipboard, Icon.deviceForm, Icon.calendar, Icon.checkCircle];
+const JOURNEY_ICONS = [Icon.clipboard, Icon.deviceForm, Icon.checkCircle, Icon.calendar];
 const JOURNEY_STEPS: [category: string, categoryHi: string, categoryMr: string, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string, tag: string, tagHi: string, tagMr: string][] = [
   ['Eligibility', 'पात्रता', 'पात्रता', 'Are you eligible', 'क्या आप पात्र हैं', 'तुम्ही पात्र आहात का',
     'Three questions tell you if you qualify, before any fee is paid.',
@@ -19,16 +19,21 @@ const JOURNEY_STEPS: [category: string, categoryHi: string, categoryMr: string, 
     'विवरण उन दस्तावेज़ों से आते हैं जो आपके पास पहले से हैं। फ़ोटो लेते ही जांची जाती है।',
     'तपशील तुमच्याकडे आधीच असलेल्या कागदपत्रांमधून येतो. फोटो घेताच तपासला जातो.',
     'Auto-sync', 'ऑटो-सिंक', 'ऑटो-सिंक'],
-  ['Scheduling', 'स्लॉट बुकिंग', 'स्लॉट बुकिंग', 'Pick a real slot', 'एक असली स्लॉट चुनें', 'खरा स्लॉट निवडा',
-    'Choose an office by distance and remaining capacity, not by luck.',
-    'दफ़्तर दूरी और बची हुई क्षमता के आधार पर चुनें, किस्मत के आधार पर नहीं।',
-    'कार्यालय अंतर आणि उरलेल्या क्षमतेनुसार निवडा, नशिबावर नाही.',
+  // The test before the appointment, because that is the order they happen in.
+  // The learner's test is taken online — it needs no slot — and the only
+  // appointment on this service is the driving test, thirty days after the
+  // learner's licence is issued. Listing the booking third described a journey
+  // where somebody drove to an office to answer ten questions on a screen.
+  ['Evaluation', 'मूल्यांकन', 'मूल्यमापन', 'Ten questions, online', 'दस सवाल, ऑनलाइन', 'दहा प्रश्न, ऑनलाइन',
+    "Each answer explained. Pass, and the learner's licence is issued at once — no visit, no queue.",
+    'हर जवाब समझाया गया है। पास होते ही लर्नर लाइसेंस तुरंत जारी — न जाना, न कतार।',
+    'प्रत्येक उत्तर समजावलेले आहे. उत्तीर्ण होताच लर्नर लायसन्स लगेच जारी — जाणे नाही, रांग नाही.',
+    'Instant LL', 'तुरंत एलएल', 'लगेच एलएल'],
+  ['Scheduling', 'स्लॉट बुकिंग', 'स्लॉट बुकिंग', 'Book the driving test', 'ड्राइविंग टेस्ट बुक करें', 'ड्रायव्हिंग टेस्ट बुक करा',
+    'Thirty days later. Choose an office by distance and remaining capacity, not by luck.',
+    'तीस दिन बाद। दफ़्तर दूरी और बची हुई क्षमता के आधार पर चुनें, किस्मत के आधार पर नहीं।',
+    'तीस दिवसांनंतर. कार्यालय अंतर आणि उरलेल्या क्षमतेनुसार निवडा, नशिबावर नाही.',
     'Guaranteed', 'गारंटीड', 'हमी'],
-  ['Evaluation', 'मूल्यांकन', 'मूल्यमापन', 'Ten questions', 'दस सवाल', 'दहा प्रश्न',
-    'Each answer explained. Pass, and the licence is issued at once.',
-    'हर जवाब समझाया गया है। पास होने पर लाइसेंस तुरंत जारी होता है।',
-    'प्रत्येक उत्तर समजावलेले आहे. उत्तीर्ण झाल्यास लायसन्स लगेच दिले जाते.',
-    'Instant DL', 'तुरंत डीएल', 'लगेच डीएल'],
 ];
 
 const DIFFERENTIATORS: [icon: ReturnType<typeof Icon.doc>, heading: string, headingHi: string, headingMr: string, body: string, bodyHi: string, bodyMr: string][] = [
@@ -58,11 +63,23 @@ const DIFFERENTIATORS: [icon: ReturnType<typeof Icon.doc>, heading: string, head
 // The learner's-licence facts strip, on the one "start here" panel. With the DL journey parked
 // (see the note in types.ts) there is only ever one service, so this no longer needs to be a
 // mapped list of cards — a fixed panel says so plainly instead of looping over an array of one.
+// No fee line. The exact amount depends on how many classes of vehicle are
+// picked, which is a stage-six question — quoting one number here made a card
+// that is meant to say what the journey *is* into a price list. It is still
+// itemised before anything is charged, on the checklist and again on the fee
+// screen, which is where "the price is on the first screen" below actually
+// cashes out.
 const LL_FACTS: [en: string, hi: string, mr: string][] = [
-  ['Eight stages, about 14 minutes', 'आठ चरण, लगभग 14 मिनट', 'आठ टप्पे, सुमारे 14 मिनिटे'],
-  ['₹150 per class plus one ₹50 test fee', 'प्रति श्रेणी ₹150 और एक बार ₹50 टेस्ट शुल्क', 'प्रति वर्ग ₹150 आणि एकदा ₹50 टेस्ट शुल्क'],
+  ['Seven stages, about 14 minutes', 'सात चरण, लगभग 14 मिनट', 'सात टप्पे, सुमारे 14 मिनिटे'],
   ['With Aadhaar: no RTO visit at all', 'आधार के साथ: आरटीओ जाने की ज़रूरत नहीं', 'आधारसह: आरटीओला जाण्याची गरज नाही'],
   ['10 questions, 6 to pass', '10 प्रश्न, पास होने के लिए 6', '10 प्रश्न, उत्तीर्ण होण्यासाठी 6'],
+];
+
+const DL_FACTS: [en: string, hi: string, mr: string][] = [
+  ["Thirty days after your learner's licence", 'लर्नर लाइसेंस के तीस दिन बाद', 'लर्नर लायसन्सच्या तीस दिवसांनंतर'],
+  ['Nothing to type — we find your licence', 'कुछ टाइप नहीं करना — हम आपका लाइसेंस ढूंढ लेते हैं', 'काहीही टाइप करायचे नाही — आम्ही तुमचे लायसन्स शोधतो'],
+  ['Real remaining capacity, per office and per time', 'हर दफ़्तर और हर समय की असली बची क्षमता', 'प्रत्येक कार्यालय आणि वेळेची खरी उरलेली क्षमता'],
+  ['Check in on the day for a live queue token', 'उस दिन चेक-इन कीजिए, लाइव कतार टोकन के लिए', 'त्या दिवशी चेक-इन करा, लाइव्ह रांग टोकनसाठी'],
 ];
 
 export function Home({ go, update }: PageProps) {
@@ -113,7 +130,7 @@ export function Home({ go, update }: PageProps) {
           <div className="steps-head">
             <span className="eyebrow">{t('How it goes', 'यह कैसे होता है', 'हे कसे होते')}</span>
             <h2>{t('The whole journey, in four moves', 'पूरी यात्रा, चार चरणों में', 'संपूर्ण प्रवास, चार टप्प्यांत')}</h2>
-            <p className="tiny">{t('About 14 minutes, plus one RTO visit', 'लगभग 14 मिनट, साथ में एक आरटीओ यात्रा', 'साधारण 14 मिनिटे, अधिक एक आरटीओ भेट')}</p>
+            <p className="tiny">{t('About 14 minutes online, then one RTO visit a month later for the driving test', 'लगभग 14 मिनट ऑनलाइन, फिर एक महीने बाद ड्राइविंग टेस्ट के लिए एक आरटीओ यात्रा', 'साधारण 14 मिनिटे ऑनलाइन, नंतर एक महिन्याने ड्रायव्हिंग टेस्टसाठी एक आरटीओ भेट')}</p>
           </div>
           <div className="steps">
             {JOURNEY_STEPS.map(([category, categoryHi, categoryMr, heading, headingHi, headingMr, body, bodyHi, bodyMr, tag, tagHi, tagMr], n) => (
@@ -139,7 +156,7 @@ export function Home({ go, update }: PageProps) {
           <div className="col g16">
             <div className="row g12 wrapf">
               <span className="eyebrow">{t('Start here', 'यहां से शुरू करें', 'येथून सुरू करा')}</span>
-              <span className="tiny">· {t('the only module in this prototype', 'इस प्रोटोटाइप में एकमात्र मॉड्यूल', 'या प्रोटोटाइपमध्ये एकमेव मॉड्यूल')}</span>
+              <span className="tiny">· {t('the first of two modules', 'दो मॉड्यूल में से पहला', 'दोन मॉड्यूलपैकी पहिला')}</span>
             </div>
             <div className="col g8">
               <h2>{t("Learner's Licence", 'लर्नर लाइसेंस', 'लर्नर लायसन्स')}</h2>
@@ -162,6 +179,40 @@ export function Home({ go, update }: PageProps) {
               checklist, so what you need to have ready stays one press away. */}
           <button className="btn btn-p btn-lg" onClick={() => { update({ module: 'll' }); go('apply'); }}>
             {t('Start the application', 'आवेदन शुरू करें', 'अर्ज सुरू करा')} {Icon.right()}
+          </button>
+        </div>
+      </section>
+      {/* The second module, and the one that owns the appointment. Same card and
+          the same primary button as the learner's licence above it, because it
+          is the same kind of thing: a journey with a screen behind it rather
+          than a reference panel. On this page `btn-p` marks a card's own action
+          and `btn-s` a sideways link — the tracker, the desk, the proofs — so a
+          secondary here read as the driving licence being the lesser of the two
+          rather than the later of them. The order, the eyebrow, and "once your
+          learner's licence is issued" already say which comes first. */}
+      <section className="wrap" style={{ marginTop: 20 }} data-reveal>
+        <div className="start">
+          <div className="col g16">
+            <div className="row g12 wrapf">
+              <span className="eyebrow">{t('Then', 'फिर', 'नंतर')}</span>
+              <span className="tiny">· {t("once your learner's licence is issued", 'लर्नर लाइसेंस जारी होने के बाद', 'लर्नर लायसन्स जारी झाल्यावर')}</span>
+            </div>
+            <div className="col g8">
+              <h2>{t('Driving Licence', 'ड्राइविंग लाइसेंस', 'ड्रायव्हिंग लायसन्स')}</h2>
+              <p className="sub" style={{ maxWidth: '52ch' }}>
+                {t('The test that needs an appointment. You bring a vehicle, an inspector takes you out on the road, and the wait at the office is a number rather than a morning.',
+                  'यही वह टेस्ट है जिसके लिए अपॉइंटमेंट चाहिए। आप वाहन लाते हैं, निरीक्षक आपको सड़क पर ले जाते हैं, और दफ़्तर की प्रतीक्षा पूरी सुबह नहीं, एक संख्या होती है।',
+                  'हीच ती टेस्ट आहे जिच्यासाठी भेटीची वेळ लागते. तुम्ही वाहन आणता, निरीक्षक तुम्हाला रस्त्यावर नेतात, आणि कार्यालयातील प्रतीक्षा संपूर्ण सकाळ नव्हे, एक संख्या असते.')}
+              </p>
+            </div>
+            <ul className="facts">
+              {DL_FACTS.map(([en, hi, mr]) => (
+                <li key={en}>{Icon.check()} {t(en, hi, mr)}</li>
+              ))}
+            </ul>
+          </div>
+          <button className="btn btn-p btn-lg" onClick={() => { update({ module: 'dl' }); go('dl'); }}>
+            {t('Book the driving test', 'ड्राइविंग टेस्ट बुक करें', 'ड्रायव्हिंग टेस्ट बुक करा')} {Icon.right()}
           </button>
         </div>
       </section>

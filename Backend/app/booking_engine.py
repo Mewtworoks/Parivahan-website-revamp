@@ -25,6 +25,7 @@ as the server runs one process.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -44,6 +45,8 @@ from .booking_models import (
     Tester,
     TokenStatus,
 )
+
+log = logging.getLogger(__name__)
 
 # The offices the UI offers. Two states are modelled; the rest of the state
 # list in the picker falls back to the Maharashtra set, same as the frontend.
@@ -513,7 +516,26 @@ def apply(citizen_ref: str, licence_kind: LicenceKind, rto_id: str,
                 .where(db.applications.c.idempotency_key == idempotency_key)
             ).mappings().first()
             if existing:
+                # The key is the retry guarantee, so it settles this outright —
+                # but only for the citizen it was issued to. Without the second
+                # check, a key is a bearer token for whatever it created, and
+                # the agent derives its keys from the citizen reference, which
+                # is a phone number. Knowing somebody's number was enough to
+                # read their name, date of birth, ledger and appointment back.
+                if existing["citizen_ref"] != citizen_ref:
+                    raise PermissionError("That idempotency key belongs to another citizen.")
                 return _application(conn, existing)   # idempotent: prior result
+
+            # Deliberately *not* "one application per citizen" here. That is a
+            # product rule, and this function's guarantee is a different and
+            # narrower one: the same key always returns the same application. A
+            # new key is a new intent, and `POST /proof/idempotent-apply` exists
+            # to demonstrate exactly that — a citizen who genuinely wants a
+            # second application, for another class of vehicle or after a lapse,
+            # is entitled to file one. Stopping somebody re-walking the wizard by
+            # accident is the job of the gate in the browser, which knows what
+            # the citizen was trying to do; the engine only knows what it was
+            # asked for.
 
             seq = db.next_value(conn, "app_seq", start=_APP_SEQ_START)
             created = _now()
@@ -583,6 +605,42 @@ def latest_application_for(citizen_ref: str) -> Application | None:
             .where(db.applications.c.citizen_ref == citizen_ref)
             .order_by(db.applications.c.seq.desc()).limit(1)).mappings().first()
         return _application(conn, row) if row else None
+
+
+def record_learner_pass(citizen_ref: str) -> Application | None:
+    """
+    Record on the application that the citizen passed the theory test.
+
+    The attempt store already holds the score; what it does not hold is any link
+    back to the application, so nothing on the server could answer "has this
+    person finished the learner's journey?" — the question the driving-test
+    screen and Saarthi both have to ask before offering an appointment. Until
+    this existed the pass lived only in the browser, which meant clearing site
+    data lost a licence.
+
+    Returns None when the citizen has no learner application, which is an
+    ordinary state: the theory test can be taken by anyone, including somebody
+    practising before they apply.
+
+    Idempotent by status rather than by the ledger's primary key. That key
+    refuses a *rewrite* at a position already taken; it does not refuse a second
+    event appended at the next one. So answering the last question twice would
+    record two passes unless the guard is explicit.
+    """
+    with db.transaction() as conn:
+        row = conn.execute(
+            select(db.applications)
+            .where(and_(db.applications.c.citizen_ref == citizen_ref,
+                        db.applications.c.licence_kind == LicenceKind.LL.value))
+            .order_by(db.applications.c.seq.desc()).limit(1)).mappings().first()
+        if row is None:
+            return None
+        app = _application(conn, row)
+        if app.status == AppStatus.ISSUED:
+            return app
+        _append_ledger(conn, app, AppStatus.ISSUED,
+                       "Theory test passed. Learner's licence issued.")
+        return app
 
 
 def get_booking(booking_id: str) -> Booking | None:
@@ -706,7 +764,7 @@ def check_in(application_id: str) -> QueueToken:
     with db.transaction() as conn:
         app = _load_application(conn, application_id)
         if app is None or app.booking_id is None:
-            raise KeyError("No booking to check in against")
+            raise KeyError("There is no appointment to check in against yet — book a test slot first.")
         if app.token_id is not None:
             row = conn.execute(
                 select(db.tokens).where(db.tokens.c.id == app.token_id)).mappings().first()
@@ -716,7 +774,7 @@ def check_in(application_id: str) -> QueueToken:
         booking_row = conn.execute(
             select(db.bookings).where(db.bookings.c.id == app.booking_id)).mappings().first()
         if booking_row is None:
-            raise KeyError("No booking to check in against")
+            raise KeyError("There is no appointment to check in against yet — book a test slot first.")
         booking = _booking(booking_row)
 
         number = db.next_value(conn, f"token_seq:{booking.rto_id}")
@@ -790,7 +848,18 @@ def queue_status(token_id: str) -> dict:
         token = _token(row)
         tester_row = conn.execute(
             select(db.testers).where(db.testers.c.id == token.tester_id)).mappings().first()
-        tester = _tester(tester_row)
+        # A token whose inspector is gone is still a token, and the citizen
+        # holding it is still standing in the hall. `_tester(None)` raised a
+        # TypeError out of a read that the tracker polls every four seconds, so
+        # a catalogue edit turned a live queue into a repeating 500. Fall back to
+        # the default test length and say the inspector is not yet assigned.
+        if tester_row is None:
+            log.warning("token %s names inspector %s, which is not in the catalogue",
+                        token.id, token.tester_id)
+            tester = Tester(id=token.tester_id, name="To be assigned",
+                            rto_id=token.rto_id)
+        else:
+            tester = _tester(tester_row)
         q = [_token(r) for r in conn.execute(_lane_query(token.tester_id)).mappings()]
 
     # Everyone before us who isn't finished yet — split into the one currently

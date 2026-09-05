@@ -31,10 +31,29 @@ export const QUESTIONS: TheoryQuestion[] = [
 // The official form ends on a distorted-text captcha. Kept, because a public form does need
 // abuse protection — but as a plain arithmetic or word question that a screen reader can read,
 // with a spoken option and a fresh question on demand. No warped letters.
+// Answers accept the Hindi word and the Devanagari digit as well as the Latin
+// one. A question asked in Hindi that only accepts an English answer is not a
+// translated question, and this is the last gate before Submit — the one place
+// on the journey where being unable to answer costs a completed application.
 export const CAPTCHA_QUESTIONS: CaptchaQuestion[] = [
-  { q: 'How many wheels does a motorcycle have?', a: ['2'] },
-  { q: 'Type the word ROAD in lower case', a: ['road'] },
-  { q: 'What is four plus three?', a: ['7', 'seven'] },
-  { q: 'Which is the odd one out — car, bus, table?', a: ['table'] },
-  { q: 'How many letters are in the word LICENCE?', a: ['7', 'seven'] },
+  { q: 'How many wheels does a motorcycle have?',
+    qHi: 'एक मोटरसाइकिल में कितने पहिये होते हैं?',
+    qMr: 'एका मोटरसायकलला किती चाके असतात?',
+    a: ['2', '२', 'two', 'do', 'दो'] },
+  { q: 'Type the word ROAD in lower case',
+    qHi: 'ROAD शब्द को छोटे अक्षरों में लिखें',
+    qMr: 'ROAD हा शब्द लहान अक्षरांत लिहा',
+    a: ['road'] },
+  { q: 'What is four plus three?',
+    qHi: 'चार जमा तीन कितना होता है?',
+    qMr: 'चार अधिक तीन किती?',
+    a: ['7', '७', 'seven', 'saat', 'सात'] },
+  { q: 'Which is the odd one out — car, bus, table?',
+    qHi: 'इनमें अलग कौन है — कार, बस, मेज़?',
+    qMr: 'यांपैकी वेगळे कोणते — कार, बस, टेबल?',
+    a: ['table', 'मेज', 'मेज़', 'टेबल'] },
+  { q: 'How many letters are in the word LICENCE?',
+    qHi: 'LICENCE शब्द में कितने अक्षर हैं?',
+    qMr: 'LICENCE या शब्दात किती अक्षरे आहेत?',
+    a: ['7', '७', 'seven', 'saat', 'सात'] },
 ];

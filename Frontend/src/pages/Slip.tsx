@@ -2,7 +2,7 @@ import { PRE_BASE, preFor } from '../data/applicant';
 import { rtosFor } from '../data/rtoOffices';
 import { CLASSES } from '../data/vehicleClasses';
 import { formatDay } from '../lib/format';
-import { useT } from '../lib/language';
+import { useLanguage, useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { DocLinks } from '../ui/DocLinks';
 import { Icon } from '../ui/Icon';
@@ -12,6 +12,7 @@ import { StageTable } from '../ui/StageTable';
 /** Submission confirmation — the Application Reference Slip, the one number you need for everything after this. */
 export function Slip({ go, state, update }: PageProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const form = state.form || {};
   const classIds = form.classes || [];
   const isAadhaar = form.route === 'aadhaar';
@@ -35,7 +36,7 @@ export function Slip({ go, state, update }: PageProps) {
           <dl className="kv">
             <dt>{t('Name', 'नाम', 'नाव')}</dt><dd>{applicantName}</dd>
             <dt>{t('Date of birth', 'जन्म तिथि', 'जन्मतारीख')}</dt><dd>{form.dob || PRE_BASE.dob}</dd>
-            <dt>{t('Application date', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(state.app?.submittedAt)}</dd>
+            <dt>{t('Application date', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(state.app?.submittedAt, lang)}</dd>
             <dt>{t('Service requested', 'मांगी गई सेवा', 'विनंती केलेली सेवा')}</dt><dd>{t("Issue of new learner's licence", 'नई लर्नर लाइसेंस जारी करना', 'नवीन लर्नर लायसन्स जारी करणे')}</dd>
             <dt>{t('Classes', 'श्रेणियां', 'वर्ग')}</dt><dd>{classCodes}</dd>
             <dt>{t('RTO', 'आरटीओ', 'आरटीओ')}</dt><dd>{office.name}</dd>

@@ -84,20 +84,23 @@ export function Issued({ go, state }: PageProps) {
               'कायदा लर्नर म्हणून किमान 30 दिवस आणि जास्तीत जास्त 180 दिवस ठरवतो. ही मुदत सुरू होईल त्या दिवशी आम्ही तुम्हाला आठवण करून देऊ, आणि ती संपण्यापूर्वी पुन्हा.',
             ),
           },
-          // DL journey parked, so no hand-off button: the step is still true and
-          // worth showing, but this prototype stops at the learner's licence.
+          // The hand-off is real now: the driving test books against this same
+          // application, so nothing has to be typed in again on the far side.
           {
             state: 'todo',
-            title: t('Apply for the driving licence', 'ड्राइविंग लाइसेंस के लिए आवेदन करें', 'ड्रायव्हिंग लायसन्ससाठी अर्ज करा'),
+            title: t('Book the driving test', 'ड्राइविंग टेस्ट बुक करें', 'ड्रायव्हिंग टेस्ट बुक करा'),
             body: t(
-              "Form 4. You enter this licence number and your details carry over. That journey is outside this prototype, which covers the learner's licence end to end.",
-              'फॉर्म 4। आप यही लाइसेंस नंबर डालते हैं और आपका बाकी विवरण अपने आप आ जाता है। वह सफर इस प्रोटोटाइप से बाहर है, जो लर्नर लाइसेंस को शुरू से आखिर तक कवर करता है।',
-              'फॉर्म 4. तुम्ही हाच लायसन्स नंबर टाकता आणि तुमचे उर्वरित तपशील आपोआप येतात. तो प्रवास या प्रोटोटाइपच्या बाहेर आहे, जो लर्नर लायसन्स सुरुवातीपासून शेवटपर्यंत कव्हर करतो.',
+              'Nothing to type. You are signed in, so the driving-test screen finds this licence and books the appointment against it.',
+              'कुछ टाइप नहीं करना। आप साइन इन हैं, इसलिए ड्राइविंग टेस्ट स्क्रीन यही लाइसेंस ढूंढ लेती है और उसी पर अपॉइंटमेंट बुक करती है।',
+              'काहीही टाइप करायचे नाही. तुम्ही साइन इन आहात, त्यामुळे ड्रायव्हिंग टेस्ट स्क्रीन हेच लायसन्स शोधते आणि त्यावरच भेटीची वेळ बुक करते.',
             ),
           },
         ]} />
       </div>
-      <div className="sticky-cta"><div className="row g12 wrapf"><button className="btn btn-p" onClick={() => go('status')}>{t('Go to my applications', 'मेरे आवेदनों पर जाएँ', 'माझ्या अर्जांवर जा')} {Icon.right()}</button></div></div>
+      <div className="sticky-cta"><div className="row g12 wrapf">
+        <button className="btn btn-p" onClick={() => go('dl')}>{t('Book the driving test', 'ड्राइविंग टेस्ट बुक करें', 'ड्रायव्हिंग टेस्ट बुक करा')} {Icon.right()}</button>
+        <button className="btn btn-s" onClick={() => go('status')}>{t('Go to my applications', 'मेरे आवेदनों पर जाएँ', 'माझ्या अर्जांवर जा')}</button>
+      </div></div>
     </div>
   );
 }

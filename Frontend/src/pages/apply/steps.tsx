@@ -71,7 +71,7 @@ export function StateAndRto({ form, updateForm }: StepProps) {
         </div>
       </div>
       <div className="card card-p col g14">
-        <h3>{t('The eight stages, before you start', 'शुरू करने से पहले, आठ चरण', 'सुरू करण्यापूर्वी, आठ टप्पे')}</h3>
+        <h3>{t('The seven stages, before you start', 'शुरू करने से पहले, सात चरण', 'सुरू करण्यापूर्वी, सात टप्पे')}</h3>
         <p className="sub">{t('The official portal lists these on an instructions page and then scatters them across separate menus. Here they stay visible as a tracker, and the ones you do not need are marked exempt.', 'आधिकारिक पोर्टल इन्हें एक निर्देश पृष्ठ पर सूचीबद्ध करता है और फिर उन्हें अलग-अलग मेनू में बिखेर देता है। यहां वे एक ट्रैकर के रूप में दिखते रहते हैं, और जो आपको नहीं चाहिए उन्हें छूट के रूप में चिह्नित किया जाता है।', 'अधिकृत पोर्टल हे सूचना पानावर सूचीबद्ध करते आणि नंतर वेगवेगळ्या मेनूंमध्ये विखुरते. इथे ते ट्रॅकर म्हणून दिसत राहतात, आणि तुम्हाला जे नको ते सूट म्हणून चिन्हांकित केले जाते.')}</p>
         <div className="col g8">
           {STAGES.map((stage, i) => (
@@ -279,6 +279,17 @@ export function AboutYou({ form, updateForm, isAadhaar }: StepProps) {
         what={t("You're filling in the personal details that go on the printed licence itself.", 'आप वे व्यक्तिगत विवरण भर रहे हैं जो प्रिंटेड लाइसेंस पर जाते हैं।', 'तुम्ही ते व्यक्तिगत तपशील भरत आहात जे छापलेल्या लायसन्सवर जातात.')}
         because={t('These exact words — including capitalisation — are what gets printed, so accuracy here matters more than on any other screen.', 'यही शब्द — बड़े-छोटे अक्षरों के साथ — प्रिंट होते हैं, इसलिए यहां सटीकता किसी भी अन्य स्क्रीन से ज़्यादा मायने रखती है।', 'हेच शब्द — मोठी-लहान अक्षरे धरून — छापले जातात, त्यामुळे इथे अचूकता इतर कोणत्याही स्क्रीनपेक्षा जास्त महत्त्वाची आहे.')}
         why={t('We show you your age automatically calculated and your final printed name, so you catch a typo before it is on a physical card.', 'हम आपकी उम्र खुद निकालकर और आपका अंतिम प्रिंटेड नाम दिखाते हैं, ताकि कोई टाइपो कार्ड पर आने से पहले पकड़ में आ जाए।', 'आम्ही तुमचे वय स्वतः काढून आणि तुमचे शेवटचे छापले जाणारे नाव दाखवतो, जेणेकरून कार्डवर येण्यापूर्वीच कोणतीही चूक लक्षात येईल.')} />
+      {/* Said where the fields are, not only on the review screen at the end.
+          Every box below opens with a value already in it, and nothing on the
+          page distinguished the citizen's own answers from the prototype's
+          sample record — so this step could be walked past untouched and the
+          application filed with somebody else's details in it. */}
+      <Note tone="warn">
+        <b>{t('These are sample values.', 'ये नमूना मान हैं।', 'ही नमुना मूल्ये आहेत.')}</b>{' '}
+        {t('A real service would fill this from your e-KYC record. This prototype fills it from a sample applicant instead, so every box below already holds something that is not yours. Type over anything you want on your licence.',
+          'एक असली सेवा इसे आपके e-KYC रिकॉर्ड से भरती। यह प्रोटोटाइप इसे एक नमूना आवेदक से भरता है, इसलिए नीचे हर बॉक्स में पहले से कुछ है जो आपका नहीं है। जो आप अपने लाइसेंस पर चाहते हैं उसे ऊपर से टाइप करें।',
+          'खरी सेवा हे तुमच्या e-KYC नोंदीतून भरली असती. हा प्रोटोटाइप ते एका नमुना अर्जदाराकडून भरतो, त्यामुळे खालील प्रत्येक बॉक्समध्ये आधीच काहीतरी आहे जे तुमचे नाही. तुम्हाला तुमच्या लायसन्सवर जे हवे ते वर टाइप करा.')}
+      </Note>
       <div className="card card-p col g16">
         {isAadhaar && <Pill tone="ok">{Icon.check()} {t('Eight fields filled from e-KYC', 'आठ फ़ील्ड e-KYC से भरे गए', 'आठ फील्ड e-KYC मधून भरले')}</Pill>}
         <div className="grid3" style={{ gap: 12 }}>
@@ -320,7 +331,7 @@ export function AboutYou({ form, updateForm, isAadhaar }: StepProps) {
         <div className="col g10">
           <span className="label">{t('Two identification marks', 'दो पहचान चिह्न', 'दोन ओळख चिन्हे')}</span>
           <span className="hint">{t('Form 2 requires these and they are printed on the licence. A visible mole, scar or birthmark is what people write.', 'फॉर्म 2 में यह आवश्यक हैं और यह लाइसेंस पर प्रिंट होते हैं। दिखने वाला तिल, निशान या जन्मचिह्न लोग लिखते हैं।', 'फॉर्म 2 मध्ये हे आवश्यक आहेत आणि ते लायसन्सवर छापले जातात. दिसणारा तीळ, व्रण किंवा जन्मखूण लोक लिहितात.')}</span>
-          <div className="grid2"><Input placeholder="Scar on head, mole on right hand, etc." value={valueOf('mark1') as string} onChange={e => updateForm({ mark1: e.target.value })} /><Input placeholder="Second mark" value={valueOf('mark2') as string} onChange={e => updateForm({ mark2: e.target.value })} /></div>
+          <div className="grid2"><Input placeholder={t('Scar on head, mole on right hand, etc.', 'सिर पर निशान, दाहिने हाथ पर तिल, आदि', 'डोक्यावर व्रण, उजव्या हातावर तीळ, इ.')} value={valueOf('mark1') as string} onChange={e => updateForm({ mark1: e.target.value })} /><Input placeholder={t('Second mark', 'दूसरा निशान', 'दुसरे चिन्ह')} value={valueOf('mark2') as string} onChange={e => updateForm({ mark2: e.target.value })} /></div>
         </div>
         <Field label={t('Do you have a disability that affects driving?', 'क्या आपकी कोई विकलांगता है जो ड्राइविंग को प्रभावित करती है?', 'तुम्हाला असे कोणतेही अपंगत्व आहे का जे वाहन चालवण्यावर परिणाम करते?')} hint={t('Recorded so the licence can carry the right condition or vehicle adaptation. It is not a disqualification.', 'यह दर्ज किया जाता है ताकि लाइसेंस पर सही शर्त या वाहन अनुकूलन अंकित हो सके। यह अयोग्यता नहीं है।', 'हे नोंदवले जाते जेणेकरून लायसन्सवर योग्य अट किंवा वाहन बदल नोंदवता येईल. ही अपात्रता नाही.')}>
           <div className="row g10 wrapf">{(['No', 'Yes'] as const).map(o => <button key={o} className="btn btn-s btn-sm" aria-pressed={(form.disab || 'No') === o} style={(form.disab || 'No') === o ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)' } : undefined} onClick={() => updateForm({ disab: o })}>{t(o, o === 'Yes' ? 'हां' : 'नहीं', o === 'Yes' ? 'होय' : 'नाही')}</button>)}</div>
@@ -354,6 +365,17 @@ export function AddressDetails({ form, updateForm, isAadhaar }: StepProps) {
         what={t("You're giving the address your licence gets posted to.", 'आप वह पता दे रहे हैं जिस पर आपका लाइसेंस भेजा जाएगा।', 'तुम्ही तो पत्ता देत आहात ज्यावर तुमचे लायसन्स पाठवले जाईल.')}
         because={t('The RTO office you were assigned earlier is based on your PIN code — if it does not match what you picked, we tell you instead of silently changing your office.', 'आपको पहले जो आरटीओ कार्यालय दिया गया वह आपके पिन कोड पर आधारित है — यदि यह मेल नहीं खाता तो हम आपको बताते हैं, चुपचाप कार्यालय बदलने के बजाय।', 'तुम्हाला आधी दिलेले आरटीओ कार्यालय तुमच्या पिन कोडवर आधारित आहे — जर ते जुळत नसेल तर आम्ही तुम्हाला सांगतो, गुपचूप कार्यालय बदलण्याऐवजी.')}
         why={t('One address, asked once — not the six-dropdown present-and-permanent-address ritual the official form puts you through.', 'एक पता, एक बार पूछा गया — आधिकारिक फॉर्म वाले छह-ड्रॉपडाउन वर्तमान-और-स्थायी-पते के झंझट के बजाय।', 'एक पत्ता, एकदाच विचारलेला — अधिकृत फॉर्मच्या सहा-ड्रॉपडाउन सध्याचा-आणि-कायमचा-पत्ता कर्मकांडाऐवजी.')} />
+      {/* Said where the fields are, not only on the review screen at the end.
+          Every box below opens with a value already in it, and nothing on the
+          page distinguished the citizen's own answers from the prototype's
+          sample record — so this step could be walked past untouched and the
+          application filed with somebody else's details in it. */}
+      <Note tone="warn">
+        <b>{t('These are sample values.', 'ये नमूना मान हैं।', 'ही नमुना मूल्ये आहेत.')}</b>{' '}
+        {t('A real service would fill this from your e-KYC record. This prototype fills it from a sample applicant instead, so every box below already holds something that is not yours. Type over anything you want on your licence.',
+          'एक असली सेवा इसे आपके e-KYC रिकॉर्ड से भरती। यह प्रोटोटाइप इसे एक नमूना आवेदक से भरता है, इसलिए नीचे हर बॉक्स में पहले से कुछ है जो आपका नहीं है। जो आप अपने लाइसेंस पर चाहते हैं उसे ऊपर से टाइप करें।',
+          'खरी सेवा हे तुमच्या e-KYC नोंदीतून भरली असती. हा प्रोटोटाइप ते एका नमुना अर्जदाराकडून भरतो, त्यामुळे खालील प्रत्येक बॉक्समध्ये आधीच काहीतरी आहे जे तुमचे नाही. तुम्हाला तुमच्या लायसन्सवर जे हवे ते वर टाइप करा.')}
+      </Note>
       <div className="card card-p col g16">
         <div className="grid2">
           <Field label={t('House, door or flat number', 'घर, दरवाजा या फ्लैट नंबर', 'घर, दार किंवा फ्लॅट क्रमांक')}><Input value={valueOf('line') as string} onChange={e => updateForm({ line: e.target.value })} /></Field>
@@ -372,7 +394,7 @@ export function AddressDetails({ form, updateForm, isAadhaar }: StepProps) {
         <Field label={t('Is this a village or a town?', 'क्या यह गांव है या कस्बा?', 'हे गाव आहे की शहर?')}>
           <div className="row g10 wrapf" style={{ alignItems: 'center' }}>
             {(['Village', 'Town'] as const).map(o => <button key={o} className="btn btn-s btn-sm" aria-pressed={(form.vt || valueOf('vt')) === o} style={(form.vt || valueOf('vt')) === o ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)' } : undefined} onClick={() => updateForm({ vt: o })}>{t(o, o === 'Village' ? 'गांव' : 'कस्बा', o === 'Village' ? 'गाव' : 'शहर')}</button>)}
-            <Input style={{ maxWidth: 240 }} value={valueOf('city') as string} onChange={e => updateForm({ city: e.target.value })} placeholder="Name" />
+            <Input style={{ maxWidth: 240 }} value={valueOf('city') as string} onChange={e => updateForm({ city: e.target.value })} placeholder={t('Name', 'नाम', 'नाव')} />
           </div>
         </Field>
         <Field label={t('How long have you lived here?', 'आप यहां कितने समय से रह रहे हैं?', 'तुम्ही इथे किती काळ राहत आहात?')} hint={t('Form 2 asks for this. An estimate is fine.', 'फॉर्म 2 में यह पूछा जाता है। अनुमान लगाना ठीक है।', 'फॉर्म 2 मध्ये हे विचारले जाते. अंदाज चालेल.')}>
@@ -389,7 +411,7 @@ export function AddressDetails({ form, updateForm, isAadhaar }: StepProps) {
         {!sameAsPermanent && (
           <div className="col g16 fade">
             <div className="grid2">
-              <Field label={t('Permanent address', 'स्थायी पता', 'कायमचा पत्ता')}><Input placeholder="House, street, locality" value={form.pline || ''} onChange={e => updateForm({ pline: e.target.value })} /></Field>
+              <Field label={t('Permanent address', 'स्थायी पता', 'कायमचा पत्ता')}><Input placeholder={t('House, street, locality', 'घर, गली, इलाका', 'घर, गल्ली, परिसर')} value={form.pline || ''} onChange={e => updateForm({ pline: e.target.value })} /></Field>
               <Field label={t('Landmark', 'लैंडमार्क', 'लँडमार्क')}><Input value={form.plandmark || ''} onChange={e => updateForm({ plandmark: e.target.value })} /></Field>
             </div>
             <div className="grid3" style={{ gap: 12 }}>
@@ -536,7 +558,21 @@ export function Form1Declaration({ form, updateForm, needsMedicalCert, form1Answ
 /** Step 9 — upload documents, photo and signature (or see what's exempt, on the Aadhaar route). */
 export function DocumentsPhotoSignature({ form, updateForm, isAadhaar }: StepProps) {
   const t = useT();
-  const cyclePhotoStatus = (key: 'photo' | 'sign') => updateForm({ [key]: form[key] === 'warn' ? 'ok' : form[key] ? 'ok' : 'warn' });
+  /**
+   * Take, then retake.
+   *
+   * The first press used to land on 'warn', so every citizen was told the top of
+   * their head was cut off before they had done anything wrong — a rejection as
+   * the default outcome, on a screen whose argument is that the check happens
+   * here instead of at the counter. And once a photo was accepted, Retake did
+   * nothing at all, because 'ok' mapped back to 'ok'.
+   *
+   * Now the first attempt is accepted and Retake shows what a rejection looks
+   * like, which keeps the instant-feedback demonstration without making it the
+   * thing that happens to somebody filling the form in honestly.
+   */
+  const cyclePhotoStatus = (key: 'photo' | 'sign') =>
+    updateForm({ [key]: form[key] === 'ok' ? 'warn' : 'ok' });
   const addressEditedAfterKyc = isAadhaar && (form.line !== undefined || form.area !== undefined || form.pin !== undefined);
 
   return (
@@ -579,11 +615,28 @@ export function DocumentsPhotoSignature({ form, updateForm, isAadhaar }: StepPro
       ) : (
         <div className="card card-p col g14">
           <div className="row between g12 wrapf"><h3>{t('Upload your proofs', 'अपने प्रमाण अपलोड करें', 'तुमचे पुरावे अपलोड करा')}</h3><Pill tone="warn">{t('Manual route', 'मैनुअल रास्ता', 'मॅन्युअल मार्ग')}</Pill></div>
-          {([['Age proof', 'Birth certificate, school leaving certificate, passport or PAN card', 'आयु प्रमाण', 'जन्म प्रमाणपत्र, स्कूल छोड़ने का प्रमाणपत्र, पासपोर्ट या पैन कार्ड', 'वय पुरावा', 'जन्म प्रमाणपत्र, शाळा सोडल्याचा दाखला, पासपोर्ट किंवा पॅन कार्ड'], ['Address proof', 'Passport, electricity bill, rent agreement or ration card', 'पता प्रमाण', 'पासपोर्ट, बिजली बिल, रेंट एग्रीमेंट या राशन कार्ड', 'पत्ता पुरावा', 'पासपोर्ट, वीज बिल, भाडे करार किंवा रेशन कार्ड']] as const).map(([name, desc, nameHi, descHi, nameMr, descMr]) => (
-            <div key={name} className="doc"><span className="doc-th">{Icon.doc()}</span>
-              <span className="col g4 grow"><b style={{ fontWeight: 600 }}>{t(name, nameHi, nameMr)}</b><span className="sub">{t(desc, descHi, descMr)}</span></span>
-              <button className="btn btn-s btn-sm" onClick={() => updateForm({ docsOk: true })}>{t('Choose file', 'फ़ाइल चुनें', 'फाइल निवडा')}</button></div>
-          ))}
+          {/* Tracked one at a time. Both buttons used to set the same single
+              flag, so uploading the age proof ticked the address proof as well
+              and the step passed with one document — on the screen whose claim
+              is that the checking happens here rather than at the counter. */}
+          {([['Age proof', 'docAge', 'Birth certificate, school leaving certificate, passport or PAN card', 'आयु प्रमाण', 'जन्म प्रमाणपत्र, स्कूल छोड़ने का प्रमाणपत्र, पासपोर्ट या पैन कार्ड', 'वय पुरावा', 'जन्म प्रमाणपत्र, शाळा सोडल्याचा दाखला, पासपोर्ट किंवा पॅन कार्ड'], ['Address proof', 'docAddress', 'Passport, electricity bill, rent agreement or ration card', 'पता प्रमाण', 'पासपोर्ट, बिजली बिल, रेंट एग्रीमेंट या राशन कार्ड', 'पत्ता पुरावा', 'पासपोर्ट, वीज बिल, भाडे करार किंवा रेशन कार्ड']] as const).map(([name, key, desc, nameHi, descHi, nameMr, descMr]) => {
+            const uploaded = Boolean(form[key]);
+            return (
+              <div key={name} className="doc" data-s={uploaded ? 'ok' : undefined}>
+                <span className="doc-th">{uploaded ? <span style={{ color: 'var(--ok)' }}>{Icon.check({ width: 18, height: 18 })}</span> : Icon.doc()}</span>
+                <span className="col g4 grow"><b style={{ fontWeight: 600 }}>{t(name, nameHi, nameMr)}</b><span className="sub">{t(desc, descHi, descMr)}</span></span>
+                <button className="btn btn-s btn-sm" onClick={() => {
+                  const next = { ...form, [key]: true };
+                  updateForm({ [key]: true, docsOk: Boolean(next.docAge && next.docAddress) });
+                }}>{uploaded ? t('Replace', 'बदलें', 'बदला') : t('Choose file', 'फ़ाइल चुनें', 'फाइल निवडा')}</button>
+              </div>
+            );
+          })}
+          {!form.docsOk && (form.docAge || form.docAddress) && (
+            <span className="tiny">{form.docAge
+              ? t('Address proof still to add.', 'पता प्रमाण अभी जोड़ना बाकी है।', 'पत्ता पुरावा अजून जोडायचा आहे.')
+              : t('Age proof still to add.', 'आयु प्रमाण अभी जोड़ना बाकी है।', 'वय पुरावा अजून जोडायचा आहे.')}</span>
+          )}
           {form.docsOk && <Note tone="ok" icon={Icon.check()}>{t('Both readable, under the 20 KB limit, and the name on them matches what you typed. Checked here rather than at the counter.', 'दोनों पढ़ने योग्य हैं, 20 KB सीमा के अंदर हैं, और उन पर नाम वही है जो आपने टाइप किया। यहीं जांच हो जाती है, काउंटर पर नहीं।', 'दोन्ही वाचता येण्याजोगी आहेत, 20 KB मर्यादेत आहेत, आणि त्यावरील नाव तुम्ही टाइप केलेल्याशी जुळते. इथेच तपासले जाते, काउंटरवर नाही.')}</Note>}
         </div>
       )}
@@ -657,6 +710,19 @@ export function ReviewAndSubmit({ form, updateForm, classIds, totalFee, goToStep
         what={t("You're reading back everything you entered, one last time, before it becomes official.", 'आप जो कुछ भरा है उसे एक आखिरी बार पढ़ रहे हैं, इसके आधिकारिक बनने से पहले।', 'तुम्ही जे काही भरले आहे ते एकदा शेवटचे वाचत आहात, ते अधिकृत होण्यापूर्वी.')}
         because={t('Your name and date of birth lock the moment you submit — changing either after this needs a brand new application and a new fee.', 'जमा करते ही आपका नाम और जन्म तिथि लॉक हो जाते हैं — इसके बाद किसी को बदलने के लिए बिल्कुल नया आवेदन और नई फीस चाहिए।', 'सादर केल्याक्षणी तुमचे नाव आणि जन्मतारीख लॉक होतात — यानंतर कोणतेही बदलण्यासाठी अगदी नवीन अर्ज आणि नवीन फी आवश्यक आहे.')}
         why={t('Every line here has an Edit button straight back to where you can fix it — so this is your last free chance, not a formality.', 'यहां हर लाइन में एक Edit बटन है जो सीधे उस जगह ले जाता है जहां आप उसे ठीक कर सकते हैं — तो यह आपका आखिरी मुफ्त मौका है, कोई औपचारिकता नहीं।', 'इथे प्रत्येक ओळीत एक Edit बटण आहे जे थेट तिथे घेऊन जाते जिथे तुम्ही ती दुरुस्त करू शकता — त्यामुळे ही तुमची शेवटची मोफत संधी आहे, औपचारिकता नाही.')} />
+      {/* Saarthi asks four questions; this form has about forty fields. The
+          rest is the prototype's sample data, and this is the screen where that
+          stops being a detail — a citizen who walked here from a conversation is
+          looking at a filled-in address that is not theirs. The disclosure used
+          to be spoken once, in a sentence that does not survive the walk. It has
+          to be beside the fields it describes. */}
+      {form.bySaarthi && (
+        <Note tone="warn">
+          <b>{t('Saarthi filled this in.', 'यह सारथी ने भरा है।')}</b>{' '}
+          {t('It used four answers from your conversation — your name, date of birth, state and vehicle class. Everything else on this page is the prototype’s sample data and is not yours: the address, the email, the documents, and the declarations, which have been ticked for you. Read it before you submit, and use Edit on any line.',
+            'इसमें आपकी बातचीत के चार जवाब इस्तेमाल हुए — आपका नाम, जन्म तिथि, राज्य और वाहन श्रेणी। इस पन्ने पर बाकी सब कुछ इस प्रोटोटाइप का नमूना डेटा है, आपका नहीं: पता, ईमेल, दस्तावेज़, और घोषणाएँ भी, जो आपके लिए टिक कर दी गई हैं। जमा करने से पहले इसे पढ़ें, और किसी भी पंक्ति पर Edit दबाएँ।')}
+        </Note>
+      )}
       <div className="card card-p col g14">
         {rows.map(([label, value, editStep]) => (
           <div key={label}>
@@ -673,7 +739,7 @@ export function ReviewAndSubmit({ form, updateForm, classIds, totalFee, goToStep
         </div>
       </div>
       <div className="card card-p col g14">
-        <div className="row between g12 wrapf"><h3>{t('E-sign the application', 'आवेदन पर ई-हस्ताक्षर करें', 'अर्जावर ई-स्वाक्षरी करा')}</h3><span className="tiny mono">Stage 4 of 8</span></div>
+        <div className="row between g12 wrapf"><h3>{t('E-sign the application', 'आवेदन पर ई-हस्ताक्षर करें', 'अर्जावर ई-स्वाक्षरी करा')}</h3><span className="tiny mono">{t('Stage 4 of 7', 'चरण 4 / 7', 'टप्पा 4 / 7')}</span></div>
         <p className="sub">{t('A separate stage on the official portal, easily missed, and the application cannot move without it. It is an Aadhaar OTP against the completed form — the digital equivalent of signing the printout.', 'आधिकारिक पोर्टल पर एक अलग चरण, जो आसानी से छूट जाता है, और इसके बिना आवेदन आगे नहीं बढ़ता। यह पूरे फॉर्म पर एक आधार OTP है — प्रिंटआउट पर हस्ताक्षर करने का डिजिटल रूप।', 'अधिकृत पोर्टलवर एक वेगळा टप्पा, जो सहज चुकतो, आणि त्याशिवाय अर्ज पुढे जात नाही. हा पूर्ण फॉर्मवर एक आधार OTP आहे — प्रिंटआउटवर स्वाक्षरी करण्याचे डिजिटल रूप.')}</p>
         <button className="tile" role="checkbox" aria-checked={!!form.esign} onClick={() => updateForm({ esign: !form.esign })}>
           <span className="tick" style={{ borderRadius: 6 }}>{form.esign ? Icon.check() : null}</span>

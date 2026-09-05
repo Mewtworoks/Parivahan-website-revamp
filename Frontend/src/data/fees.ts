@@ -26,6 +26,9 @@ export const FEE_DOC: [string, string, string, string][] = [
     'पता प्रमाण', 'पासपोर्ट, बिजली बिल, किराया अनुबंध या राशन कार्ड'],
 ];
 
+// Read only by the parked Form 4 wizard. The driving-test screen that replaced
+// it takes no fee — the appointment is booked against the learner's licence the
+// citizen already paid for.
 export const FEE_DL: FeeLine[] = [
   { k: 'Grant of driving licence', kHi: 'ड्राइविंग लाइसेंस जारी करना', kMr: 'ड्रायव्हिंग लायसन्स जारी करणे', v: 200,
     rule: 'Includes the smart card', ruleHi: 'स्मार्ट कार्ड शामिल है', ruleMr: 'स्मार्ट कार्ड समाविष्ट आहे' },

@@ -33,7 +33,7 @@ export function Tutorial({ go, state }: PageProps) {
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g10" style={{ marginBottom: 24 }}>
         <div className="row between g12 wrapf">
-          <span className="eyebrow">{t('Before stage 8 · mandatory', 'चरण 8 से पहले · अनिवार्य', 'टप्पा 8 पूर्वी · अनिवार्य')}</span>
+          <span className="eyebrow">{t('Before stage 7 · mandatory', 'चरण 7 से पहले · अनिवार्य', 'टप्पा 7 पूर्वी · अनिवार्य')}</span>
           {/* Demo shortcut, same as the wizard's. Ticking five items in front of
               an audience shows nothing the build is arguing, and until they are
               all ticked both onward buttons stay disabled. */}
@@ -63,16 +63,6 @@ export function Tutorial({ go, state }: PageProps) {
       <div className="sticky-cta"><div className="row g12 wrapf">
         <button className="btn btn-p" onClick={() => go('learn')} disabled={!allRead}>{t('Practise the situations', 'स्थितियों का अभ्यास करें', 'परिस्थितींचा सराव करा')} {Icon.right()}</button>
         <button className="btn btn-s" onClick={() => go('test')} disabled={!allRead}>{t('Go straight to the test', 'सीधे टेस्ट पर जाएं', 'सरळ टेस्टकडे जा')}</button>
-        {/* The slot phase is reachable from here. An Aadhaar application reaches
-            the tutorial without passing through booking at all — it takes the
-            test from home — so without this the appointment screen has no door
-            on this route, and the slot screen already explains that booking is
-            optional for them. */}
-        <button className="btn btn-g" onClick={() => go('slot')}>
-          {Icon.pin()} {isAadhaar
-            ? t('Book a test slot anyway', 'फिर भी टेस्ट स्लॉट बुक करें')
-            : t('Book a test slot', 'टेस्ट स्लॉट बुक करें')}
-        </button>
       </div></div>
     </div>
   );

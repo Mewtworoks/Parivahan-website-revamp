@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
 import { demoForm } from '../data/demoApplicant';
+import { STEPS } from '../data/applicationFlow';
+import { CLASSES } from '../data/vehicleClasses';
 import { loadConversation, saveConversation, type DayOption, type SlotOption, type Turn } from '../lib/conversation';
 import { useIdentity } from '../lib/identity';
 import { useLanguage, useT, type Lang } from '../lib/language';
@@ -49,6 +51,34 @@ function splitName(full: string): { first?: string; mid?: string; last?: string 
 }
 
 /**
+ * The vehicle classes out of a prefill, or null if none of them are real.
+ *
+ * `form.classes` holds CLASSES **ids**, and five screens look an id up and take
+ * `.code` off the result without checking it came back — so an id that is not
+ * in the table is a TypeError during render, which is a blank page rather than
+ * a wrong value. The value arrives from the model's `licence_classes` argument,
+ * and the tool schema invites arbitrary strings, so it cannot be trusted the
+ * way a value from the wizard's own tiles can.
+ *
+ * A code is accepted as an alias for its id because the model is shown codes
+ * and quite reasonably echoes them: `E-RICKSHAW` is the code whose id is
+ * `E-RICK`, the one pair in the table where the two differ, and it was already
+ * enough to blank the receipt.
+ */
+function readClasses(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids = value
+    .map(entry => {
+      if (typeof entry !== 'string') return null;
+      const wanted = entry.trim().toUpperCase();
+      const match = CLASSES.find(c => c.id.toUpperCase() === wanted || c.code.toUpperCase() === wanted);
+      return match ? match.id : null;
+    })
+    .filter((id): id is string => id !== null);
+  return ids.length ? Array.from(new Set(ids)) : null;
+}
+
+/**
  * Turn what the citizen told Saarthi into the form the wizard reads.
  *
  * The sample applicant underneath supplies the twenty-odd fields nobody would
@@ -61,9 +91,7 @@ function formFromPrefill(prefill: Record<string, unknown>): ApplicationForm {
   const state = typeof prefill.state === 'string' && prefill.state ? prefill.state : 'Maharashtra';
   const base = demoForm(state);
   const name = typeof prefill.full_name === 'string' ? splitName(prefill.full_name) : {};
-  const classes = Array.isArray(prefill.classes) && prefill.classes.length
-    ? (prefill.classes as string[])
-    : base.classes;
+  const classes = readClasses(prefill.classes) ?? base.classes;
   return {
     ...base,
     state,
@@ -311,6 +339,8 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const recogniserRef = useRef<any>(null);
   const [working, setWorking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
+  /** The answers, waiting for the citizen to say they want to see the form. */
+  const [handover, setHandover] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waited, setWaited] = useState(0);
   const log = useRef<HTMLDivElement>(null);
@@ -403,7 +433,8 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
   const ensureSession = async () => {
     if (sessionRef.current) return sessionRef.current;
     if (!citizenRef) throw new Error('Sign in first so I know whose application to open.');
-    const created = await api.startVoice(citizenRef, lang === 'hi' ? 'hi' : 'en');
+    const created = await api.startVoice(citizenRef, lang === 'hi' ? 'hi' : 'en',
+                                        state.form?.state, state.form?.rto);
     sessionRef.current = created.session_id;
     setSessionId(created.session_id);
     return created.session_id;
@@ -430,7 +461,8 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
     let dropped = false;
     void (async () => {
       try {
-        const created = await api.startVoice(phone, lang === 'hi' ? 'hi' : 'en');
+        const created = await api.startVoice(phone, lang === 'hi' ? 'hi' : 'en',
+                                            state.form?.state, state.form?.rto);
         if (dropped) return;
         sessionRef.current = created.session_id;
         setSessionId(created.session_id);
@@ -464,7 +496,36 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
       }
     }
     appendTurn({ who: 'saarthi', text: reply.reply, days, slots });
-    setPending(reply.pending_confirmation?.label || null);
+
+    // Every answer is in. Rather than raise a Confirm button here and file from
+    // the panel, hand the answers to the wizard and take the confirmation on the
+    // review screen. Two reasons. The citizen approves the fields themselves
+    // instead of a sentence they heard once — and there is then one way to file
+    // an application on this site rather than two, which is the same argument
+    // the rest of the build makes about having one write path.
+    //
+    // Offered, not taken. Being thrown onto another screen mid-conversation is
+    // disorienting even when it is the right screen, and somebody who still has
+    // a question should be able to ask it. So the answers are held here and the
+    // move is a button.
+    //
+    // The queued action is cancelled now rather than at the button, because it
+    // is dead either way: left standing, the next thing said to Saarthi is
+    // answered with "press the confirmation button first" for an action the
+    // citizen has stopped thinking about.
+    // Not offered to somebody who has already applied. "See my form" jumps
+    // straight to Review and Submit with the declarations pre-ticked, which is
+    // the one door on this site that lands past the gate on the wizard and in
+    // front of a live Submit button — so a second application is one press away
+    // for exactly the person who must not make one.
+    const prefill = state.applicationId ? undefined : reply.pending_confirmation?.form_prefill;
+    if (prefill) {
+      setHandover(prefill);
+      setPending(null);
+      if (sessionRef.current) void api.cancelVoiceAction(sessionRef.current).catch(() => {});
+    } else {
+      setPending(reply.pending_confirmation?.label || null);
+    }
     // Only speak if the panel is still open. A reply that arrives after the
     // citizen closed it used to start talking at them from a panel that was no
     // longer on screen.
@@ -489,7 +550,17 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
           // wizard has to show what was filled — otherwise "your form is filled"
           // is another claim with nothing behind it, which is the thing this
           // whole change is about.
-          form,
+          //
+          // Merged over whatever is already there rather than replacing it.
+          // This assignment used to be a whole-form overwrite, so asking
+          // Saarthi a question that happened to complete an application threw
+          // away eight screens of typing.
+          //
+          // `bySaarthi` is set here as well as on the handover button. Both
+          // paths land the citizen on a form that is four spoken answers and
+          // thirty-odd fields of sample data, and only one of them used to say
+          // so — which is exactly the disclosure this flag exists to raise.
+          form: { ...(state.form ?? {}), ...form, bySaarthi: true },
           app: {
             ...(state.app ?? { fee: 350, clsName: 'MCWG' }),
             no: applicationNo,
@@ -503,14 +574,20 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             `आपका फ़ॉर्म भर गया — ${applicationNo || 'आवेदन बन गया'}। इस प्रोटोटाइप में दस्तावेज़ जाँच नकली है।`),
           'ok',
           {
-            label: t('Book a slot', 'स्लॉट बुक करें'),
-            run: () => go('slot'),
+            // The fee, not an appointment. Filing the form leaves the fee
+            // outstanding, and the learner's test that follows it is taken
+            // online — the only appointment on this service is the driving
+            // test, a month after the licence is issued.
+            label: t('Pay the fee', 'फीस भरें'),
+            run: () => go('pay'),
           },
         );
       }
-      // An appointment made by talking has to reach the screens the wizard's
-      // one reaches. Without this the citizen books through Saarthi and every
-      // other page still reads "no slot booked".
+      // An appointment made by talking has to reach the screens that read it.
+      // The stage is deliberately not touched: by the time a booking exists the
+      // learner's journey is over — this is the driving test — and writing
+      // `stage: 'booked'` here would rewind a citizen who has already passed
+      // back to "test outstanding".
       if (typeof result.booking_id === 'string') {
         update({
           slot: {
@@ -518,7 +595,6 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             rto: String(result.office ?? ''), bookingId: result.booking_id,
             tester: typeof result.tester === 'string' ? result.tester : undefined,
           },
-          stage: 'booked',
         });
       }
       if (typeof result.token_id === 'string') update({ tokenId: result.token_id });
@@ -733,6 +809,40 @@ export function VoiceAgent({ state, update, go, onSignIn, onClose }: VoiceAgentP
             </div>
           )}
         </div>
+
+        {handover && (
+          <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)', flex: 'none' }}>
+            <b>{t('Your form is ready.', 'आपका फ़ॉर्म तैयार है।')}</b>
+            {/* Handed over complete, and submit-ready. Leaving the e-sign box
+                unticked was tried and reverted: it lands the citizen on a review
+                screen with a greyed-out Submit and nothing on it explaining why,
+                which is the exact failure this build argues against everywhere
+                else. The declarations being pre-filled is a disclosure problem,
+                and it is solved by the note on that screen saying so — not by a
+                dead button. */}
+            <span className="sub">
+              {t('I filled it from your answers, and filled the rest with sample data — including the declarations. Read it before you send it.',
+                'मैंने आपके जवाबों से इसे भरा है, और बाकी नमूना डेटा से — घोषणाएँ भी। भेजने से पहले पढ़ लें।')}
+            </span>
+            <div className="row g10 wrapf">
+              <button className="btn btn-p btn-sm" onClick={() => {
+                update({
+                  // Merged, for the same reason as the tool-event path above:
+                  // anything already typed into the wizard is the citizen's and
+                  // outranks the fixture underneath the prefill.
+                  form: { ...(state.form ?? {}), ...formFromPrefill(handover), bySaarthi: true },
+                  formStep: STEPS.length - 1,
+                });
+                setHandover(null);
+                go('apply');
+                onClose();
+              }}>{t('See my form', 'मेरा फ़ॉर्म देखें')}</button>
+              <button className="btn btn-g btn-sm" onClick={() => setHandover(null)}>
+                {t('Not yet', 'अभी नहीं')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {pending && (
           <div className="flat col g10" style={{ padding: 14, borderColor: 'var(--brand-line)', flex: 'none' }}>

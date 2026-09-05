@@ -111,14 +111,16 @@ export function Eligibility({ go, state, update }: PageProps) {
             <div className="row g12"><Pill tone={verdict.tone}>{verdict.tone === 'ok' ? t('Eligible', 'पात्र', 'पात्र') : verdict.tone === 'warn' ? t('Wrong journey', 'गलत यात्रा', 'चुकीचा प्रवास') : t('Not yet eligible', 'अभी पात्र नहीं', 'अजून पात्र नाही')}</Pill></div>
             <div className="col g8"><h2>{verdict.title}</h2><p style={{ color: 'var(--ink2)' }}>{verdict.body}</p></div>
             {verdict.tone !== 'bad' && (
-              // DL journey parked. Someone who already holds a learner's licence
-              // belongs in the driving-licence journey, which this prototype does
-              // not carry — so say that plainly instead of offering a button that
-              // opens a wizard with no service behind it.
+              // Somebody who already holds a learner's licence belongs in the
+              // driving-test journey, and that is a screen now rather than an
+              // apology: it finds their licence and books the appointment
+              // against it, with nothing to type.
               answers.has === 'll' || answers.has === 'dl'
-                ? <Note>{t('The driving-licence journey is not part of this prototype. This build covers the learner\'s licence end to end — apply, book, test, and the live queue on the day.',
-                  'ड्राइविंग लाइसेंस की यात्रा इस प्रोटोटाइप का हिस्सा नहीं है। यह बिल्ड लर्नर लाइसेंस को पूरा कवर करता है — आवेदन, बुकिंग, टेस्ट, और उस दिन की लाइव कतार।',
-                  'ड्रायव्हिंग लायसन्सचा प्रवास या प्रोटोटाइपचा भाग नाही. हे बिल्ड लर्नर लायसन्स पूर्णपणे कव्हर करते — अर्ज, बुकिंग, चाचणी आणि त्या दिवसाची थेट रांग.')}</Note>
+                ? (
+                  <div className="row g12 wrapf">
+                    <button className="btn btn-p" onClick={() => go('dl')}>{t('Book the driving test', 'ड्राइविंग टेस्ट बुक करें', 'ड्रायव्हिंग टेस्ट बुक करा')} {Icon.right()}</button>
+                  </div>
+                )
                 : (
                   <div className="row g12 wrapf">
                     <button className="btn btn-p" onClick={() => go('checklist')}>{t('See what I need', 'देखें मुझे क्या चाहिए', 'मला काय आवश्यक आहे ते पहा')} {Icon.right()}</button>

@@ -1,4 +1,4 @@
-import type { ApplicationStep, AppState, Category, StageDefinition, StageRow } from '../types';
+import type { ApplicationStep, AppState, Category, Route, StageDefinition, StageRow } from '../types';
 
 export const STATES = ['Maharashtra', 'Bihar', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'Gujarat', 'West Bengal', 'Kerala', 'Rajasthan', 'Telangana'];
 
@@ -49,7 +49,7 @@ export const STEPS: ApplicationStep[] = [
 // Post-submission stages. The real portal reaches each of these from a separate menu item
 // with your application number; here they are one tracked sequence with exemptions shown.
 // Photo, e-sign and the form itself are prerequisites of submission, so any submitted
-// application has them completed. Only fee, verify, slot and test remain.
+// application has them completed. Only fee, verify and test remain.
 export const STAGES: StageDefinition[] = [
   { n: 'Fill application details LL', nHi: 'LL आवेदन विवरण भरें', nMr: 'LL अर्जाचे तपशील भरा', k: 'fill' },
   { n: 'Upload documents', nHi: 'दस्तावेज़ अपलोड करें', nMr: 'कागदपत्रे अपलोड करा', k: 'docs' },
@@ -57,7 +57,10 @@ export const STAGES: StageDefinition[] = [
   { n: 'E-sign document', nHi: 'ई-हस्ताक्षर दस्तावेज़', nMr: 'ई-स्वाक्षरी कागदपत्र', k: 'esign' },
   { n: 'Fee payment', nHi: 'शुल्क भुगतान', nMr: 'फी भरणा', k: 'fee' },
   { n: 'Verify the payment status', nHi: 'भुगतान की स्थिति सत्यापित करें', nMr: 'भरण्याची स्थिती पडताळा', k: 'verify' },
-  { n: 'LL slot book', nHi: 'LL स्लॉट बुक करें', nMr: 'LL स्लॉट बुक करा', k: 'slot' },
+  // Parked, not deleted. The learner's test is taken online, so there is no
+  // learner's appointment to book — the booking moved to the driving test, a
+  // month later, at #/dl. Seven stages now.
+  // { n: 'LL slot book', nHi: 'LL स्लॉट बुक करें', nMr: 'LL स्लॉट बुक करा', k: 'slot' },
   { n: 'Take the LL test', nHi: 'LL परीक्षा दें', nMr: 'LL परीक्षा द्या', k: 'test' },
 ];
 
@@ -67,10 +70,33 @@ const STAGE_RANK: Record<string, number> = { submitted: 0, esign: 0, paid: 1, bo
 export function stageState(state: AppState): StageRow[] {
   const isAadhaar = state.form?.route === 'aadhaar';
   const rank = STAGE_RANK[state.stage || 'submitted'] ?? 0;
-  const isDone = (key: string) => ({ fill: true, docs: true, photo: true, esign: true, fee: rank >= 1, verify: rank >= 1, slot: rank >= 2, test: rank >= 3 } as Record<string, boolean>)[key];
+  // `booked` still occupies rank 2 and is still written — by the receipt, to
+  // mean "past the fee" rather than "holds an appointment". The test needs rank
+  // 3, so both `paid` and `booked` leave it outstanding, which is what the
+  // resume gate reads.
+  const isDone = (key: string) => ({ fill: true, docs: true, photo: true, esign: true, fee: rank >= 1, verify: rank >= 1, test: rank >= 3 } as Record<string, boolean>)[key];
   return STAGES.map(stage => {
-    if (isAadhaar && (stage.k === 'docs' || stage.k === 'slot')) return { ...stage, status: 'Exempted' };
+    // The slot half of this is gone with the stage: nobody books a learner's
+    // appointment now, so there is nothing for an Aadhaar applicant to be
+    // exempt from.
+    if (isAadhaar && stage.k === 'docs') return { ...stage, status: 'Exempted' };
     if (isDone(stage.k)) return { ...stage, status: 'Completed' };
     return { ...stage, status: 'To be done by you' };
   });
+}
+
+/**
+ * The stage a citizen still has to do, and the screen where they do it.
+ *
+ * Lives here rather than in the stage table that first needed it, because the
+ * apply gate asks the same question — "what does this person still owe?" — and
+ * two answers to it would drift apart the first time a stage moved. `fill`,
+ * `docs`, `photo` and `esign` have no entry: submission is their prerequisite,
+ * so they can never be the outstanding one.
+ */
+export const NEXT_STAGE_ROUTE: Record<string, Route> = { fee: 'pay', verify: 'pay', test: 'tutorial' };
+
+/** The first stage still to be done, or undefined when the journey is finished. */
+export function nextStage(state: AppState): StageRow | undefined {
+  return stageState(state).find(row => row.status === 'To be done by you');
 }

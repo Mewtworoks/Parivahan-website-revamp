@@ -70,6 +70,8 @@ export function demoForm(state = 'Maharashtra'): ApplicationForm {
     // S7 — photo, signature and documents accepted.
     photo: 'ok',
     sign: 'ok',
+    docAge: true,
+    docAddress: true,
     docsOk: true,
 
     // S8 — e-sign and captcha cleared, so Submit is live.

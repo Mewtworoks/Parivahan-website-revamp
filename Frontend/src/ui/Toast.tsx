@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../lib/language';
 import { Icon } from './Icon';
 
 /**
@@ -61,6 +62,7 @@ const TONE_BORDER: Record<ToastTone, string> = {
 
 /** Mounted once, at the site root. */
 export function ToastHost() {
+  const t = useT();
   const [list, setList] = useState<ToastItem[]>(items);
 
   useEffect(() => {
@@ -108,7 +110,7 @@ export function ToastHost() {
             )}
             <button
               className="btn btn-g btn-sm"
-              aria-label="Dismiss"
+              aria-label={t('Dismiss', 'हटाएं', 'काढून टाका')}
               onClick={() => dismissToast(item.id)}
             >
               ✕

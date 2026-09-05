@@ -85,4 +85,7 @@ export const Icon = {
   menu: (p?: IconProps) => (
     <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" {...p}><path d="M2.6 4.6h10.8M2.6 8h10.8M2.6 11.4h10.8" /></svg>
   ),
+  user: (p?: IconProps) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="8" cy="5.4" r="2.8" /><path d="M2.8 13.6a5.2 5.2 0 0 1 10.4 0" /></svg>
+  ),
 };

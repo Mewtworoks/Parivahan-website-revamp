@@ -96,7 +96,7 @@ application wizard is already a valid `rto_id` here — no mapping layer.
 | `GET` | `/slots/days?rto_id=` | The bookable date strip, with a real count left per day. |
 | `GET` | `/slots/times?rto_id=&on=` | The time strip for one day, grouped across inspectors. |
 | `GET` | `/slots` | Raw free slots (`?rto_id=…&on=YYYY-MM-DD`), earliest first. |
-| `POST` | `/book` | Atomic hold. `409` if the slot was just taken, or if you already hold one. |
+| `POST` | `/book` | Atomic hold on a driving-test slot. `409` if it was just taken, or if you already hold one. |
 | `POST` | `/checkin/{app_id}` | Issue a live queue token. Safe to call twice. |
 | `GET` | `/queue/{token_id}` | Position, assigned inspector, live ETA. |
 | `POST` | `/tester/{id}/call-next` | Inspector clears one; everyone's ETA moves. |
@@ -185,7 +185,7 @@ upstream call, in `_fast_reply`:
 | --- | --- |
 | the four form questions, and the confirmation sentence | explanations, the law, fees |
 | the result after Confirm, disclosure included | corrections and objections it cannot parse |
-| the day list, and the times on one day | *"next Thursday, some time after lunch"* |
+| the day list, and the times on one day — once the licence is issued | *"next Thursday, some time after lunch"* |
 | application number, status, *"is my form filled"*, *"when is my test"* | anything off script |
 | the opening line, rebuilt from the record | |
 

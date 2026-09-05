@@ -18,12 +18,12 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   // offering a phone line this build does not have — the number is still in
   // there, labelled as illustrative, but it is no longer the promise on the way
   // in. What the sheet actually contains is an FAQ, so it says so.
-  ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Book a slot', { go: 'slot' }], ['Road safety tutorial', { go: 'tutorial' }], ['How a document is verified', { info: 'verify' }], ['Common questions', { help: true }]]],
-  // DL journey parked: the two links that opened the wizard are gone; the two
-  // that open reference panels stay, because that content is real. Titled as
-  // reference, not as a service — a column headed "Driving licence" under a
-  // learner's-only home page reads as a second journey that is not there.
-  ['Driving licence · reference', [['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
+  ["Learner's licence", [['Check eligibility', { go: 'elig' }], ['Apply', { go: 'checklist' }], ['Practice test', { go: 'learn' }], ['Road safety tutorial', { go: 'tutorial' }], ['How a document is verified', { info: 'verify' }], ['Common questions', { help: true }]]],
+  // "Book a slot" moved out of the learner's column and into this one: the
+  // learner's test is taken online, so the appointment belongs to the driving
+  // test a month later. The column is a service again rather than a reference
+  // shelf, because there is now a screen behind it.
+  ['Driving licence', [['Book the driving test', { go: 'dl' }], ['Driving test tracks', { info: 'tracks' }], ['Fees', { info: 'fees' }]]],
   ['About this build', [['Problem and approach', { info: 'problem' }], ['What is mocked', { info: 'mocked' }],
     // The staff view and the runnable guarantees. Part of the argument rather
     // than developer tooling, but the top bar had no room left for them.

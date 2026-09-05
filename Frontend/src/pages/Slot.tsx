@@ -26,6 +26,8 @@ export function Slot({ go, state, update }: PageProps) {
   const [day, setDay] = useState<string | null>(null);
   const [time, setTime] = useState<api.SlotTime | null>(null);
   const [taken, setTaken] = useState(false);
+  /** The held appointment, shown back before moving on. Null until Confirm succeeds. */
+  const [done, setDone] = useState<{ booked: api.BookResult; then: 'tutorial' | 'status' } | null>(null);
   const { pending, error, run } = useAction();
 
   // Keep the selection valid when the office list arrives or the state changes.
@@ -57,13 +59,32 @@ export function Slot({ go, state, update }: PageProps) {
   const confirm = async (then: 'tutorial' | 'status') => {
     if (!time?.slot_id || !state.applicationId) return;
     setTaken(false);
-    const booked = await run('book', () => api.bookSlot(state.applicationId!, time.slot_id!));
+    // Losing the race is the guarantee working, so it gets its own message and
+    // a fresh list. Every other failure is a different sentence, and this used
+    // to report all four the same way: a cold backend, an appointment already
+    // held, and a time that had passed all read as "someone else took it".
+    // The first of those is the likely one — the service sleeps after fifteen
+    // minutes idle — and it sent people hunting for another slot that would not
+    // book either. Only the slot-taken 409 is caught here; everything else is
+    // rethrown so it reaches `error` and the Note at the top of the page.
+    let lost = false;
+    const booked = await run('book', async () => {
+      try {
+        return await api.bookSlot(state.applicationId!, time.slot_id!);
+      } catch (err) {
+        if (err instanceof api.ApiError && err.status === 409 && /just taken/i.test(err.detail)) {
+          lost = true;
+          return null;
+        }
+        throw err;
+      }
+    });
     if (!booked) {
-      // 409 means someone else confirmed this exact slot first. Show what is
-      // left now instead of sending the applicant to a slot they do not hold.
-      setTaken(true);
-      setTime(null);
-      reloadTimes();
+      if (lost) {
+        setTaken(true);
+        setTime(null);
+        reloadTimes();
+      }
       return;
     }
     update({
@@ -73,22 +94,68 @@ export function Slot({ go, state, update }: PageProps) {
       },
       stage: 'booked',
     });
-    go(then);
+    // Stop here rather than routing straight on. The page told the citizen to
+    // bring "this appointment letter" and then never showed them one — the
+    // booking reference was stored and rendered nowhere on the site. This is
+    // also the screen that proves the appointment is real, which is the thing
+    // somebody is looking for after pressing Confirm.
+    setDone({ booked, then });
   };
 
   if (!office) {
     return <div className="narrow fade" style={{ padding: '40px 24px 0' }}><Note>{t('Loading offices…', 'कार्यालय लोड हो रहे हैं…')}</Note></div>;
   }
 
+  if (done) {
+    const { booked } = done;
+    return (
+      <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
+        <div className="col g14" style={{ alignItems: 'flex-start', marginBottom: 26 }}>
+          <Pill tone="ok">{Icon.check()} {t('Appointment held', 'अपॉइंटमेंट सुरक्षित', 'भेटीची वेळ राखीव')}</Pill>
+          <h1>{formatDayLabel(booked.date, booked.label, lang)}, {booked.time}</h1>
+          <p className="lede">{t('This slot is now yours and nobody else can be given it. Everything below is what the service recorded, not what this page remembers.', 'यह स्लॉट अब आपका है और किसी और को नहीं दिया जा सकता। नीचे सब कुछ वही है जो सेवा ने दर्ज किया, न कि जो यह पेज याद रखता है।')}</p>
+        </div>
+        <div className="card card-p col g14">
+          <dl className="kv">
+            <dt>{t('Booking reference', 'बुकिंग संदर्भ', 'बुकिंग संदर्भ')}</dt><dd className="mono">{booked.booking_id}</dd>
+            <dt>{t('Office', 'कार्यालय', 'कार्यालय')}</dt><dd>{office.name}</dd>
+            {booked.tester && <><dt>{t('Inspector', 'निरीक्षक', 'निरीक्षक')}</dt><dd>{booked.tester}</dd></>}
+            <dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{state.app?.no || '—'}</dd>
+          </dl>
+          <hr className="hr" />
+          <p className="sub">{t('Bring the originals of your age and address proof, a print of the e-receipt, and this reference. Arrive ten minutes early and say you have arrived on the tracker — that puts you in the live queue.', 'अपने आयु और पता प्रमाण की मूल प्रति, ई-रसीद का प्रिंट, और यह संदर्भ लाएं। दस मिनट पहले पहुंचें और ट्रैकर पर बताएं कि आप पहुंच गए हैं — इससे आप लाइव कतार में आ जाते हैं।')}</p>
+        </div>
+        <div className="sticky-cta">
+          <div className="row g12 wrapf">
+            <button className="btn btn-p" onClick={() => go(done.then)}>
+              {done.then === 'tutorial'
+                ? t('Prepare for the test', 'टेस्ट की तैयारी करें', 'टेस्टची तयारी करा')
+                : t('Go to my application', 'मेरे आवेदन पर जाएं', 'माझ्या अर्जाकडे जा')} {Icon.right()}
+            </button>
+            <button className="btn btn-s" onClick={() => go('status')}>{t('Track it', 'ट्रैक करें', 'ट्रॅक करा')}</button>
+          </div>
+        </div>
+        <div style={{ height: 56 }} />
+      </div>
+    );
+  }
+
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
-      <div className="col g10" style={{ marginBottom: 26 }}><span className="eyebrow">{t('Application', 'आवेदन', 'अर्ज')} {state.app?.no || '—'} · {t('stage 7', 'चरण 7', 'टप्पा 7')}</span><h1>{t('Book your test slot', 'अपना टेस्ट स्लॉट बुक करें', 'तुमचा टेस्ट स्लॉट बुक करा')}</h1>
+      <div className="col g10" style={{ marginBottom: 26 }}><span className="eyebrow">{t('Application', 'आवेदन', 'अर्ज')} {state.app?.no || '—'} · {t('stage 7', 'चरण 7', 'टप्पा 7')}</span><h1>{t("Book your learner's test slot", 'अपना लर्नर टेस्ट स्लॉट बुक करें', 'तुमचा लर्नर टेस्ट स्लॉट बुक करा')}</h1>
         <p className="lede">{t('You are shown the offices that can take your test, how far they are, and what is actually left. A booking here is an appointment, not a queue token.', 'आपको वे कार्यालय दिखाए जाते हैं जो आपका टेस्ट ले सकते हैं, वे कितनी दूर हैं, और वास्तव में क्या बचा है। यहां बुकिंग एक अपॉइंटमेंट है, कतार टोकन नहीं।', 'तुम्हाला ती कार्यालये दाखवली जातात जी तुमची टेस्ट घेऊ शकतात, ती किती दूर आहेत, आणि प्रत्यक्षात काय शिल्लक आहे. इथे बुकिंग म्हणजे एक भेटीची वेळ आहे, रांगेचे टोकन नाही.')}</p></div>
 
       {!state.applicationId && (
         <div style={{ marginBottom: 16 }}><Note tone="warn">{t('There is no submitted application to book against yet. Complete the application first and this page will hold a real appointment for it.', 'बुक करने के लिए अभी कोई जमा किया गया आवेदन नहीं है। पहले आवेदन पूरा करें, फिर यह पेज उसके लिए असली अपॉइंटमेंट रखेगा।')}</Note></div>
       )}
       {form.route === 'aadhaar' && <div style={{ marginBottom: 16 }}><Note tone="brand">{t('This stage is exempt for you — an Aadhaar-authenticated application takes the test from home. You are only here because you chose to look.', 'यह चरण आपके लिए छूट में है — आधार-प्रमाणित आवेदन घर से टेस्ट देता है। आप यहां केवल इसलिए हैं क्योंकि आपने देखना चुना।', 'हा टप्पा तुमच्यासाठी सूट आहे — आधार-प्रमाणित अर्ज घरून टेस्ट देतो. तुम्ही इथे फक्त पाहण्याचे निवडले म्हणून आहात.')}</Note></div>}
+      {/* Said out loud rather than left for someone to notice. On the live
+          service the learner's test is taken online, so an in-person slot for
+          it is the exception and not the rule — the Aadhaar note directly above
+          is the real journey. The booking engine is shown here because it is
+          the part of this build worth showing, and because the appointment it
+          holds is the same one the driving test needs a month later. */}
+      <div style={{ marginBottom: 16 }}><Note>{t("Where this differs from the real service. The learner's test is taken online now, so this booking screen stands in for the one that matters: the driving test, booked thirty days after the learner's licence is issued. The allocation underneath is real either way — one slot, one applicant, proved on the Proof page.", 'यह असली सेवा से कहां अलग है। लर्नर टेस्ट अब ऑनलाइन होता है, इसलिए यह बुकिंग स्क्रीन उसकी जगह है जो असल में मायने रखती है: ड्राइविंग टेस्ट, जो लर्नर लाइसेंस मिलने के तीस दिन बाद बुक होता है। नीचे का आवंटन दोनों हाल में असली है — एक स्लॉट, एक आवेदक, प्रूफ पेज पर प्रमाणित।')}</Note></div>
       {taken && <div style={{ marginBottom: 16 }}><Note tone="warn">{t('That time went to someone else.', 'वह समय किसी और को मिल गया।')} {t('It was taken while you were deciding. The times below are what is free right now — nobody is double-booked, and you have not lost your place in the application.', 'आप तय कर रहे थे तभी वह ले लिया गया। नीचे दिए समय अभी खाली हैं — किसी की दोहरी बुकिंग नहीं हुई, और आपका आवेदन जहां था वहीं है।')}</Note></div>}
       {error && !taken && <div style={{ marginBottom: 16 }}><Note tone="warn">{api.isOffline(error) ? t('The licence service is not responding, so no appointment can be held right now.', 'लाइसेंस सेवा जवाब नहीं दे रही, इसलिए अभी कोई अपॉइंटमेंट नहीं रखा जा सकता।') : error.message}</Note></div>}
 
@@ -120,6 +187,10 @@ export function Slot({ go, state, update }: PageProps) {
                     <span className="col g4"><b style={{ fontWeight: 600, fontSize: '.92rem' }}>{x.time}</b><span className="tiny" style={{ color: time?.start === x.start ? 'oklch(0.92 0.03 262)' : undefined }}>{x.left ? t(`${x.left} left`, `${x.left} बचे`, `${x.left} शिल्लक`) : t('Full', 'भरा हुआ', 'भरलेले')}</span></span>
                   </button>
                 ))}
+                {/* The day grid has always had an empty state and this one did
+                    not, so a day whose times failed to load rendered as a
+                    heading above a blank rectangle. */}
+                {times.length === 0 && <span className="tiny">{t('No times came back for that day. Pick another date, or try again in a moment.', 'उस दिन के लिए कोई समय नहीं मिला। दूसरी तारीख चुनें, या थोड़ी देर बाद फिर देखें।')}</span>}
               </div>
               <span className="tiny">{t('Counts are the office\'s actual remaining capacity for that time, across its inspectors.', 'गिनती उस समय के लिए कार्यालय की असली बची क्षमता है, उसके सभी निरीक्षकों को मिलाकर।')}</span>
             </div>

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, type InputHTMLAttributes, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useT } from '../lib/language';
 import { Icon } from './Icon';
 
@@ -16,9 +16,19 @@ export function Pill({ tone, children }: { tone?: string; children: ReactNode })
   return <span className={'pill' + (tone ? ' pill-' + tone : '')}>{children}</span>;
 }
 
-export function Note({ tone, icon, children }: { tone?: string; icon?: ReactNode | false; children: ReactNode }) {
+/**
+ * `live` marks a note that appeared *because* of something the citizen just
+ * did — a failed submit, a lost slot, a refused check-in. Those have to be
+ * announced: a screen-reader user pressed a button, the button came back, and
+ * without this nothing at all is read out to say why nothing happened.
+ *
+ * Not the default. Most notes on this site are standing explanations that were
+ * on the page before it was read, and marking those as alerts would interrupt
+ * the reader to tell them something they are already being told.
+ */
+export function Note({ tone, icon, live, children }: { tone?: string; icon?: ReactNode | false; live?: boolean; children: ReactNode }) {
   return (
-    <div className={'note' + (tone ? ' note-' + tone : '')}>
+    <div className={'note' + (tone ? ' note-' + tone : '')} role={live ? 'alert' : undefined}>
       {icon !== false && <span style={{ flex: 'none', marginTop: 2, color: 'var(--muted)' }}>{icon || Icon.bang()}</span>}
       <div>{children}</div>
     </div>
@@ -85,8 +95,9 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export function Stepper({ steps, cur, onJump }: { steps: string[]; cur: number; onJump?: (i: number) => void }) {
+  const t = useT();
   return (
-    <nav className="rail" aria-label="Progress">
+    <nav className="rail" aria-label={t('Progress', 'प्रगति', 'प्रगती')}>
       {steps.map((label, i) => {
         const state = i < cur ? 'done' : i === cur ? 'now' : 'todo';
         return (
@@ -143,6 +154,16 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
  * which a panel that scrolls as a whole cannot do.
  */
 export function Sheet({ title, onClose, children, fill }: { title: ReactNode; onClose: () => void; children: ReactNode; fill?: boolean }) {
+  const t = useT();
+  // Named so `aria-labelledby` has something to point at. A dialog with no
+  // accessible name is announced as "dialog" and nothing else, which is the
+  // same panel whether it is sign-in, help or Saarthi.
+  const titleId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  // The control that opened the sheet, so focus can be handed back to it. A
+  // panel that closes and drops focus on the document body restarts the
+  // keyboard user at the top of the page — punishing them for having opened it.
+  const opener = useRef<Element | null>(null);
   // Escape closes it. Until now the only ways out were the X and the backdrop,
   // both of which need a pointer — so anyone driving this from the keyboard was
   // shut inside a panel covering the page, with the rest of the site still
@@ -174,8 +195,41 @@ export function Sheet({ title, onClose, children, fill }: { title: ReactNode; on
       onClose();
     };
     document.addEventListener('keydown', onKey);
+
+    // Focus moves into the panel, and Tab is kept inside it. Without the trap
+    // the panel is a picture: Tab walks straight out into the page behind,
+    // which is still there and still clickable, so the "modal" is only modal
+    // for people using a mouse.
+    opener.current = document.activeElement;
+    const focusable = () => Array.from(
+      panel.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter(el => el.offsetParent !== null);
+    focusable()[0]?.focus();
+
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      if (openSheets[openSheets.length - 1] !== mine) return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const here = document.activeElement;
+      if (event.shiftKey && (here === first || !panel.current?.contains(here))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && here === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onTab);
+
     return () => {
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onTab);
+      (opener.current as HTMLElement | null)?.focus?.();
       const at = openSheets.indexOf(mine);
       if (at !== -1) openSheets.splice(at, 1);
       if (openSheets.length === 0) {
@@ -187,11 +241,12 @@ export function Sheet({ title, onClose, children, fill }: { title: ReactNode; on
 
   return (
     <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet" onClick={e => e.stopPropagation()}>
+      <div className="sheet" ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId}
+        onClick={e => e.stopPropagation()}>
         {/* No longer position:sticky — the panel is a column and the body
             scrolls, so the header stays put by being outside the scroller. */}
         <div className="row between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', flex: 'none', background: 'var(--surface)' }}>
-          <h3>{title}</h3><button className="btn btn-g btn-sm" onClick={onClose} aria-label="Close">{Icon.x()}</button>
+          <h3 id={titleId}>{title}</h3><button className="btn btn-g btn-sm" onClick={onClose} aria-label={t('Close', 'बंद करें', 'बंद करा')}>{Icon.x()}</button>
         </div>
         <div className={`sheet-body${fill ? ' fill' : ''}`}>{children}</div>
       </div>

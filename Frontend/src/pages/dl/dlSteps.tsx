@@ -1,3 +1,15 @@
+/**
+ * PARKED. The five steps of the Form 4 driving-licence wizard.
+ *
+ * Nothing imports this file. The driving test needed one screen rather than a
+ * wizard — the citizen is signed in, so the service looks their learner's
+ * licence up instead of asking them to confirm details it already holds, and
+ * books the appointment against that same application. See pages/DrivingLicence.tsx.
+ *
+ * Kept because the steps themselves are a fair reading of the real Form 4
+ * process, and because `BookTest` below is the before-and-after: it draws a
+ * date grid from a frozen array, which is exactly what the live screen replaced.
+ */
 import { FORM1 } from '../../data/documents';
 import { FEE_DL } from '../../data/fees';
 import { DAYS, rtosFor, TIMES } from '../../data/rtoOffices';

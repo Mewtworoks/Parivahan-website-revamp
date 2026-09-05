@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
+import { signedInPhone } from '../lib/identity';
 import { useLanguage, useT } from '../lib/language';
 import { scrollToTop } from '../lib/scrollToTop';
 import { useAction } from '../lib/useApi';
@@ -39,7 +40,12 @@ export function Test({ go, state, update }: PageProps) {
     void (async () => {
       let id = attemptId;
       if (!id) {
-        const begun = await run('start', () => api.startTest(state.app?.no || state.form?.phone || 'citizen'));
+        // The signed-in number, the way everything else on the site is keyed.
+        // This used to be the display number, which meant the attempt could not
+        // be resolved back to an application — so a pass had nowhere to be
+        // recorded and lived only in this browser. The fallbacks stay for
+        // somebody practising before they have applied at all.
+        const begun = await run('start', () => api.startTest(signedInPhone() || state.form?.phone || state.app?.no || 'citizen'));
         if (!begun) return;
         id = begun.attempt_id;
         setPassMark(begun.pass_threshold);
@@ -152,7 +158,7 @@ export function Test({ go, state, update }: PageProps) {
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g16" style={{ marginBottom: 22 }}>
-        <Progress cur={question!.index} total={total} label={t("Learner's test · stage 8 of 8", 'लर्नर टेस्ट · चरण 8 में से 8', 'लर्नर टेस्ट · टप्पा 8 पैकी 8')} />
+        <Progress cur={question!.index} total={total} label={t("Learner's test · stage 7 of 7", 'लर्नर टेस्ट · चरण 7 में से 7', 'लर्नर टेस्ट · टप्पा 7 पैकी 7')} />
         <Note>{isAadhaar ? t(`${total} questions, ${passMark} correct to pass, taken from home with a password sent by SMS.`, `${total} सवाल, पास होने के लिए ${passMark} सही, SMS से भेजे पासवर्ड के साथ घर से।`) : t(`${total} questions, ${passMark} correct to pass, taken at the office.`, `${total} सवाल, पास होने के लिए ${passMark} सही, कार्यालय में।`)} {t('A fail costs the ₹50 test fee again and a rebooking, so every answer here explains itself.', 'फेल होने पर फिर से ₹50 टेस्ट फीस और नई बुकिंग लगती है, इसलिए यहां हर जवाब खुद समझाया गया है।', 'नापास झाल्यास पुन्हा ₹50 टेस्ट फी आणि नवीन बुकिंग लागते, त्यामुळे इथे प्रत्येक उत्तर स्वतः स्पष्ट केले आहे.')}</Note>
       </div>
       <div className="card card-p col g20">

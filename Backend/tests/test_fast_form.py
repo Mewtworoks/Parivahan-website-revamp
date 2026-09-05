@@ -73,7 +73,11 @@ def _open_time_on(day: str, rto_id: str = "mh01") -> str:
     half past nine and failed after it — for a test that has nothing to do with
     what time it is. A bare time is a bare time whichever one it is.
     """
-    slots = dispatch_tool("find_slots", {"rto_id": rto_id, "day": day})["slots"]
+    # The argument is `date`. Passed as `day` it was silently ignored and the
+    # tool answered for today, so this read today's remaining times while
+    # `_open_day` had already moved on to tomorrow — fine all morning, an
+    # IndexError from the moment today sold out.
+    slots = dispatch_tool("find_slots", {"rto_id": rto_id, "date": day})["slots"]
     return slots[0]["time"].lstrip("0")
 
 
@@ -588,6 +592,12 @@ def test_a_bare_yes_only_means_the_days_when_the_days_were_offered(monkeypatch):
     ref = "fast-bare-yes"
     dispatch_tool("apply_for_licence", applicant(ref))
     sid = _start(ref)
+    # The opening line for a filed application ends "shall I show you the days?",
+    # so it now records that the days were offered — which is the whole point of
+    # `offered`, and answering "yes" to it locally is correct. Clear it, because
+    # what this test is about is the *other* case: a "yes" arriving with nothing
+    # outstanding must not be read as a request for the slot grid.
+    voice_agent._SESSIONS[sid].offered = None
     body = _say(sid, "yes")
     assert reached, "a bare yes with nothing offered should reach the model"
     assert "open" not in body["reply"].lower()
@@ -599,3 +609,65 @@ def test_the_office_reader_prefers_the_place_over_the_city():
     assert read_office("Borivali is closer") == "mh03"
     assert read_office("पटना में") == "br01"
     assert read_office("no place named here") is None
+
+
+def test_yes_after_the_resume_line_shows_the_days(monkeypatch):
+    """
+    The opening line for a filed application ends by offering the days, so the
+    answer to it is the service's to give.
+
+    It was not: `offered` was recorded in one place only — after Confirm — while
+    three separate sentences asked the same question. Somebody who came back to
+    a filed application, heard "shall I show you the days?" and said "yes" spent
+    a model call on a word the service already knew the meaning of, and got a
+    503 for it when no key was configured.
+    """
+    def refuse(*args, **kwargs):
+        raise AssertionError("a yes to the service's own offer must not reach the model")
+
+    monkeypatch.setattr(voice_agent, "_call_nvidia", refuse)
+    ref = "fast-resume-yes"
+    dispatch_tool("apply_for_licence", applicant(ref))
+    opening = client.post("/agent/voice/start",
+                          json={"citizen_ref": ref, "language": "en"}).json()
+    assert "days" in opening["greeting"].lower()
+    body = _say(opening["session_id"], "yes")
+    assert body["tool_events"], "the days should have been looked up"
+    assert any(e["tool"] == "find_slot_days" for e in body["tool_events"])
+
+
+def test_signing_up_does_not_record_a_state(monkeypatch):
+    """
+    "up" is a registration code and also an ordinary English word.
+
+    The alias matcher was boundary-guarded, which is not enough for two letters:
+    "sign up", "fill up the form" and "speed up the process" all matched, and
+    because the state is read from every utterance while it is outstanding, it
+    was stored and written to the draft without a word being said about it. The
+    citizen then found Uttar Pradesh on their form.
+    """
+    assert read_answer("state", "I want to sign up for a learner licence", prompted=True) is None
+    assert read_answer("state", "can you fill up the form for me", prompted=True) is None
+    assert read_answer("state", "please speed up the process", prompted=True) is None
+    # Said on its own it is still the code, because that is how somebody who
+    # means it says it.
+    assert read_answer("state", "UP", prompted=True) == "Uttar Pradesh"
+    assert read_answer("state", "Lucknow", prompted=True) == "Uttar Pradesh"
+
+
+def test_a_goal_is_not_a_state():
+    """The full-name fallback matched by substring, so "goal" contained Goa."""
+    assert read_answer("state", "my goal is to drive to work", prompted=True) is None
+    assert read_answer("state", "I live in Goa", prompted=True) == "Goa"
+
+
+def test_saying_something_is_done_does_not_file_you_in_bihar():
+    """
+    "gaya" is a city in Bihar and the commonest past-tense verb in Hindi.
+
+    No office in the catalogue serves Gaya, so the alias could only ever be
+    wrong here: "form bhar gaya" — the form is filled — recorded Bihar.
+    """
+    assert read_answer("state", "form bhar gaya", prompted=True) is None
+    assert read_answer("state", "ho gaya", prompted=True) is None
+    assert read_answer("state", "भर गया", prompted=True) is None

@@ -68,9 +68,16 @@ export function Receipt({ go, state, update }: PageProps) {
           : t('Carry a print of this to the office. The official process requires it at the counter — we also keep a copy against your application number.', 'इसकी एक प्रिंट कार्यालय ले जाएं। आधिकारिक प्रक्रिया में काउंटर पर यह आवश्यक है — हम भी आपके आवेदन नंबर से एक प्रति रखते हैं।', 'याची एक प्रिंट कार्यालयात घेऊन जा. अधिकृत प्रक्रियेत काउंटरवर हे आवश्यक आहे — आम्हीही तुमच्या अर्ज क्रमांकाशी एक प्रत ठेवतो.')}</Note>
       </div>
       <div className="sticky-cta"><div className="row g12 wrapf">
-        {isAadhaar
-          ? <button className="btn btn-p" onClick={() => { update({ stage: 'booked' }); go('tutorial'); }}>{t('Road safety tutorial, then the test', 'सड़क सुरक्षा ट्यूटोरियल, फिर टेस्ट', 'रस्ता सुरक्षा ट्यूटोरियल, नंतर टेस्ट')} {Icon.right()}</button>
-          : <button className="btn btn-p" onClick={() => go('slot')}>{t('Book the test slot', 'टेस्ट स्लॉट बुक करें', 'टेस्ट स्लॉट बुक करा')} {Icon.right()}</button>}
+        {/* One route now, for everybody. The learner's test is taken online, so
+            the step after the fee is the test — there is no appointment between
+            them any more.
+
+            Both branches write the stage. The non-Aadhaar one used to write
+            nothing and leave it to the booking screen, which no longer sits in
+            this journey: without this line a manual-route applicant would stay
+            at "fee paid" for ever and be sent back to the tutorial on every
+            visit. */}
+        <button className="btn btn-p" onClick={() => { update({ stage: 'booked' }); go('tutorial'); }}>{t('Road safety tutorial, then the test', 'सड़क सुरक्षा ट्यूटोरियल, फिर टेस्ट', 'रस्ता सुरक्षा ट्यूटोरियल, नंतर टेस्ट')} {Icon.right()}</button>
         <button className="btn btn-s" onClick={() => go('status')}>{t('See all stages', 'सभी चरण देखें', 'सर्व टप्पे पहा')}</button>
       </div></div>
     </div>

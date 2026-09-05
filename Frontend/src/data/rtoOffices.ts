@@ -19,6 +19,10 @@ export function rtosFor(state: string): RtoOffice[] {
   return RTO_BY_STATE[state] || RTOS;
 }
 
+// Fixture grids, read only by the parked Form 4 wizard in pages/dl/dlSteps.tsx.
+// Nothing live uses them: the real booking screen reads /slots/days and
+// /slots/times off the engine, so these dates are frozen where they were
+// written. Left in place with the wizard rather than deleted.
 export const DAYS = [
   { d: 'Mon 24 Aug', left: 0 }, { d: 'Tue 25 Aug', left: 6 }, { d: 'Wed 26 Aug', left: 14 },
   { d: 'Thu 27 Aug', left: 22 }, { d: 'Fri 28 Aug', left: 19 }, { d: 'Sat 29 Aug', left: 4 },

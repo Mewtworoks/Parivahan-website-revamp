@@ -195,7 +195,7 @@ already in the database is answered without any upstream call:**
 | --- | --- |
 | the four form questions, and the confirmation sentence | explanations, the law, fees |
 | the result after Confirm, disclosure included | corrections and objections it cannot parse |
-| the day list, and the times on one day | *"next Thursday, some time after lunch"* |
+| the day list, and the times on one day — but only once the licence is issued | *"next Thursday, some time after lunch"* |
 | application number, status, *"is my form filled"*, *"when is my test"* | anything off script |
 | the opening line, rebuilt from the record | |
 
@@ -227,10 +227,10 @@ appointment. The key never reaches the browser.
 | **Apply · office picker** | "Light day / Busy" and the waiting time are read from each office's live queues. |
 | **Apply · submit** | Issues the real application number. One idempotency key per attempt, so a dropped connection and a second press cannot create two applications. |
 | **Slip / Receipt** | The number, date and sealed journey record the service returned — including whether that record still verifies. |
-| **Slot** | Real remaining capacity per day and per time. Confirming holds the slot; losing a race says so and reloads what is free. |
+| **Driving test** (`#/dl`) | Signed in, it finds your learner's licence and books the driving test against it — nothing to type. Real remaining capacity per day and per time; confirming holds the slot, and losing a race says so and reloads what is free. Check-in and the live queue live here too, because this is the appointment they belong to. |
 | **Status** | Signed in, it opens on your own application. Otherwise lookup needs the number **and** the date of birth. Shows the service's own ledger, and on the day a token, a named inspector and a wait that repolls. |
 | **Theory test** | Ten questions, six to pass, scored server-side. The answer never reaches the browser, and options are permuted per attempt. |
-| **Saarthi** | Fills the form, files it and books the slot against the live journey — not a chat about one. |
+| **Saarthi** | Fills the form and files it against the live journey — not a chat about one. It will not offer an appointment until the learner's licence is issued, because until then there is no driving test to book. |
 | **Inspector desk** (`#/desk`) | The other side of the counter. Call the next token here and the wait on the citizen's tracker moves. |
 | **Proof** (`#/proof`) | The three guarantees made to fail on demand, against the real engine. No mocks, no narration written ahead of time. |
 

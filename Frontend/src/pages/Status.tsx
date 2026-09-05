@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import * as api from '../api';
-import { SEED_STATUS } from '../data/applicant';
 import { CLASSES } from '../data/vehicleClasses';
 import { formatDay, formatTime, formatWait } from '../lib/format';
 import { prettyPhone, useIdentity } from '../lib/identity';
-import { useT } from '../lib/language';
+import { useLanguage, useT } from '../lib/language';
 import { useAction, useApi, usePolling } from '../lib/useApi';
 import { TODAY_ISO } from '../lib/validate';
 import type { PageProps } from '../types';
@@ -17,6 +16,7 @@ import { StageTable } from '../ui/StageTable';
 const STATUS_COPY: Record<api.AppStatusValue, [en: string, hi: string]> = {
   submitted: ['Received', 'प्राप्त हुआ'],
   verified: ['Documents verified', 'दस्तावेज़ सत्यापित'],
+  issued: ["Learner's licence issued", 'लर्नर लाइसेंस जारी'],
   slot_booked: ['Appointment held', 'अपॉइंटमेंट तय'],
   checked_in: ['At the office, in the queue', 'कार्यालय में, कतार में'],
   completed: ['Test done', 'टेस्ट पूरा'],
@@ -26,6 +26,7 @@ const STATUS_COPY: Record<api.AppStatusValue, [en: string, hi: string]> = {
 /** Application tracker — look up an application number + DOB, see every stage and what's next. */
 export function Status({ go, state, update }: PageProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const form = state.form || {};
   const ownApplication = Boolean(state.applicationId);
 
@@ -34,7 +35,11 @@ export function Status({ go, state, update }: PageProps) {
   const [lookupId, setLookupId] = useState<string | null>(state.applicationId || null);
   const [notFound, setNotFound] = useState(false);
   const [mine, setMine] = useState(false);
-  const { pending, run } = useAction();
+  // Named apart from the polling error below, which is a different failure with
+  // different copy. Dropping this one meant a failed check-in — pressed while
+  // standing in the office — greyed the button, un-greyed it, and said nothing
+  // at all.
+  const { pending, error: actionError, run } = useAction();
   const phone = useIdentity();
 
   useEffect(() => {
@@ -91,8 +96,20 @@ export function Status({ go, state, update }: PageProps) {
 
   const find = async () => {
     setNotFound(false);
-    const found = await run('find', () => api.findApplication(applicationNo.trim(), dob));
-    if (!found) { setNotFound(true); return; }
+    // Only a 404 means "no application matches". Everything else — the service
+    // asleep, a network drop — used to land on the same message, which told
+    // somebody their number and date of birth did not match when in fact
+    // nothing had been checked at all.
+    let missed = false;
+    const found = await run('find', async () => {
+      try {
+        return await api.findApplication(applicationNo.trim(), dob);
+      } catch (err) {
+        if (err instanceof api.ApiError && err.status === 404) { missed = true; return null; }
+        throw err;
+      }
+    });
+    if (!found) { if (missed) setNotFound(true); return; }
     setLookupId(found.application_id);
     update({ applicationId: found.application_id });
   };
@@ -100,13 +117,20 @@ export function Status({ go, state, update }: PageProps) {
   const checkIn = async () => {
     const token = await run('checkin', () => api.checkIn(lookupId!));
     if (token) { update({ tokenId: token.token_id }); refresh(); }
+    // A failure leaves `actionError` set and is reported beside the button. The
+    // service answers 400 here when there is no booking to check in against,
+    // and that sentence is worth showing verbatim.
   };
 
   const queue = application?.queue;
   const found = Boolean(application);
   const isAadhaar = form.route === 'aadhaar';
-  const applicantName = application?.applicant_name || [form.first, form.last].filter(Boolean).join(' ') || SEED_STATUS.name;
-  const classCodes = (application?.licence_classes?.length ? application.licence_classes : (form.classes || []).map(id => CLASSES.find(c => c.id === id)?.code).filter(Boolean) as string[]).join(', ') || SEED_STATUS.cls;
+  // An em dash, never the sample applicant. This screen exists to say what the
+  // record holds, so falling back to a fixture put somebody else's name — and
+  // somebody else's vehicle classes — on an application that had merely come
+  // back with the field empty. A blank is the truth; "Rehan Q. Mirza" is not.
+  const applicantName = application?.applicant_name || [form.first, form.last].filter(Boolean).join(' ') || '—';
+  const classCodes = (application?.licence_classes?.length ? application.licence_classes : (form.classes || []).map(id => CLASSES.find(c => c.id === id)?.code).filter(Boolean) as string[]).join(', ') || '—';
   const rtoName = application?.rto?.name || '—';
 
   /**
@@ -125,7 +149,7 @@ export function Status({ go, state, update }: PageProps) {
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
-      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} {t('Home', 'होम', 'होम')}</button>
       <div className="col g10" style={{ marginBottom: 26 }}>
         <span className="eyebrow">{t('Track an application', 'एक आवेदन ट्रैक करें', 'एक अर्ज ट्रॅक करा')}</span>
         <h1>{t('Where your application is', 'आपका आवेदन कहां है', 'तुमचा अर्ज कुठे आहे')}</h1>
@@ -155,6 +179,9 @@ export function Status({ go, state, update }: PageProps) {
           {!ownApplication && <span className="tiny" style={{ alignSelf: 'center' }}>{t('Use the number from your slip, with the date of birth on the application.', 'अपनी पर्ची का नंबर और आवेदन में दी जन्म तिथि इस्तेमाल करें।')}</span>}
         </div>
         {notFound && <Note tone="warn">{t('Nothing matches that number and date of birth together. The number alone is never enough — that is deliberate, so an application cannot be read by anyone who happens to know it.', 'उस नंबर और जन्म तिथि का कोई मेल नहीं। केवल नंबर कभी पर्याप्त नहीं है — यह जानबूझकर है, ताकि कोई भी जिसे नंबर पता हो, आवेदन न देख सके।')}</Note>}
+        {actionError && pending !== 'find' && !notFound && <Note tone="warn" live>{api.isOffline(actionError)
+          ? t('The licence service is not responding, so nothing could be looked up. Nothing you typed has been lost — press Find again when it is back.', 'लाइसेंस सेवा जवाब नहीं दे रही, इसलिए कुछ भी खोजा नहीं जा सका। आपने जो टाइप किया वह सुरक्षित है — सेवा वापस आने पर फिर से खोजें दबाएं।')
+          : actionError.message}</Note>}
         {error && api.isOffline(error) && <Note tone="warn">{t('The licence service is not responding, so live status cannot be shown.', 'लाइसेंस सेवा जवाब नहीं दे रही, इसलिए लाइव स्थिति नहीं दिखाई जा सकती।')}</Note>}
       </div>
 
@@ -164,7 +191,7 @@ export function Status({ go, state, update }: PageProps) {
             <div className="row between g16 wrapf" style={{ alignItems: 'flex-start' }}>
               <dl className="kv grow" style={{ minWidth: 230 }}>
                 <dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{application.application_no}</dd>
-                <dt>{t('Applied on', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(application.created_at)}</dd>
+                <dt>{t('Applied on', 'आवेदन तिथि', 'अर्ज तारीख')}</dt><dd>{formatDay(application.created_at, lang)}</dd>
                 <dt>{t('Applicant', 'आवेदक', 'अर्जदार')}</dt><dd>{applicantName}</dd><dt>{t('Service', 'सेवा', 'सेवा')}</dt><dd>{t("Issue of learner's licence", 'लर्नर लाइसेंस जारी करना', 'लर्नर लायसन्स जारी करणे')}</dd>
                 <dt>{t('Classes', 'श्रेणियां', 'वर्ग')}</dt><dd>{classCodes}</dd><dt>{t('RTO', 'आरटीओ', 'आरटीओ')}</dt><dd>{rtoName}</dd>
                 <dt>{t('Route', 'रास्ता', 'मार्ग')}</dt><dd>{isAadhaar ? t('Aadhaar e-KYC · faceless', 'आधार e-KYC · फेसलेस', 'आधार e-KYC · फेसलेस') : t('Without Aadhaar', 'आधार के बिना', 'आधारशिवाय')}</dd>
@@ -193,6 +220,12 @@ export function Status({ go, state, update }: PageProps) {
                 <>
                   <p className="sub">{t('When you reach the office, check in here. You get a token number and a named inspector, and the wait stops being a guess — you can sit down instead of standing in a line.', 'कार्यालय पहुंचने पर यहीं चेक-इन करें। आपको टोकन नंबर और नामित निरीक्षक मिलता है, और प्रतीक्षा अनुमान नहीं रहती — आप कतार में खड़े होने के बजाय बैठ सकते हैं।')}</p>
                   <div><button className="btn btn-p" disabled={pending === 'checkin'} onClick={() => void checkIn()}>{pending === 'checkin' ? t('Checking in…', 'चेक-इन हो रहा है…') : t('I have reached the office', 'मैं कार्यालय पहुंच गया हूं')} {Icon.right()}</button></div>
+                  {/* Reported here rather than nowhere. This button is pressed
+                      while standing inside the office, which is the worst place
+                      on the whole journey to be told nothing. */}
+                  {actionError && pending !== 'checkin' && <Note tone="warn" live>{api.isOffline(actionError)
+                    ? t('The licence service is not responding, so you could not be checked in. Try again in a moment — your appointment is still held.', 'लाइसेंस सेवा जवाब नहीं दे रही, इसलिए चेक-इन नहीं हो सका। थोड़ी देर बाद फिर कोशिश करें — आपका अपॉइंटमेंट सुरक्षित है।')
+                    : actionError.message}</Note>}
                 </>
               ) : (
                 <>
@@ -208,7 +241,7 @@ export function Status({ go, state, update }: PageProps) {
                     <span className="sub">{queue.people_ahead === 0
                       ? t(`You are next with ${queue.tester}.`, `आप ${queue.tester} के साथ अगले हैं।`)
                       : t(`${queue.people_ahead} ahead of you in ${queue.tester}'s line.`, `${queue.tester} की कतार में आपसे आगे ${queue.people_ahead} लोग।`)}</span>
-                    <b style={{ fontWeight: 600 }}>{formatWait(queue.eta_minutes)}</b>
+                    <b style={{ fontWeight: 600 }}>{formatWait(queue.eta_minutes, lang)}</b>
                   </div>
                   <span className="tiny">{t('Recalculated from your inspector\'s own pace every few seconds, and it is the same number shown on the hall display. The official portal shows you nothing at all here.', 'आपके निरीक्षक की गति से हर कुछ सेकंड में फिर से गणना की जाती है, और यही नंबर हॉल डिस्प्ले पर दिखता है। आधिकारिक पोर्टल यहां कुछ भी नहीं दिखाता।')}</span>
                   {/* Sits here rather than in the top bar because the claim only
@@ -239,7 +272,7 @@ export function Status({ go, state, update }: PageProps) {
                     <span className="rail-n" style={{ flex: 'none' }}>{ev.seq + 1}</span>
                     <span className="col g4 grow" style={{ minWidth: 0 }}>
                       <b style={{ fontWeight: 600, fontSize: '.93rem' }}>{t(...STATUS_COPY[ev.status])}</b>
-                      <span className="tiny">{ev.note} · {formatTime(ev.at)}</span>
+                      <span className="tiny">{ev.note} · {formatTime(ev.at, lang)}</span>
                     </span>
                   </div>
                 ))}
@@ -280,21 +313,16 @@ export function Status({ go, state, update }: PageProps) {
                       {booked
                         ? t('The appointment is held. Passing the test is the last thing between you and the licence.',
                           'अपॉइंटमेंट तय है। लाइसेंस से पहले टेस्ट पास करना ही आखिरी कदम है।')
-                        : t('Nothing is stuck. The next move is yours — book a slot for the test, and this line fills itself in once you have taken it.',
-                          'कुछ अटका नहीं है। अगला कदम आपका है — टेस्ट का स्लॉट बुक कीजिए, और टेस्ट देने पर यह पंक्ति खुद भर जाएगी।')}
+                        : t('Nothing is stuck. The next move is yours — take the test online, and this line fills itself in once you have.',
+                          'कुछ अटका नहीं है। अगला कदम आपका है — ऑनलाइन टेस्ट दीजिए, और देने पर यह पंक्ति खुद भर जाएगी।')}
                     </span>
                     <div className="row g10 wrapf">
-                      {booked
-                        ? (
-                          <button className="btn btn-p btn-sm" onClick={() => go('test')}>
-                            {t('Take the test', 'टेस्ट दें')} {Icon.right()}
-                          </button>
-                        )
-                        : (
-                          <button className="btn btn-p btn-sm" onClick={() => go('slot')}>
-                            {t('Book the test slot', 'टेस्ट स्लॉट बुक करें')} {Icon.right()}
-                          </button>
-                        )}
+                      {/* The test, either way. Booking is no longer a step in
+                          this journey — the learner's test is online — so the
+                          only thing left to offer is the test itself. */}
+                      <button className="btn btn-p btn-sm" onClick={() => go('test')}>
+                        {t('Take the test', 'टेस्ट दें')} {Icon.right()}
+                      </button>
                       <button className="btn btn-s btn-sm" onClick={() => go('learn')}>
                         {t('Practise first', 'पहले अभ्यास करें')}
                       </button>

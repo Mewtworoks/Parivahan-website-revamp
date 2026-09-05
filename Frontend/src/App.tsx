@@ -2,8 +2,7 @@ import { useEffect, useState, type ComponentType, type MouseEvent } from 'react'
 import { Desk } from './pages/Desk';
 import { Future } from './pages/Future';
 import { Learning } from './pages/Learning';
-// DL journey parked — see the note on Route in types.ts.
-// import { DrivingLicence } from './pages/DrivingLicence';
+import { DrivingLicence } from './pages/DrivingLicence';
 import { Eligibility } from './pages/Eligibility';
 import { Proof } from './pages/Proof';
 import { Checklist } from './pages/Checklist';
@@ -13,7 +12,8 @@ import { Issued } from './pages/Issued';
 import { Pay } from './pages/Pay';
 import { Receipt } from './pages/Receipt';
 import { Slip } from './pages/Slip';
-import { Slot } from './pages/Slot';
+// Parked with the `slot` route below.
+// import { Slot } from './pages/Slot';
 import { Status } from './pages/Status';
 import { Test } from './pages/Test';
 import { Tutorial } from './pages/Tutorial';
@@ -30,6 +30,7 @@ import { scrollToTop } from './lib/scrollToTop';
 import type { AppState, PageProps, Route } from './types';
 import { BackToTop } from './ui/BackToTop';
 import { GrievanceSheet } from './ui/GrievanceSheet';
+import { AlreadyApplied, useExistingApplication } from './ui/AlreadyApplied';
 import { Icon } from './ui/Icon';
 import { Mark } from './ui/Mark';
 import { InfoSheet } from './ui/InfoSheet';
@@ -73,14 +74,17 @@ function footerT(t: ReturnType<typeof useT>, label: string): string {
 
 const PAGES: Record<Route, ComponentType<PageProps>> = {
   home: Home, elig: Eligibility, checklist: Checklist, apply: Apply, slip: Slip, pay: Pay,
-  receipt: Receipt, slot: Slot, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
-  test: Test, issued: Issued, status: Status,
+  receipt: Receipt, tutorial: Tutorial, learn: GameIntro, lesson: Learn, game: Game, report: Report,
+  test: Test, issued: Issued, status: Status, dl: DrivingLicence,
   desk: Desk, proof: Proof, learning: Learning, future: Future,
   home2: Home2,
-  // DL journey parked: dl: DrivingLicence,
+  // The learner's test is taken online, so there is no learner's appointment to
+  // book. The screen that booked one now lives at `dl`, where the appointment
+  // actually belongs. Parked rather than deleted:
+  // slot: Slot,
 };
 
-const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'slot', 'tutorial', 'test', 'game'];
+const FULL_SCREEN_FLOW_ROUTES: Route[] = ['apply', 'slip', 'pay', 'receipt', 'dl', 'tutorial', 'test', 'game'];
 
 /**
  * Routes that render without the service's top bar and footer.
@@ -106,10 +110,14 @@ const CHROMELESS_ROUTES: Route[] = ['future'];
  * The stages after it are self-gating: they need an application, and there is
  * no way to have one without passing through here.
  *
+ * The driving-test screen is the second, and for the opposite reason: it does
+ * not ask for anything, it looks the citizen's learner's licence up. Without a
+ * number there is nothing to look up.
+ *
  * Saarthi is the other gated surface, for the same reason and not by route: it
  * fills this form on the citizen's behalf, so it has to know whose.
  */
-const SIGN_IN_REQUIRED: Route[] = ['apply'];
+const SIGN_IN_REQUIRED: Route[] = ['apply', 'dl'];
 
 /**
  * The route named in the address bar, or home.
@@ -126,11 +134,18 @@ function routeFromHash(): Route {
   return raw in PAGES ? (raw as Route) : 'home';
 }
 
-const HELP_FAQ: [question: string, answer: string][] = [
-  ['Can I finish this on a slow connection?', 'Every step is a single small page. Nothing here needs video, and the application saves as soon as you move on, so a dropped connection costs you one step, not the whole form.'],
-  ['Do I need an agent?', 'No. The fee on screen is the whole fee. Nobody at the office needs to be paid anything, and there is no step that requires a middleman.'],
-  ['What if my documents are not in DigiLocker?', 'You can photograph the original instead. The accepted substitutes are listed on the checklist screen before you begin.'],
-  ['Can somebody else fill this for me?', 'Yes. The application is tied to a mobile number, so a family member can complete it on their phone as long as you receive the OTP.'],
+// Translated in place rather than through a lookup table: this is the sheet a
+// Hindi reader opens when they are already stuck, and it was the largest block
+// of English left on a page whose every other word had been translated.
+const HELP_FAQ: [question: string, answer: string, questionHi: string, answerHi: string][] = [
+  ['Can I finish this on a slow connection?', 'Every step is a single small page. Nothing here needs video, and the application saves as soon as you move on, so a dropped connection costs you one step, not the whole form.',
+    'क्या मैं इसे धीमे कनेक्शन पर पूरा कर सकता हूँ?', 'हर चरण एक छोटा पन्ना है। यहाँ किसी वीडियो की ज़रूरत नहीं, और आगे बढ़ते ही आवेदन सहेज लिया जाता है — इसलिए कनेक्शन टूटने पर एक चरण जाता है, पूरा फ़ॉर्म नहीं।'],
+  ['Do I need an agent?', 'No. The fee on screen is the whole fee. Nobody at the office needs to be paid anything, and there is no step that requires a middleman.',
+    'क्या मुझे एजेंट चाहिए?', 'नहीं। स्क्रीन पर दिखी फीस ही पूरी फीस है। कार्यालय में किसी को कुछ नहीं देना है, और कोई भी चरण ऐसा नहीं जिसमें बिचौलिया चाहिए।'],
+  ['What if my documents are not in DigiLocker?', 'You can photograph the original instead. The accepted substitutes are listed on the checklist screen before you begin.',
+    'अगर मेरे दस्तावेज़ DigiLocker में नहीं हैं?', 'आप मूल दस्तावेज़ की फोटो ले सकते हैं। कौन-से विकल्प मान्य हैं, यह शुरू करने से पहले चेकलिस्ट पन्ने पर लिखा है।'],
+  ['Can somebody else fill this for me?', 'Yes. The application is tied to a mobile number, so a family member can complete it on their phone as long as you receive the OTP.',
+    'क्या कोई और मेरे लिए यह भर सकता है?', 'हाँ। आवेदन एक मोबाइल नंबर से जुड़ा होता है, इसलिए परिवार का कोई सदस्य अपने फ़ोन पर इसे पूरा कर सकता है, बशर्ते OTP आपको मिले।'],
 ];
 
 /** The wordmark, two-tone: the generic half in ink, "Sewa" in brand green — and
@@ -151,6 +166,9 @@ export default function App() {
   const [infoPanelId, setInfoPanelId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
+  // Set only by the gate's own escape hatch, and cleared on every route change
+  // so it cannot outlive the visit it was pressed in.
+  const [startingAnother, setStartingAnother] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Saarthi closed itself to show the sign-in sheet, and wants to come back.
   const [resumeVoice, setResumeVoice] = useState(false);
@@ -186,8 +204,25 @@ export default function App() {
   // the form's own "Saved a moment ago" pill claims this granularity.
   useEffect(() => { saveJourney(state); }, [state]);
 
+  // Leaving the wizard forgets that somebody chose to start a second
+  // application. Kept for the visit and no longer, so a decision made once does
+  // not quietly disable the gate for the rest of the session.
+  useEffect(() => {
+    if (route !== 'apply') setStartingAnother(false);
+  }, [route]);
+
   const ActivePage = PAGES[route] || Home;
   const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
+
+  // One application per citizen, enforced where the wizard is reached rather
+  // than inside it. The idempotency key is minted when Apply mounts and the
+  // service deduplicates on that key alone, so a second mount is a second
+  // application — keeping the component unmounted is what actually fixes it.
+  //
+  // Looked up only for the wizard, and only until somebody says they mean to
+  // start another one.
+  const existing = useExistingApplication(phone, route === 'apply' && !startingAnother);
+  const alreadyApplied = route === 'apply' && !startingAnother && Boolean(existing);
   const inFullScreenFlow = FULL_SCREEN_FLOW_ROUTES.includes(route);
   const chromeless = CHROMELESS_ROUTES.includes(route);
 
@@ -245,9 +280,14 @@ export default function App() {
               Signed out it offers the number; signed in it becomes the profile,
               which is where signing out lives. */}
           <button className="btn btn-s btn-sm hide-m" onClick={() => setIdentityOpen(true)}
-            aria-label={phone ? `Profile — signed in as ${prettyPhone(phone)}` : undefined}>
+            aria-label={phone ? t(`Profile — signed in as ${prettyPhone(phone)}`, `प्रोफ़ाइल — ${prettyPhone(phone)} से साइन इन`) : undefined}>
+            {/* The number used to be the label. It is the least useful thing
+                this button could say — the citizen knows their own number, and
+                it is still one press away inside, set at 1.5rem above the state
+                and the sign-out. What the button needed to say was where it
+                goes, which is what the aria-label has been saying all along. */}
             {phone
-              ? <span className="row g6">{Icon.phone()}<span className="mono">{prettyPhone(phone)}</span></span>
+              ? <span className="row g6">{Icon.user()}{t('Profile', 'प्रोफ़ाइल')}</span>
               : t('Sign in', 'साइन इन')}
           </button>
           {/* Saarthi is the only call to action up here. Help sat beside it
@@ -290,7 +330,27 @@ export default function App() {
               </div>
             </div>
           )
-          : <ActivePage go={go} state={state} update={update} />}
+          : alreadyApplied && existing
+            ? (
+              <AlreadyApplied
+                application={existing}
+                state={state}
+                go={go}
+                onStartAnother={() => {
+                  // `update` is a shallow merge and cannot delete a key, but an
+                  // explicit undefined does overwrite — and JSON.stringify drops
+                  // it on the way to localStorage, so the journey really is
+                  // cleared rather than left holding a stale id.
+                  update({
+                    applicationId: undefined, app: undefined, stage: undefined,
+                    slot: undefined, tokenId: undefined, attemptId: undefined,
+                    formStep: 0,
+                  });
+                  setStartingAnother(true);
+                }}
+              />
+            )
+            : <ActivePage go={go} state={state} update={update} />}
       </main>
       {/* The footer closes the page with mass: near-black under a paper body, so
           the page gets lighter towards the top where the reader starts. It was
@@ -421,7 +481,7 @@ export default function App() {
             <button className="btn btn-p btn-full"
               onClick={() => { setMenuOpen(false); setIdentityOpen(true); }}>
               {phone
-                ? <span className="row g6">{Icon.phone()}<span className="mono">{prettyPhone(phone)}</span></span>
+                ? <span className="row g6">{Icon.user()}{t('Profile', 'प्रोफ़ाइल')}</span>
                 : t('Sign in', 'साइन इन')}
             </button>
           </div>
@@ -436,13 +496,13 @@ export default function App() {
                 helpline was illustrative — a claim and its retraction, eight
                 lines apart, with the FAQ sandwiched between them. Said once, in
                 one weight, the caveat lands where the number does. */}
-            <Note tone="brand" icon={Icon.phone()}>Call 1800 000 000 — free, 8 am to 8 pm, in Marathi, Hindi or English. The number and the answers below are illustrative: this is a prototype, not a running helpline.</Note>
+            <Note tone="brand" icon={Icon.phone()}>{t('Call 1800 000 000 — free, 8 am to 8 pm, in Marathi, Hindi or English. The number and the answers below are illustrative: this is a prototype, not a running helpline.', '1800 000 000 पर कॉल करें — नि:शुल्क, सुबह 8 से रात 8 बजे तक, मराठी, हिंदी या अंग्रेज़ी में। यह नंबर और नीचे दिए जवाब उदाहरण के लिए हैं: यह एक प्रोटोटाइप है, कोई चालू हेल्पलाइन नहीं।')}</Note>
             <div className="col g12">
               <h3>{t('Common questions', 'सामान्य प्रश्न', 'सामान्य प्रश्न')}</h3>
-              {HELP_FAQ.map(([question, answer]) => (
+              {HELP_FAQ.map(([question, answer, questionHi, answerHi]) => (
                 <details key={question} className="flat" style={{ padding: '14px 16px' }}>
-                  <summary style={{ fontWeight: 600, cursor: 'pointer', fontSize: '.93rem' }}>{question}</summary>
-                  <p className="sub" style={{ marginTop: 10, lineHeight: 1.6 }}>{answer}</p>
+                  <summary style={{ fontWeight: 600, cursor: 'pointer', fontSize: '.93rem' }}>{t(question, questionHi)}</summary>
+                  <p className="sub" style={{ marginTop: 10, lineHeight: 1.6 }}>{t(answer, answerHi)}</p>
                 </details>
               ))}
             </div>

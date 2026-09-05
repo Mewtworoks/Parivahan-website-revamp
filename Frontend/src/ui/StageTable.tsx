@@ -1,10 +1,8 @@
-import { stageState } from '../data/applicationFlow';
+import { NEXT_STAGE_ROUTE, nextStage, stageState } from '../data/applicationFlow';
 import { useT } from '../lib/language';
 import type { AppState, Route, StageRow } from '../types';
 import { Icon } from './Icon';
 import { Pill } from './SharedUI';
-
-const NEXT_STAGE_ROUTE: Record<string, Route> = { fee: 'pay', verify: 'pay', slot: 'slot', test: 'tutorial' };
 
 const STATUS_LABEL: Record<StageRow['status'], [hi: string, mr: string]> = {
   Completed: ['पूर्ण', 'पूर्ण'],
@@ -17,7 +15,7 @@ export function StageTable({ state, go }: { state: AppState; go: (route: Route) 
   const t = useT();
   const rows = stageState(state);
   const isAadhaar = state.form?.route === 'aadhaar';
-  const next = rows.find(r => r.status === 'To be done by you');
+  const next = nextStage(state);
   const target = (next && NEXT_STAGE_ROUTE[next.k]) || 'status';
   return (
     <div className="card col" style={{ overflow: 'hidden' }}>
@@ -26,7 +24,7 @@ export function StageTable({ state, go }: { state: AppState; go: (route: Route) 
           <h3>{t('Stages to be completed', 'पूर्ण होने वाले चरण', 'पूर्ण करायचे टप्पे')}</h3>
           <Pill tone={isAadhaar ? 'ok' : 'warn'}>{isAadhaar ? t('Faceless — no RTO visit', 'फेसलेस — कोई आरटीओ यात्रा नहीं', 'फेसलेस — आरटीओ भेट नाही') : t('In-person verification', 'व्यक्तिगत सत्यापन', 'प्रत्यक्ष पडताळणी')}</Pill>
         </div>
-        <span className="sub">{t('Eight stages. The official portal shows this table and leaves you to work out which one is yours to do.', 'आठ चरण। आधिकारिक पोर्टल यह तालिका दिखाता है और आपको खुद समझना पड़ता है कि कौन सा चरण आपका है।', 'आठ टप्पे. अधिकृत पोर्टल हे सारणी दाखवते आणि कोणता टप्पा तुमचा आहे हे तुम्हालाच शोधावे लागते.')}</span>
+        <span className="sub">{t('Seven stages. The official portal shows this table and leaves you to work out which one is yours to do.', 'सात चरण। आधिकारिक पोर्टल यह तालिका दिखाता है और आपको खुद समझना पड़ता है कि कौन सा चरण आपका है।', 'सात टप्पे. अधिकृत पोर्टल हे सारणी दाखवते आणि कोणता टप्पा तुमचा आहे हे तुम्हालाच शोधावे लागते.')}</span>
       </div>
       <hr className="hr" />
       <div className="col">

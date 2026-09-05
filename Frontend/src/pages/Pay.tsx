@@ -26,6 +26,12 @@ export function Pay({ go, state, update }: PageProps) {
   const total = feeTotal(classIds, stateName);
   const office = rtosFor(stateName).find(r => r.id === form.rto) || rtosFor(stateName)[0];
 
+  // The number the service actually issued, not a literal. Both places on this
+  // screen used to print SS-2026-004182 — one route after the slip had shown the
+  // citizen their real number, so the number visibly changed to a fixed one on
+  // the screen immediately after the one that proves it is real.
+  const applicationNo = state.app?.no || '—';
+
   const [phase, setPhase] = useState<PaymentPhase>('pick');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(15 * 60);
@@ -49,12 +55,12 @@ export function Pay({ go, state, update }: PageProps) {
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g10" style={{ marginBottom: 26 }}>
-        <span className="eyebrow">{t('Application SS-2026-004182 · stages 5 and 6', 'आवेदन SS-2026-004182 · चरण 5 और 6', 'अर्ज SS-2026-004182 · टप्पे 5 आणि 6')}</span><h1>{t('Pay the fee', 'फीस भरें', 'फी भरा')}</h1>
+        <span className="eyebrow">{t(`Application ${applicationNo} · stages 5 and 6`, `आवेदन ${applicationNo} · चरण 5 और 6`, `अर्ज ${applicationNo} · टप्पे 5 आणि 6`)}</span><h1>{t('Pay the fee', 'फीस भरें', 'फी भरा')}</h1>
         <p className="lede">{t('Every line is a statutory charge with a rule behind it. The official portal calculates, collects, verifies and prints a receipt as four separate menu items — here it is one uninterrupted step.', 'हर लाइन एक वैधानिक शुल्क है जिसके पीछे एक नियम है। आधिकारिक पोर्टल गणना, संग्रह, सत्यापन और रसीद प्रिंट को चार अलग मेनू आइटम के रूप में करता है — यहां यह एक निरंतर चरण है।', 'प्रत्येक ओळ ही एक वैधानिक शुल्क आहे ज्यामागे एक नियम आहे. अधिकृत पोर्टल गणना, संकलन, पडताळणी आणि पावती छपाई चार वेगळ्या मेनू आयटम म्हणून करते — इथे हा एक सतत टप्पा आहे.')}</p>
       </div>
       <div className="card card-p col g14">
         <div className="row between g12 wrapf">
-          <dl className="kv"><dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">SS-2026-004182</dd><dt>{t('Applicant', 'आवेदक', 'अर्जदार')}</dt><dd>{[form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' ')}</dd>
+          <dl className="kv"><dt>{t('Application', 'आवेदन', 'अर्ज')}</dt><dd className="mono">{applicationNo}</dd><dt>{t('Applicant', 'आवेदक', 'अर्जदार')}</dt><dd>{[form.first ?? PRE_BASE.first, form.last ?? PRE_BASE.last].join(' ')}</dd>
             <dt>{t('RTO', 'आरटीओ', 'आरटीओ')}</dt><dd>{office.name}</dd></dl>
           <span className="pill" style={{ alignSelf: 'flex-start' }}>{Icon.clock()} {t(`Session ${minutes}:${seconds}`, `सेशन ${minutes}:${seconds}`, `सेशन ${minutes}:${seconds}`)}</span>
         </div>

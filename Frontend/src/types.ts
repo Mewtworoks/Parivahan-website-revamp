@@ -5,13 +5,16 @@
 
 export type Route =
   | 'home' | 'elig' | 'checklist' | 'status'
-  | 'apply' | 'slip' | 'pay' | 'receipt' | 'slot' | 'tutorial'
+  | 'apply' | 'slip' | 'pay' | 'receipt' | 'tutorial'
   | 'learn' | 'lesson' | 'game' | 'report' | 'test' | 'issued'
-  // 'dl' is parked. The driving-licence wizard is complete as an interface but
-  // has no service behind it — every other journey on this site is wired to the
-  // real engine, so leaving it reachable invites someone to find the one screen
-  // that only pretends. pages/DrivingLicence.tsx and pages/dl/ are untouched;
-  // search "DL journey parked" to put it back.
+  // 'dl' is the driving test, and it is where the appointment lives now. The
+  // learner's test is taken online, so the learner's journey ends at the test
+  // itself and there is nothing for it to book. 'slot' was that booking screen;
+  // its route is parked rather than removed, and pages/Slot.tsx is left in the
+  // tree — the live booking it held was moved into pages/DrivingLicence.tsx,
+  // which books against the same learner's application so check-in, the token
+  // and the queue keep working.
+  | 'dl'
   // Staff-side and behind-the-scenes views. The desk is what makes the
   // citizen's live queue actually move; the proofs run the guarantees;
   // 'learning' is the only screen here about everybody at once rather than
@@ -41,6 +44,15 @@ export interface ConsentAnswers {
 
 /** The in-progress Form 2 application. Filled gradually across steps S0-S8. */
 export interface ApplicationForm {
+  /**
+   * Filled by Saarthi rather than typed.
+   *
+   * Saarthi asks four questions; this form has about forty fields. The rest is
+   * the prototype's sample data, and the review screen has to say so — heard
+   * once in a spoken sentence, that disclosure does not survive the walk to a
+   * screen showing a filled-in address that is not the citizen's.
+   */
+  bySaarthi?: boolean;
   // S0 — state & RTO
   state?: string;
   rto?: string;
@@ -110,6 +122,11 @@ export interface ApplicationForm {
   // S7 — documents / photo / signature
   photo?: 'ok' | 'warn';
   sign?: 'ok' | 'warn';
+  /** Age proof added. Separate from the address proof — one button used to tick both. */
+  docAge?: boolean;
+  /** Address proof added. */
+  docAddress?: boolean;
+  /** Both proofs are in. Derived from the two above; still what the step gate reads. */
   docsOk?: boolean;
   // S8 — review & submit
   esign?: boolean;
@@ -392,6 +409,10 @@ export interface TheoryQuestion {
 
 export interface CaptchaQuestion {
   q: string;
+  /** The same question in Hindi. The check is the last gate before Submit, so it cannot be English-only. */
+  qHi: string;
+  qMr: string;
+  /** Accepted answers, lower-cased. Includes the Hindi and Devanagari-digit forms. */
   a: string[];
 }
 
