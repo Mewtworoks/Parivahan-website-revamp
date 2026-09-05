@@ -6,9 +6,9 @@ import { Icon } from '../ui/Icon';
 /** Each section: [heading-en, heading-hi, heading-mr, points], each point itself [en, hi, mr]. */
 const SECTIONS: [string, string, string, [string, string, string][]][] = [
   ['Signals & priority', 'संकेत और प्राथमिकता', 'सिग्नल आणि प्राधान्य', [
-    ['Red means stop completely. Amber means stop unless stopping suddenly would itself be unsafe. Green means go only if the way ahead is actually clear.',
-      'लाल का मतलब पूरी तरह रुकना है। एम्बर का मतलब है रुकना, जब तक अचानक रुकना खुद असुरक्षित न हो। हरे का मतलब है चलना, केवल तब जब आगे का रास्ता वास्तव में साफ हो।',
-      'लाल म्हणजे पूर्णपणे थांबणे. एम्बर म्हणजे थांबणे, जोपर्यंत अचानक थांबणे स्वतःच असुरक्षित नाही. हरवा म्हणजे जाणे, फक्त जेव्हा पुढचा रस्ता खरोखर रिकामा असेल.'],
+    ['Red means stop completely. Yellow means stop unless stopping suddenly would itself be unsafe. Green means go only if the way ahead is actually clear.',
+      'लाल का मतलब पूरी तरह रुकना है। पीली बत्ती का मतलब है रुकना, जब तक अचानक रुकना खुद असुरक्षित न हो। हरे का मतलब है चलना, केवल तब जब आगे का रास्ता वास्तव में साफ हो।',
+      'लाल म्हणजे पूर्णपणे थांबणे. पिवळा दिवा म्हणजे थांबणे, जोपर्यंत अचानक थांबणे स्वतःच असुरक्षित नाही. हरवा म्हणजे जाणे, फक्त जेव्हा पुढचा रस्ता खरोखर रिकामा असेल.'],
     ['At a junction with no signal and no sign, traffic coming from your right always goes first.',
       'बिना सिग्नल और बिना संकेत वाले चौराहे पर, आपके दाईं ओर से आने वाला ट्रैफिक हमेशा पहले जाता है।',
       'सिग्नल आणि चिन्ह नसलेल्या चौकात, तुमच्या उजवीकडून येणारी वाहतूक नेहमी आधी जाते.'],

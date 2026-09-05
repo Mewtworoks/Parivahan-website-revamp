@@ -51,7 +51,7 @@ function mistakesFrom(log: GameLogEntry[]): Mistake[] {
 function weakestAxisAdvice(axisKey: string, label: string, scorePercent: number): string {
   const advice =
     axisKey === 'hazard' ? 'You handled the hazards you could see and missed the ones you could not. Slow down near stationary vehicles and bus stops before the danger appears.'
-    : axisKey === 'signal' ? 'Amber is the one that catches people. Treat it as stop unless stopping is unsafe.'
+    : axisKey === 'signal' ? 'Yellow is the one that catches people. Treat it as stop unless stopping is unsafe.'
     : axisKey === 'priority' ? 'Revise right of way at unmarked junctions and zebra crossings — traffic from the right, and pedestrians already crossing, go first.'
     : axisKey === 'sign' ? 'Learn the shapes before the pictures: triangle warns, circle orders, rectangle informs.'
     : `Your decision times swing widely. The test rewards a steady pace inside the ${DECISION_LIMIT_MS / 1000}-second window, not two fast then one frozen.`;

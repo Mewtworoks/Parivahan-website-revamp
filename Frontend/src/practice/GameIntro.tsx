@@ -6,7 +6,7 @@ import { RoadScene } from './RoadScene';
 import { DECISION_LIMIT_MS, ROAD_SPECS, scenariosFor, spelledOut, vehicleFocusFrom } from './scenarios';
 
 const TOPICS: [heading: string, body: string, headingHi: string, bodyHi: string][] = [
-  ['Signals & priority', 'Amber decisions, unmarked junctions, who goes first.',
+  ['Signals & priority', 'Yellow-light decisions, unmarked junctions, who goes first.',
     'संकेत और प्राथमिकता', 'पीली बत्ती के फैसले, बिना निशान वाले चौराहे, पहले कौन जाए।'],
   // "The child behind the van" named the parked-van scenario, which was removed
   // for duplicating the stopped-bus one. Copy that lists examples has to be

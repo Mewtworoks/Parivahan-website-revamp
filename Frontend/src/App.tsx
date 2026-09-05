@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type MouseEvent } from 'react';
+import { useEffect, useState, type ComponentType, type MouseEvent } from 'react';
 import { Desk } from './pages/Desk';
 import { Future } from './pages/Future';
 import { Learning } from './pages/Learning';
@@ -25,7 +25,7 @@ import { Report } from './practice/Report';
 import { FOOTER_COLUMNS, type FooterTarget } from './data/siteContent';
 import { prettyPhone, useIdentity } from './lib/identity';
 import { loadJourney, saveJourney } from './lib/journeyStore';
-import { LANGUAGES, useLanguage, useT, type Lang } from './lib/language';
+import { useLanguage, useT, type Lang } from './lib/language';
 import { scrollToTop } from './lib/scrollToTop';
 import type { AppState, PageProps, Route } from './types';
 import { BackToTop } from './ui/BackToTop';
@@ -126,14 +126,19 @@ function routeFromHash(): Route {
   return raw in PAGES ? (raw as Route) : 'home';
 }
 
-type Theme = 'light' | 'dark';
-
 const HELP_FAQ: [question: string, answer: string][] = [
   ['Can I finish this on a slow connection?', 'Every step is a single small page. Nothing here needs video, and the application saves as soon as you move on, so a dropped connection costs you one step, not the whole form.'],
   ['Do I need an agent?', 'No. The fee on screen is the whole fee. Nobody at the office needs to be paid anything, and there is no step that requires a middleman.'],
   ['What if my documents are not in DigiLocker?', 'You can photograph the original instead. The accepted substitutes are listed on the checklist screen before you begin.'],
   ['Can somebody else fill this for me?', 'Yes. The application is tied to a mobile number, so a family member can complete it on their phone as long as you receive the OTP.'],
 ];
+
+/** The wordmark, two-tone: the generic half in ink, "Sewa" in brand green — and
+    run together with no space, the way a logotype reads rather than a phrase. */
+function Wordmark({ lang }: { lang: Lang }) {
+  const [a, b] = lang === 'en' ? ['Parivahan', 'Sewa'] : ['परिवहन', 'सेवा'];
+  return <span className="mark-t"><span className="mark-t-a">{a}</span><span className="mark-t-b">{b}</span></span>;
+}
 
 /** The whole site: top bar, the active page, footer, and the help/info overlay sheets. */
 export default function App() {
@@ -150,28 +155,8 @@ export default function App() {
   // Saarthi closed itself to show the sign-in sheet, and wants to come back.
   const [resumeVoice, setResumeVoice] = useState(false);
   const phone = useIdentity();
-  const [textSize, setTextSize] = useState(16);
-  // The inline script in index.html already set this attribute before first paint, so read it back
-  // rather than recomputing — that keeps the toggle in sync with whatever it decided.
-  const [theme, setTheme] = useState<Theme>(() => (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'));
   const { lang, setLang } = useLanguage();
   const t = useT();
-  // Text size, language and theme used to be three separate top-bar controls — on a phone that
-  // was what wrapped the wordmark and pushed things off the end. One "Display" button opening a
-  // popover holds all three without needing the bar itself to grow.
-  const [dispOpen, setDispOpen] = useState(false);
-  const dispRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!dispOpen) return;
-    const onDocClick = (e: globalThis.MouseEvent) => { if (dispRef.current && !dispRef.current.contains(e.target as Node)) setDispOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDispOpen(false); };
-    document.addEventListener('click', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('click', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [dispOpen]);
 
   const update = (patch: Partial<AppState>) => setState(s => ({ ...s, ...patch }));
 
@@ -201,17 +186,6 @@ export default function App() {
   // the form's own "Saved a moment ago" pill claims this granularity.
   useEffect(() => { saveJourney(state); }, [state]);
 
-  useEffect(() => { document.documentElement.style.setProperty('--rs', textSize + 'px'); }, [textSize]);
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem('theme', theme); } catch { /* private browsing, etc. — theme just won't persist */ }
-    // index.html carries a single light theme-color, because the page no longer
-    // follows the OS. Somebody who switches to dark here would otherwise keep a
-    // cream address bar above a near-black page.
-    document.querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'dark' ? '#051914' : '#F5EEDF');
-  }, [theme]);
-
   const ActivePage = PAGES[route] || Home;
   const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
   const inFullScreenFlow = FULL_SCREEN_FLOW_ROUTES.includes(route);
@@ -231,11 +205,14 @@ export default function App() {
         <div className="wrap tb-in">
           <button className="mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
             <Mark size={34} />
-            {/* Wordmark alone. The strapline and the Prototype badge both said
-                here what the hero kicker, the home-page notice and the footer
-                disclaimer already say — and on a phone the strapline wrapped to
-                three lines and clipped the name it sat under. */}
-            <span className="mark-t">{t('Parivahan Sewa', 'परिवहन सेवा', 'परिवहन सेवा')}</span>
+            {/* The strapline that used to sit here was pulled because it wrapped
+                to three lines on a phone and clipped the wordmark it sat under.
+                This one stays a single short line and hides below that width
+                instead of wrapping into it. */}
+            <span className="col" style={{ gap: 2, textAlign: 'left' }}>
+              <Wordmark lang={lang} />
+              <span className="mark-tag hide-m">{t('A Build What Moves India Project', 'भारत को गतिमान रखने वाला एक निर्माण')}</span>
+            </span>
           </button>
           <div className="grow" />
           {!inFullScreenFlow && (
@@ -256,37 +233,13 @@ export default function App() {
               <button className="tb-btn hide-m" onClick={() => go('status')}>{t('Track', 'ट्रैक करें', 'ट्रॅक करा')}</button>
             </>
           )}
-          <div className="disp hide-m" ref={dispRef}>
-            <button className="disp-b" aria-expanded={dispOpen} aria-controls="disppop" onClick={() => setDispOpen(v => !v)}>
-              {Icon.sliders()}
-              <span className="dlabel">{t('Display', 'डिस्प्ले')}</span>
-              <span className="chev">{Icon.down()}</span>
-            </button>
-            {dispOpen && (
-              <div className="pop" id="disppop" role="group" aria-label="Display settings">
-                <div className="pop-g">
-                  <span className="pop-l" id="szl">{t('Text size', 'टेक्स्ट आकार')}</span>
-                  <div className="seg" role="group" aria-labelledby="szl">
-                    <button onClick={() => setTextSize(Math.max(14, textSize - 1))} aria-label="Smaller text">A−</button>
-                    <button onClick={() => setTextSize(16)} aria-pressed={textSize === 16} aria-label="Normal text">A</button>
-                    <button onClick={() => setTextSize(Math.min(21, textSize + 1))} aria-label="Larger text">A+</button>
-                  </div>
-                </div>
-                <div className="pop-g">
-                  <label className="pop-l" htmlFor="langsel">{t('Language', 'भाषा')}</label>
-                  <select className="lang-select" id="langsel" style={{ width: '100%' }} aria-label="Language" value={lang} onChange={e => setLang(e.target.value as Lang)}>
-                    {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeLabel}</option>)}
-                  </select>
-                </div>
-                <div className="pop-g">
-                  <span className="pop-l" id="thml">{t('Theme', 'थीम')}</span>
-                  <div className="seg" role="group" aria-labelledby="thml">
-                    <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>{Icon.moon({ width: 14, height: 14 })} {t('Dark', 'डार्क')}</button>
-                    <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>{Icon.sun({ width: 14, height: 14 })} {t('Light', 'लाइट')}</button>
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* Replaces the old Display popover — text size and theme are gone
+              with it, not just collapsed into this. A straight two-way toggle
+              for the two languages Saarthi's voice actually speaks, rather
+              than a control that opened to offer a third. */}
+          <div className="seg hide-m" role="group" aria-label={t('Language', 'भाषा')}>
+            <button aria-pressed={lang === 'en'} onClick={() => setLang('en')}>EN</button>
+            <button aria-pressed={lang === 'hi'} onClick={() => setLang('hi')}>HI</button>
           </div>
           {/* Identity, not a gate — nothing on the site is blocked either way.
               Signed out it offers the number; signed in it becomes the profile,
@@ -356,7 +309,7 @@ export default function App() {
             <div className="col g12 foot-id">
               <button className="mark foot-mark" onClick={() => go('home')} aria-label={t('Parivahan Sewa home', 'परिवहन सेवा होम', 'परिवहन सेवा होम')}>
                 <Mark size={30} />
-                <span className="mark-t">{t('Parivahan Sewa', 'परिवहन सेवा', 'परिवहन सेवा')}</span>
+                <Wordmark lang={lang} />
               </button>
               <p className="foot-line">
                 {t('A redesign concept for the learner’s-licence journey. The queue, the fees and the guarantees are real code — the people in them are not.',
@@ -380,11 +333,11 @@ export default function App() {
           <hr className="hr" />
           <div className="row between g16 wrapf">
             <span className="tiny" style={{ maxWidth: 600 }}>
-              {t('An independent redesign concept for the Parivahan Sewa licence journey, built for a public-service design challenge. Not affiliated with, endorsed by, or connected to the Ministry of Road Transport & Highways or any government body. The name is used only to identify the service being redesigned. No official emblem or logo is used. All data shown is synthetic.',
+              {t('An independent redesign concept for the Parivahan Sewa licence journey, built for WHat Moves India challenge. Not affiliated with, endorsed by, or connected to the Ministry of Road Transport & Highways or any government body. The name is used only to identify the service being redesigned. No official emblem or logo is used. All data shown is synthetic.',
                 'परिवहन सेवा लाइसेंस यात्रा के लिए एक स्वतंत्र पुनर्डिज़ाइन अवधारणा, जो एक सार्वजनिक-सेवा डिज़ाइन चैलेंज के लिए बनाई गई है। यह सड़क परिवहन एवं राजमार्ग मंत्रालय या किसी भी सरकारी संस्था से संबद्ध, अनुमोदित या जुड़ी नहीं है। नाम का उपयोग केवल उस सेवा की पहचान के लिए किया गया है जिसे फिर से डिज़ाइन किया जा रहा है। कोई आधिकारिक प्रतीक या लोगो उपयोग नहीं किया गया है। दिखाया गया सभी डेटा बनावटी है।',
                 'परिवहन सेवा लायसन्स प्रवासासाठी एक स्वतंत्र पुनर्रचना संकल्पना, जी सार्वजनिक-सेवा डिझाइन चॅलेंजसाठी तयार केली आहे. हे रस्ते वाहतूक आणि महामार्ग मंत्रालय किंवा कोणत्याही सरकारी संस्थेशी संलग्न, मान्यताप्राप्त किंवा जोडलेले नाही. नावाचा वापर फक्त पुनर्रचना केल्या जाणाऱ्या सेवेची ओळख करण्यासाठी केला आहे. कोणतेही अधिकृत बोधचिन्ह किंवा लोगो वापरलेला नाही. दाखवलेला सर्व डेटा बनावट आहे.')}
             </span>
-            <span className="tiny">{t('Designed for the public-service rebuild challenge · Aug 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चैलेंज के लिए डिज़ाइन किया गया · अगस्त 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चॅलेंजसाठी डिझाइन केले · ऑगस्ट 2026')}</span>
+            <span className="tiny">{t('Designed for the Build What Moves India challenge · Aug 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चैलेंज के लिए डिज़ाइन किया गया · अगस्त 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चॅलेंजसाठी डिझाइन केले · ऑगस्ट 2026')}</span>
           </div>
         </div>
       </footer>
@@ -436,27 +389,10 @@ export default function App() {
         <Sheet title={t('Menu', 'मेन्यू')} onClose={() => setMenuOpen(false)}>
           <div className="col g20">
             <div className="col g10">
-              <label className="label" htmlFor="mlang">{t('Language', 'भाषा')}</label>
-              <select className="input" id="mlang" value={lang}
-                onChange={e => setLang(e.target.value as Lang)}>
-                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeLabel}</option>)}
-              </select>
-            </div>
-
-            <div className="col g10">
-              <span className="label" id="mth">{t('Theme', 'थीम')}</span>
-              <div className="seg" role="group" aria-labelledby="mth">
-                <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>{Icon.moon({ width: 14, height: 14 })} {t('Dark', 'डार्क')}</button>
-                <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>{Icon.sun({ width: 14, height: 14 })} {t('Light', 'लाइट')}</button>
-              </div>
-            </div>
-
-            <div className="col g10">
-              <span className="label" id="msz">{t('Text size', 'टेक्स्ट आकार')}</span>
-              <div className="seg" role="group" aria-labelledby="msz">
-                <button onClick={() => setTextSize(Math.max(14, textSize - 1))} aria-label={t('Smaller text', 'छोटा टेक्स्ट')}>A−</button>
-                <button onClick={() => setTextSize(16)} aria-pressed={textSize === 16} aria-label={t('Normal text', 'सामान्य टेक्स्ट')}>A</button>
-                <button onClick={() => setTextSize(Math.min(21, textSize + 1))} aria-label={t('Larger text', 'बड़ा टेक्स्ट')}>A+</button>
+              <span className="label" id="mlang">{t('Language', 'भाषा')}</span>
+              <div className="seg" role="group" aria-labelledby="mlang">
+                <button aria-pressed={lang === 'en'} onClick={() => setLang('en')}>EN</button>
+                <button aria-pressed={lang === 'hi'} onClick={() => setLang('hi')}>HI</button>
               </div>
             </div>
 

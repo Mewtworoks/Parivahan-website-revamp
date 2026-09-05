@@ -92,6 +92,7 @@ export function Game({ go, state, update }: PageProps) {
 
   return (
     <div className="fade" style={{ padding: '28px 24px 0', maxWidth: 980, margin: '0 auto' }}>
+      <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} Home</button>
       <div className="gamecard col">
         <div className="hud">
           <div className="row g10 center">

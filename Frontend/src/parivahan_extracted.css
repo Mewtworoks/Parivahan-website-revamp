@@ -276,10 +276,22 @@ button {
 }
 
 .mark-t {
-   font-family: var(--disp);
-   font-weight: 600;
+   font-family: var(--sans);
+   font-weight: 700;
    font-size: 1.06rem;
    letter-spacing: -0.02em;
+   line-height: 1.1
+}
+
+.mark-t-b {
+   color: var(--brand)
+}
+
+.mark-tag {
+   font-size: .68rem;
+   font-weight: 500;
+   color: var(--muted);
+   white-space: nowrap;
    line-height: 1.1
 }
 
@@ -574,7 +586,7 @@ button {
 }
 
 .mono {
-   font-family: "IBM Plex Mono", ui-monospace, monospace
+   font-family: var(--mono), ui-monospace, monospace
 }
 
 .hr {
@@ -1094,7 +1106,7 @@ button {
 }
 
 .lic-no b {
-   font-family: "IBM Plex Mono", ui-monospace, monospace;
+   font-family: var(--mono), ui-monospace, monospace;
    font-weight: 600;
    letter-spacing: .02em
 }
@@ -1444,6 +1456,879 @@ button {
    transform: rotate(-2.2deg)
 }
 
+/* --- Saarthi voice panel ---------------------------------------------------- */
+.voice-log {
+   scrollbar-width: thin;
+   scrollbar-color: var(--line2) transparent
+}
+
+.voice-log::-webkit-scrollbar {
+   width: 6px
+}
+
+.voice-log::-webkit-scrollbar-thumb {
+   background: var(--line2);
+   border-radius: 999px
+}
+
+.voice-log::-webkit-scrollbar-track {
+   background: transparent
+}
+
+.voice-turn {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+   max-width: 88%
+}
+
+.voice-turn[data-who="citizen"] {
+   align-self: flex-end;
+   align-items: flex-end
+}
+
+.voice-turn[data-who="saarthi"] {
+   align-self: flex-start;
+   align-items: flex-start
+}
+
+.voice-who {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   font-family: var(--mono);
+   font-size: .66rem;
+   font-weight: 700;
+   letter-spacing: .06em;
+   text-transform: uppercase;
+   padding: 0 3px
+}
+
+.voice-turn[data-who="citizen"] .voice-who {
+   color: var(--ink2)
+}
+
+.voice-turn[data-who="saarthi"] .voice-who {
+   color: var(--brand)
+}
+
+.voice-bubble {
+   padding: 11px 14px;
+   border-radius: 14px;
+   font-size: .92rem;
+   line-height: 1.5;
+   white-space: pre-wrap
+}
+
+.voice-turn[data-who="citizen"] .voice-bubble {
+   background: var(--brand-soft);
+   border: 1px solid var(--brand-line);
+   border-bottom-right-radius: 4px
+}
+
+.voice-turn[data-who="saarthi"] .voice-bubble {
+   background: var(--surface);
+   border: 1px solid var(--line);
+   border-bottom-left-radius: 4px
+}
+
+.voice-livedot {
+   width: 7px;
+   height: 7px;
+   border-radius: 999px;
+   background: var(--brand);
+   animation: voicePulseDot 1.4s ease-in-out infinite
+}
+
+/* Real day/time options off find_slot_days and find_slots, not sample
+   content — a day or a slot with nothing left is disabled rather than
+   omitted, so the list still shows what the tool actually returned. */
+.voice-pills {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 8px
+}
+
+.voice-pill {
+   padding: 7px 13px;
+   border-radius: 999px;
+   border: 1px solid var(--brand-line);
+   background: var(--surface);
+   color: var(--brand);
+   font-size: .82rem;
+   font-weight: 600;
+   transition: background .15s ease, transform .15s ease
+}
+
+.voice-pill:hover:not(:disabled) {
+   background: var(--brand-soft);
+   transform: translateY(-1px)
+}
+
+.voice-pill:disabled {
+   opacity: .4;
+   cursor: not-allowed
+}
+
+.voice-slotgrid {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+   gap: 8px;
+   width: 100%
+}
+
+.voice-slotcard {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 9px 12px;
+   border-radius: 12px;
+   border: 1px solid var(--line);
+   background: var(--surface);
+   color: var(--ink);
+   font-size: .84rem;
+   font-weight: 600;
+   text-align: left
+}
+
+.voice-slotcard svg {
+   color: var(--brand);
+   flex: none
+}
+
+.voice-slotcard:hover:not(:disabled) {
+   border-color: var(--brand-line);
+   background: var(--brand-soft)
+}
+
+.voice-slotcard:disabled {
+   opacity: .45;
+   cursor: not-allowed
+}
+
+.voice-slotleft {
+   font-family: var(--mono);
+   font-size: .64rem;
+   font-weight: 700;
+   padding: 3px 8px;
+   border-radius: 999px;
+   background: var(--brand-soft);
+   color: var(--brand);
+   white-space: nowrap;
+   flex: none
+}
+
+.voice-slotleft.is-low {
+   background: var(--warn-soft);
+   color: var(--warn-ink)
+}
+
+.voice-progress {
+   display: block;
+   height: 3px;
+   border-radius: 999px;
+   background: var(--line);
+   overflow: hidden
+}
+
+.voice-progress>span {
+   display: block;
+   height: 100%;
+   border-radius: 999px;
+   background: var(--brand);
+   transition: width .25s linear
+}
+
+/* The mic and the send arrow both live in the one bar rather than sitting
+   beside it as their own buttons — that is the shape asked for, and it also
+   means one focus-within border covers all three instead of three separate
+   focus rings. */
+.voice-inputbar {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   padding: 6px 6px 6px 16px;
+   border-radius: 999px;
+   border: 1px solid var(--line);
+   background: var(--surface)
+}
+
+.voice-inputbar:focus-within {
+   border-color: var(--brand-line)
+}
+
+.voice-input {
+   border: 0;
+   background: none;
+   font: inherit;
+   font-size: .92rem;
+   padding: 8px 0;
+   min-width: 0;
+   color: var(--ink)
+}
+
+.voice-input:focus {
+   outline: none
+}
+
+.voice-input::placeholder {
+   color: var(--muted)
+}
+
+.voice-input:disabled {
+   color: var(--muted)
+}
+
+.voice-mic-btn {
+   width: 38px;
+   height: 38px;
+   border-radius: 999px;
+   border: 1px solid var(--line);
+   background: var(--bg);
+   color: var(--ink2);
+   display: grid;
+   place-items: center;
+   flex: none
+}
+
+.voice-mic-btn:hover:not(:disabled) {
+   border-color: var(--brand-line);
+   color: var(--brand)
+}
+
+.voice-mic-btn[aria-pressed="true"] {
+   background: var(--bad-soft);
+   border-color: var(--bad-line);
+   color: var(--bad);
+   animation: voiceMicPulse 1.4s ease-in-out infinite
+}
+
+.voice-mic-btn:disabled {
+   opacity: .4;
+   cursor: not-allowed
+}
+
+.voice-send-btn {
+   width: 38px;
+   height: 38px;
+   border-radius: 999px;
+   border: 0;
+   background: var(--brand);
+   color: #fff;
+   display: grid;
+   place-items: center;
+   flex: none;
+   transition: background .15s ease, transform .1s ease
+}
+
+.voice-send-btn:hover:not(:disabled) {
+   background: var(--brand-hi)
+}
+
+.voice-send-btn:active:not(:disabled) {
+   transform: scale(.94)
+}
+
+.voice-send-btn:disabled {
+   background: var(--line2);
+   color: var(--muted);
+   cursor: not-allowed
+}
+
+.voice-statusrow {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 10px
+}
+
+.voice-speaking-toggle {
+   display: inline-flex;
+   align-items: center;
+   gap: 7px;
+   background: none;
+   border: 0;
+   padding: 4px 2px;
+   font-size: .78rem;
+   font-weight: 600;
+   color: var(--brand)
+}
+
+.voice-speaking-toggle[aria-pressed="true"] {
+   color: var(--muted)
+}
+
+.voice-eq {
+   display: inline-flex;
+   align-items: flex-end;
+   gap: 2px;
+   height: 12px
+}
+
+.voice-eq i {
+   width: 2.5px;
+   border-radius: 2px;
+   background: var(--brand);
+   animation: voiceEq .9s ease-in-out infinite
+}
+
+.voice-eq i:nth-child(1) {
+   height: 40%;
+   animation-delay: 0s
+}
+
+.voice-eq i:nth-child(2) {
+   height: 100%;
+   animation-delay: .15s
+}
+
+.voice-eq i:nth-child(3) {
+   height: 65%;
+   animation-delay: .3s
+}
+
+@keyframes voicePulseDot {
+
+   0%,
+   100% {
+      opacity: .4
+   }
+
+   50% {
+      opacity: 1
+   }
+}
+
+@keyframes voiceMicPulse {
+
+   0%,
+   100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--bad) 35%, transparent)
+   }
+
+   50% {
+      box-shadow: 0 0 0 6px transparent
+   }
+}
+
+@keyframes voiceEq {
+
+   0%,
+   100% {
+      transform: scaleY(.4)
+   }
+
+   50% {
+      transform: scaleY(1)
+   }
+}
+
+/* --- hero scene (animated road illustration + floating licence card) ------ */
+.hero-scene {
+   position: relative;
+   min-height: 460px;
+   border-radius: 24px;
+   border: 1px solid var(--line);
+   background: linear-gradient(165deg, var(--surface), var(--bg) 70%);
+   box-shadow: var(--sh-lg);
+   overflow: hidden;
+   padding: 20px 22px;
+   display: flex;
+   flex-direction: column;
+   justify-content: space-between
+}
+
+.hero-scene-bg {
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%
+}
+
+.hero-scene-dash {
+   stroke-dasharray: 10 8
+}
+
+.hero-scene-dash-b {
+   stroke-dasharray: 8 7
+}
+
+.hero-scene-tree {
+   animation: heroSceneTreeSway 4s ease-in-out infinite
+}
+
+/* One 9s clock. The three lights and the three lanes below all read off it —
+   see the keyframe block further down for how "stopped" and "red" end up
+   being the same instant instead of two loops that happen to line up. */
+.hero-scene-light {
+   opacity: .28;
+   transition: opacity .15s ease
+}
+
+.hero-scene-light-green {
+   animation: heroSceneLightGreen 9s linear infinite
+}
+
+.hero-scene-light-yellow {
+   animation: heroSceneLightYellow 9s linear infinite
+}
+
+.hero-scene-light-red {
+   animation: heroSceneLightRed 9s linear infinite
+}
+
+/* Three lanes, three speeds — the back (van) lane slowest and the front (car)
+   lane fastest, so the scene reads as depth rather than three copies of the
+   same loop staggered in time. The signal still cycles on its own clock, but
+   traffic no longer waits on it — a stop-and-go queue was more choreography
+   than a small ambient loop needed. */
+.hero-scene-lane {
+   position: absolute;
+   left: 0;
+   right: 0;
+   pointer-events: none;
+   z-index: 1
+}
+
+.hero-scene-lane-van {
+   bottom: 76px
+}
+
+.hero-scene-lane-bike {
+   bottom: 46px
+}
+
+.hero-scene-lane-car {
+   bottom: 12px
+}
+
+.hero-scene-lane-van .hero-scene-veh {
+   width: 96px;
+   animation: heroSceneDrive 12s linear infinite
+}
+
+.hero-scene-lane-bike .hero-scene-veh {
+   width: 64px;
+   animation: heroSceneDrive 7.5s linear infinite;
+   animation-delay: -3.8s
+}
+
+.hero-scene-lane-car .hero-scene-veh {
+   width: 108px;
+   animation: heroSceneDrive 9.5s linear infinite;
+   animation-delay: -6s
+}
+
+.hero-scene-veh-bounce {
+   animation: heroSceneBounce .4s ease-in-out infinite
+}
+
+.hero-scene-veh-bounce-fast {
+   animation: heroSceneBounce .32s ease-in-out infinite
+}
+
+.hero-scene-wheel,
+.hero-scene-wheel-fast {
+   transform-origin: center;
+   transform-box: fill-box
+}
+
+.hero-scene-wheel {
+   animation: heroSceneSpin .6s linear infinite
+}
+
+.hero-scene-wheel-fast {
+   animation: heroSceneSpin .42s linear infinite
+}
+
+.hero-scene-top,
+.hero-scene-bottom {
+   position: relative;
+   z-index: 2;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 8px
+}
+
+.hero-scene-pill {
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   padding: 7px 13px;
+   border-radius: 999px;
+   background: color-mix(in oklab, var(--surface) 88%, transparent);
+   backdrop-filter: blur(4px);
+   border: 1px solid var(--line);
+   font-family: var(--mono);
+   font-size: .74rem;
+   font-weight: 600;
+   color: var(--ink2)
+}
+
+.hero-scene-pill-brand {
+   color: var(--brand);
+   border-color: var(--brand-line);
+   background: color-mix(in oklab, var(--brand-soft) 92%, transparent)
+}
+
+.hero-scene-pill-stat b {
+   color: var(--brand)
+}
+
+.hero-scene-dot {
+   width: 6px;
+   height: 6px;
+   border-radius: 999px;
+   background: var(--brand);
+   animation: heroScenePulse 2.2s ease-in-out infinite
+}
+
+/* The card. Floats and tilts on its own loop, and pauses to sit flat and
+   forward-facing under the pointer — the one piece of the scene meant to be
+   read, not just watched. */
+.hero-scene-cardwrap {
+   position: relative;
+   z-index: 3;
+   display: flex;
+   justify-content: center;
+   perspective: 1000px
+}
+
+.hero-scene-card {
+   position: relative;
+   width: min(340px, 88%);
+   background: var(--surface);
+   border: 1px solid var(--line);
+   border-radius: 14px;
+   box-shadow: var(--sh-lg);
+   overflow: hidden;
+   animation: heroSceneFloat 6s ease-in-out infinite;
+   transition: transform .35s cubic-bezier(.2, .8, .2, 1)
+}
+
+.hero-scene-card:hover {
+   animation-play-state: paused;
+   transform: translateY(-4px) rotateX(0) rotateY(0) scale(1.02)
+}
+
+.hero-scene-shimmer {
+   position: absolute;
+   inset: 0;
+   background: linear-gradient(105deg, transparent 30%, color-mix(in oklab, var(--brand) 30%, transparent) 50%, transparent 70%);
+   opacity: 0;
+   pointer-events: none;
+   transition: opacity .3s ease
+}
+
+.hero-scene-card:hover .hero-scene-shimmer {
+   opacity: 1;
+   animation: heroSceneShimmer 1.4s ease-in-out infinite
+}
+
+.hero-scene-ribbon {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 6px;
+   padding: 7px 10px;
+   background: linear-gradient(90deg, var(--brand), var(--brand-hi));
+   color: #fff
+}
+
+.hero-scene-ribbon span {
+   font-family: var(--mono);
+   font-size: .56rem;
+   opacity: .85
+}
+
+.hero-scene-ribbon b {
+   font-size: .62rem;
+   letter-spacing: .04em;
+   font-weight: 700;
+   white-space: nowrap
+}
+
+.hero-scene-ribbon-dot {
+   width: 6px;
+   height: 6px;
+   border-radius: 999px;
+   background: #fff;
+   opacity: .85;
+   flex: none
+}
+
+.hero-scene-body {
+   display: grid;
+   grid-template-columns: 1fr 62px;
+   gap: 10px;
+   padding: 12px 12px 8px;
+   align-items: center
+}
+
+.hero-scene-body-left {
+   display: flex;
+   flex-direction: column;
+   gap: 7px
+}
+
+.hero-scene-chip-row {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   margin-bottom: 2px
+}
+
+.hero-scene-chip {
+   width: 26px;
+   height: 18px;
+   border-radius: 4px;
+   background: linear-gradient(160deg, #e7c77a, #c79f4c);
+   border: 1px solid #b48d3c
+}
+
+.hero-scene-bar {
+   display: block;
+   height: 6px;
+   border-radius: 999px;
+   background: var(--line2)
+}
+
+.hero-scene-bar-brand {
+   background: var(--brand-line)
+}
+
+.hero-scene-photo {
+   width: 56px;
+   height: 68px;
+   border-radius: 8px;
+   background: var(--brand-soft);
+   border: 1px solid var(--brand-line);
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: flex-end;
+   overflow: hidden;
+   padding-bottom: 3px
+}
+
+.hero-scene-photo-head {
+   width: 22px;
+   height: 22px;
+   border-radius: 999px;
+   background: var(--brand-line);
+   margin-bottom: 3px
+}
+
+.hero-scene-photo-body {
+   width: 34px;
+   height: 18px;
+   border-radius: 8px 8px 0 0;
+   background: var(--brand-line)
+}
+
+.hero-scene-foot {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 10px;
+   padding: 9px 12px 11px;
+   border-top: 1px solid var(--line)
+}
+
+.hero-scene-foot .hero-scene-bar {
+   flex: 1;
+   max-width: 120px
+}
+
+.hero-scene-verified {
+   flex: none;
+   font-family: var(--mono);
+   font-size: .58rem;
+   font-weight: 700;
+   letter-spacing: .04em;
+   color: var(--brand);
+   background: var(--brand-soft);
+   border: 1px solid var(--brand-line);
+   border-radius: 999px;
+   padding: 2px 8px
+}
+
+.hero-scene-stamp {
+   display: flex;
+   align-items: center;
+   gap: 9px;
+   padding: 9px 14px;
+   border-radius: 12px;
+   background: var(--surface);
+   border: 1px solid var(--line);
+   box-shadow: var(--sh)
+}
+
+.hero-scene-stamp-check {
+   width: 22px;
+   height: 22px;
+   border-radius: 999px;
+   background: var(--brand);
+   color: #fff;
+   font-size: .68rem;
+   font-weight: 700;
+   display: grid;
+   place-items: center;
+   flex: none
+}
+
+.hero-scene-stamp b {
+   display: block;
+   font-size: .82rem;
+   line-height: 1.2
+}
+
+.hero-scene-stamp small {
+   display: block;
+   font-family: var(--mono);
+   font-size: .6rem;
+   color: var(--muted)
+}
+
+@keyframes heroSceneFloat {
+
+   0%,
+   100% {
+      transform: translateY(0) rotateX(3deg) rotateY(-5deg)
+   }
+
+   50% {
+      transform: translateY(-7px) rotateX(1deg) rotateY(-2deg)
+   }
+}
+
+@keyframes heroSceneShimmer {
+   0% {
+      transform: translateX(-60%)
+   }
+
+   100% {
+      transform: translateX(60%)
+   }
+}
+
+@keyframes heroSceneDrive {
+   0% {
+      transform: translateX(-30%)
+   }
+
+   100% {
+      transform: translateX(560px)
+   }
+}
+
+@keyframes heroSceneBounce {
+
+   0%,
+   100% {
+      transform: translateY(0)
+   }
+
+   50% {
+      transform: translateY(-2px)
+   }
+}
+
+@keyframes heroSceneSpin {
+   100% {
+      transform: rotate(360deg)
+   }
+}
+
+@keyframes heroSceneTreeSway {
+
+   0%,
+   100% {
+      transform: rotate(0deg)
+   }
+
+   50% {
+      transform: rotate(2deg)
+   }
+}
+
+@keyframes heroSceneLightGreen {
+
+   0%,
+   52% {
+      opacity: 1
+   }
+
+   55%,
+   100% {
+      opacity: .28
+   }
+}
+
+@keyframes heroSceneLightYellow {
+
+   0%,
+   52% {
+      opacity: .28
+   }
+
+   55%,
+   65% {
+      opacity: 1
+   }
+
+   68%,
+   100% {
+      opacity: .28
+   }
+}
+
+@keyframes heroSceneLightRed {
+
+   0%,
+   65% {
+      opacity: .28
+   }
+
+   68%,
+   100% {
+      opacity: 1
+   }
+}
+
+@keyframes heroScenePulse {
+
+   0%,
+   100% {
+      opacity: .5;
+      transform: scale(1)
+   }
+
+   50% {
+      opacity: 1;
+      transform: scale(1.15)
+   }
+}
+
+@media(max-width:520px) {
+   .hero-scene {
+      min-height: 380px
+   }
+
+   .hero-scene-lane-van .hero-scene-veh {
+      width: 74px
+   }
+
+   .hero-scene-lane-bike .hero-scene-veh {
+      width: 50px
+   }
+
+   .hero-scene-lane-car .hero-scene-veh {
+      width: 84px
+   }
+}
+
 /* --- hero stats (inline figures) --- */
 .hero-stats {
    display: flex;
@@ -1600,85 +2485,128 @@ button {
    }
 }
 
-/* --- steps (four-column journey) --- */
+/* --- steps (four-step journey, each step its own bordered card) --- */
+.steps-card {
+   padding: 0
+}
+
+.steps-head {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 10px;
+   text-align: center;
+   margin-bottom: 36px
+}
+
 .steps {
    display: grid;
-   grid-template-columns: repeat(4, 1fr);
+   grid-template-columns: repeat(4, minmax(0, 1fr));
+   gap: 20px
+}
+
+.step-card {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
    background: var(--surface);
    border: 1px solid var(--line);
    border-radius: var(--r-lg);
-   overflow: hidden
+   padding: 24px 22px;
+   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease
 }
 
-.steps>div {
-   padding: 24px 22px 26px
+.step-card:hover {
+   transform: translateY(-3px);
+   border-color: var(--brand-line);
+   box-shadow: var(--sh-lg)
 }
 
-.steps>div+div {
-   border-left: 1px solid var(--line)
+.step-card-top {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   margin-bottom: 4px
 }
 
-.steps .n {
+.step-ic {
    display: inline-flex;
    align-items: center;
-   gap: 9px;
-   font-family: "IBM Plex Mono", monospace;
-   font-size: .68rem;
-   letter-spacing: .1em;
-   color: var(--muted);
-   margin-bottom: 13px
+   justify-content: center;
+   width: 48px;
+   height: 48px;
+   border-radius: 12px;
+   background: var(--bg);
+   border: 1px solid var(--line);
+   color: var(--brand)
 }
 
-.steps .n i {
-   width: 21px;
-   height: 21px;
-   border-radius: 99px;
+.step-card:hover .step-ic {
    background: var(--brand-soft);
-   border: 1px solid var(--brand-line);
-   color: var(--brand);
-   display: grid;
-   place-items: center;
+   border-color: var(--brand-line)
+}
+
+.step-badge {
+   padding: 4px 10px;
+   border-radius: 999px;
+   background: linear-gradient(90deg, var(--brand), var(--brand-hi));
+   color: #fff;
+   font-family: var(--mono);
    font-size: .68rem;
    font-weight: 700;
-   font-style: normal
+   letter-spacing: .04em
 }
 
-.steps h3 {
-   margin-bottom: 6px
+.step-cat {
+   font-family: var(--mono);
+   font-size: .68rem;
+   text-transform: uppercase;
+   letter-spacing: .08em;
+   color: var(--brand);
+   font-weight: 600
 }
 
-.steps p {
-   font-size: .885rem;
-   color: var(--muted);
-   line-height: 1.55;
+.step-card h3 {
    margin: 0
 }
 
-@media(max-width:760px) {
+.step-card p {
+   font-size: .845rem;
+   color: var(--muted);
+   line-height: 1.55;
+   margin: 0;
+   flex: 1
+}
+
+.step-card-foot {
+   margin-top: 6px;
+   padding-top: 12px;
+   border-top: 1px solid var(--line);
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   font-family: var(--mono);
+   font-size: .68rem;
+   color: var(--muted)
+}
+
+.step-tag {
+   display: inline-flex;
+   align-items: center;
+   gap: 3px;
+   color: var(--brand);
+   font-weight: 600
+}
+
+@media(max-width:960px) {
    .steps {
       grid-template-columns: 1fr 1fr
    }
-
-   .steps>div:nth-child(3) {
-      border-left: 0
-   }
-
-   .steps>div:nth-child(n+3) {
-      border-top: 1px solid var(--line)
-   }
 }
 
-@media(max-width:480px) {
+@media(max-width:560px) {
    .steps {
       grid-template-columns: 1fr
-   }
-
-   .steps>div {
-      border-left: 0 !important
-   }
-
-   .steps>div+div {
-      border-top: 1px solid var(--line)
    }
 }
 
@@ -1848,6 +2776,15 @@ button {
    box-shadow: var(--sh-lg);
    font-size: .86rem;
    line-height: 1.5
+}
+
+/* This one sits in the status row at the very bottom of the panel, so opening
+   downward — the default — pushed it past the panel's own edge and off the
+   visible sheet. Opening upward instead keeps it inside the space the panel
+   actually has. */
+.voice-disclaimer .disclose-body {
+   top: auto;
+   bottom: calc(100% + 6px)
 }
 
 /* Inspector lanes. 340px is the width below which the "Next up" row and the
@@ -2355,6 +3292,20 @@ button {
    }
 }
 
+/* Sections opt in with a bare data-reveal attribute; useReveal adds .revealed
+   the first time each one crosses into view. Only opacity and a short rise —
+   nothing that reflows layout while it plays. */
+[data-reveal] {
+   opacity: 0;
+   transform: translateY(14px);
+   transition: opacity .5s ease, transform .5s ease
+}
+
+[data-reveal].revealed {
+   opacity: 1;
+   transform: none
+}
+
 /* Reduced motion, which this stylesheet did not answer at all. The page-enter
    translate, the sheet slide and the press squeeze are all movement and all go;
    opacity and colour stay, because fading is not what makes anybody ill and
@@ -2366,6 +3317,36 @@ button {
    .sheet-bg,
    .pop {
       animation: none
+   }
+
+   [data-reveal] {
+      transition: none;
+      transform: none;
+      opacity: 1
+   }
+
+   .hero-scene-tree,
+   .hero-scene-light-green,
+   .hero-scene-light-yellow,
+   .hero-scene-light-red,
+   .hero-scene-lane .hero-scene-veh,
+   .hero-scene-veh-bounce,
+   .hero-scene-veh-bounce-fast,
+   .hero-scene-wheel,
+   .hero-scene-wheel-fast,
+   .hero-scene-card,
+   .hero-scene-dot,
+   .voice-livedot,
+   .voice-mic-btn[aria-pressed="true"],
+   .voice-eq i {
+      animation: none
+   }
+
+   /* Frozen mid-cycle would show every light off at once, which reads as a
+      broken signal rather than a still one. Settling on green is the one
+      state that also matches the vehicles being frozen mid-lane. */
+   .hero-scene-light-green {
+      opacity: 1
    }
 
    .btn:active:not(:disabled),
