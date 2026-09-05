@@ -224,16 +224,22 @@ export function Home({ go, update }: PageProps) {
               explained there rather than summarised here. */}
           <div className="grid2" style={{ gap: 20 }}>
             <div className="card card-p col g12" data-reveal>
-              <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
+              <div className="row between g8">
+                <Pill>{t('Staff view', 'कर्मचारी दृश्य', 'कर्मचारी दृश्य')}</Pill>
+                <span className="sub mono" style={{ fontSize: '.8rem' }}>{t('Queue ID #8841', 'क्यू आईडी #8841', 'क्यू आयडी #8841')}</span>
+              </div>
               <h3>{t('Inspector desk', 'निरीक्षक डेस्क', 'निरीक्षक डेस्क')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Call a token here and the wait on the applicant’s phone moves.', 'उसी कतार का काउंटर वाला हिस्सा। यहाँ टोकन बुलाइए और आवेदक के फ़ोन पर इंतज़ार बदल जाएगा।', 'त्याच रांगेची काउंटरकडची बाजू. येथे टोकन बोलवा आणि अर्जदाराच्या फोनवरची वाट बदलेल.')}</p>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('The counter’s side of the same queue. Call a token here and observe the applicant’s phone update in real time.', 'उसी कतार का काउंटर वाला हिस्सा। यहाँ टोकन बुलाइए और आवेदक के फ़ोन को वास्तविक समय में बदलते देखिए।', 'त्याच रांगेची काउंटरकडची बाजू. येथे टोकन बोलवा आणि अर्जदाराचा फोन प्रत्यक्ष वेळेत बदलताना पाहा.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('desk')}>{t('Open the inspector desk', 'निरीक्षक डेस्क खोलें', 'निरीक्षक डेस्क उघडा')} {Icon.right()}</button></div>
             </div>
             <div className="card card-p col g12">
-              <Pill tone="brand">{t('Runnable', 'चलाकर देखें', 'चालवून पहा')}</Pill>
+              <div className="row between g8">
+                <Pill tone="brand">{t('Runnable', 'चलाकर देखें', 'चालवून पहा')}</Pill>
+                <span className="mono" style={{ fontSize: '.8rem', color: 'var(--ok)' }}>{t('12/12 passing', '12/12 पास', '12/12 पास')}</span>
+              </div>
               <h3>{t('See the guarantees run', 'गारंटी चलती देखें', 'हमी चालताना पहा')}</h3>
-              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, no silent edit — each one fired at the live service while you watch.', 'न दोहरी बुकिंग, न दोहरा शुल्क, न चुपचाप बदलाव — हर एक आपके सामने लाइव सेवा पर चलाया जाता है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, गुपचूप बदल नाही — प्रत्येक तुमच्यासमोर लाइव्ह सेवेवर चालवली जाते.')}</p>
+              <p className="sub" style={{ lineHeight: 1.6 }}>{t('No double booking, no double charge, cryptographic receipts — executed against the live test suite while you observe.', 'न दोहरी बुकिंग, न दोहरा शुल्क, क्रिप्टोग्राफ़िक रसीदें — हर एक आपके सामने लाइव टेस्ट सूट पर चलाई जाती है।', 'दुहेरी बुकिंग नाही, दुहेरी शुल्क नाही, क्रिप्टोग्राफिक पावत्या — प्रत्येक तुमच्यासमोर लाइव्ह टेस्ट सूटवर चालवली जाते.')}</p>
               <div className="grow" />
               <div><button className="btn btn-s" onClick={() => go('proof')}>{t('Run the proofs', 'प्रूफ चलाएं', 'प्रूफ चालवा')} {Icon.right()}</button></div>
             </div>

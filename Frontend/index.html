@@ -1,21 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- This is what a link preview shows, so it has to carry the disclaimer the
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- This is what a link preview shows, so it has to carry the disclaimer the
          footer does. It previously read "…services by the Ministry of Road
          Transport & Highways, Government of India", which described the build as
          the Ministry's own work. It is not, and nothing here should suggest it. -->
-    <meta name="description" content="An independent redesign concept for the Parivahan Sewa learner's-licence journey, built for a public-service design challenge. Not affiliated with or endorsed by any government body. All data shown is synthetic." />
-    <title>Parivahan Sewa — Learner's &amp; Driving Licence · Redesign</title>
+  <meta name="description"
+    content="An independent redesign concept for the Parivahan Sewa learner's-licence journey, built for What Moves India challenge. Not affiliated with or endorsed by any government body. All data shown is synthetic." />
+  <title>Parivahan Sewa — Learner's &amp; Driving Licence · Redesign</title>
 
-    <!-- The comment above says the description is what a link preview shows. It
+  <!-- The comment above says the description is what a link preview shows. It
          was not: with no Open Graph tags, most platforms — Slack, WhatsApp,
          LinkedIn, every Twitter client — showed a bare URL, so the disclaimer
          that was carefully worded for the preview never reached one. The wording
@@ -26,18 +28,20 @@
          match a real deployed address and this build does not have one yet, and
          an og:image would have to be a card that does not exist. A summary card
          with no image is complete; a card pointing at a missing file is broken. -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Parivahan Sewa · Redesign concept" />
-    <meta property="og:locale" content="en_IN" />
-    <meta property="og:locale:alternate" content="hi_IN" />
-    <meta property="og:locale:alternate" content="mr_IN" />
-    <meta property="og:title" content="Parivahan Sewa — Learner's &amp; Driving Licence · Redesign" />
-    <meta property="og:description" content="An independent redesign concept for the Parivahan Sewa learner's-licence journey, built for a public-service design challenge. Not affiliated with or endorsed by any government body. All data shown is synthetic." />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Parivahan Sewa — Learner's &amp; Driving Licence · Redesign" />
-    <meta name="twitter:description" content="An independent redesign concept for the Parivahan Sewa learner's-licence journey. Not affiliated with any government body. All data shown is synthetic." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Parivahan Sewa · Redesign concept" />
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:locale:alternate" content="hi_IN" />
+  <meta property="og:locale:alternate" content="mr_IN" />
+  <meta property="og:title" content="Parivahan Sewa — Learner's &amp; Driving Licence · Redesign" />
+  <meta property="og:description"
+    content="An independent redesign concept for the Parivahan Sewa learner's-licence journey, built for What Moves India challenge. Not affiliated with or endorsed by any government body. All data shown is synthetic." />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Parivahan Sewa — Learner's &amp; Driving Licence · Redesign" />
+  <meta name="twitter:description"
+    content="An independent redesign concept for the Parivahan Sewa learner's-licence journey. Not affiliated with any government body. All data shown is synthetic." />
 
-    <!-- The browser chrome on mobile, matched to the ground the page opens on.
+  <!-- The browser chrome on mobile, matched to the ground the page opens on.
          A theme-color left unset leaves the address bar in whatever grey the
          browser picked, directly above a cream page. One tag, not a pair keyed
          to `prefers-color-scheme`: the page no longer follows the OS, so a pair
@@ -52,35 +56,36 @@
 
          The hex is the ground as it actually renders, resolved from the oklch
          token rather than transcribed: #F5EEDF is `--bg` in light. -->
-    <meta name="theme-color" content="#F5EEDF" />
+  <meta name="theme-color" content="#F5EEDF" />
 
-    <!-- Set the theme before first paint, so there's no flash of the wrong theme. -->
-    <script>
-      (function () {
-        try {
-          /* Light unless "theme" is already "dark" in storage from before the
-             in-page toggle was removed. `prefers-color-scheme` does not decide
-             this: a first-time visitor with a dark phone — most of them — would
-             otherwise meet this service in a palette nobody reviewed as
-             carefully as the paper one, on the screen where the whole argument
-             gets made. */
-          var stored = localStorage.getItem('theme');
-          var theme = stored === 'dark' ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {}
-      })();
-    </script>
+  <!-- Set the theme before first paint, so there's no flash of the wrong theme. -->
+  <script>
+    (function () {
+      try {
+        /* Light unless "theme" is already "dark" in storage from before the
+           in-page toggle was removed. `prefers-color-scheme` does not decide
+           this: a first-time visitor with a dark phone — most of them — would
+           otherwise meet this service in a palette nobody reviewed as
+           carefully as the paper one, on the screen where the whole argument
+           gets made. */
+        var stored = localStorage.getItem('theme');
+        var theme = stored === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { }
+    })();
+  </script>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Instrument+Sans:wght@400;500;600;700&family=Press+Start+2P&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Instrument+Sans:wght@400;500;600;700&family=Press+Start+2P&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

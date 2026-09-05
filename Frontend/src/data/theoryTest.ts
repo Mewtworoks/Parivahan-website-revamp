@@ -17,9 +17,9 @@ export const QUESTIONS: TheoryQuestion[] = [
     ex: 'The legal limit is 30 mg of alcohol per 100 ml of blood. For commercial drivers it is zero.',
   },
   {
-    q: 'A flashing amber traffic light means:',
+    q: 'A flashing yellow traffic light means:',
     a: ['Stop and wait for green', 'Slow down and proceed with caution', 'The signal is out of order, ignore it'], c: 1,
-    ex: 'Flashing amber asks you to slow down, check the junction and cross carefully.',
+    ex: 'Flashing yellow asks you to slow down, check the junction and cross carefully.',
   },
   {
     q: 'You may overtake another vehicle:',
