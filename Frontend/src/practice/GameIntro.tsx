@@ -63,12 +63,11 @@ export function GameIntro({ go, state, update }: PageProps) {
           {/* One way in. This was briefly two — a scored round with three lives
               beside a full-bank mode without them — and then the lives went, at
               which point the two modes were the same round with two names. */}
-          <div className="row between g12 wrapf" style={{ alignItems: 'center' }}>
-            <span className="tiny mono">{t(
-              'A, B, C to answer · Enter to continue',
-              'उत्तर के लिए A, B, C · आगे बढ़ने के लिए Enter',
-              'उत्तरासाठी A, B, C · पुढे जाण्यासाठी Enter',
-            )}</span>
+          {/* The keyboard hint is gone from here. It belongs on the round
+              itself, where those keys actually do something — Game.tsx still
+              carries it — and on the way in it was a line of instructions for a
+              screen with one button on it. */}
+          <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button className="btn btn-p" onClick={() => { update({ focus: null, gameLog: null }); go('lesson'); }}>{t(`Start · all ${total} situations`, `शुरू करें · सभी ${total} स्थितियाँ`, `सुरू करा · सर्व ${total} परिस्थिती`)} {Icon.right()}</button>
           </div>
         </div>

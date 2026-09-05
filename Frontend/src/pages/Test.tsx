@@ -21,10 +21,8 @@ import { Note, Progress } from '../ui/SharedUI';
 export function Test({ go, state, update }: PageProps) {
   const t = useT();
   const { lang } = useLanguage();
-  const isAadhaar = state.form?.route === 'aadhaar';
 
   const [attemptId, setAttemptId] = useState<string | null>(state.attemptId || null);
-  const [passMark, setPassMark] = useState(6);
   const [question, setQuestion] = useState<api.NextQuestion | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<api.AnswerResult | null>(null);
@@ -48,7 +46,6 @@ export function Test({ go, state, update }: PageProps) {
         const begun = await run('start', () => api.startTest(signedInPhone() || state.form?.phone || state.app?.no || 'citizen'));
         if (!begun) return;
         id = begun.attempt_id;
-        setPassMark(begun.pass_threshold);
         setAttemptId(id);
         update({ attemptId: id });
       }
@@ -128,7 +125,6 @@ export function Test({ go, state, update }: PageProps) {
               ))}
             </div>
           )}
-          <Note>{t('A retake costs the ₹50 test fee and a fresh booking. The practice game covers exactly these judgments, and it is free.', 'दोबारा देने पर ₹50 टेस्ट फीस और नई बुकिंग लगती है। अभ्यास गेम इन्हीं बातों को कवर करता है, और वह मुफ़्त है।')}</Note>
           <div className="row g12 wrapf">
             <button className="btn btn-p" onClick={() => go('learn')}>{t('Practise first', 'पहले अभ्यास करें')} {Icon.right()}</button>
             <button className="btn btn-s" onClick={() => go('status')}>{t('Back to my application', 'मेरे आवेदन पर वापस')}</button>
@@ -159,7 +155,6 @@ export function Test({ go, state, update }: PageProps) {
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <div className="col g16" style={{ marginBottom: 22 }}>
         <Progress cur={question!.index} total={total} label={t("Learner's test · stage 7 of 7", 'लर्नर टेस्ट · चरण 7 में से 7', 'लर्नर टेस्ट · टप्पा 7 पैकी 7')} />
-        <Note>{isAadhaar ? t(`${total} questions, ${passMark} correct to pass, taken from home with a password sent by SMS.`, `${total} सवाल, पास होने के लिए ${passMark} सही, SMS से भेजे पासवर्ड के साथ घर से।`) : t(`${total} questions, ${passMark} correct to pass, taken at the office.`, `${total} सवाल, पास होने के लिए ${passMark} सही, कार्यालय में।`)} {t('A fail costs the ₹50 test fee again and a rebooking, so every answer here explains itself.', 'फेल होने पर फिर से ₹50 टेस्ट फीस और नई बुकिंग लगती है, इसलिए यहां हर जवाब खुद समझाया गया है।', 'नापास झाल्यास पुन्हा ₹50 टेस्ट फी आणि नवीन बुकिंग लागते, त्यामुळे इथे प्रत्येक उत्तर स्वतः स्पष्ट केले आहे.')}</Note>
       </div>
       <div className="card card-p col g20">
         <h2 style={{ fontSize: '1.3rem' }}>{prompt}</h2>
@@ -170,7 +165,24 @@ export function Test({ go, state, update }: PageProps) {
             const style = feedback && isCorrect ? { borderColor: 'var(--ok)', background: 'var(--ok-soft)' } : feedback && chosen && !isCorrect ? { borderColor: 'var(--bad)', background: 'var(--bad-soft)' } : undefined;
             return (
               <button key={opt.id} className="tile" role="radio" aria-checked={chosen} style={style} disabled={Boolean(feedback)} onClick={() => setPick(opt.id)}>
-                <span className="tick">{chosen ? Icon.check() : null}</span>
+                {/* Before the answer is submitted the tick is a radio dot and
+                    marks what you picked. After it, it marks what was *right* —
+                    it followed the selection either way, so a wrong answer came
+                    back with a green check in it, the interface congratulating
+                    somebody for missing.
+
+                    The fill is set here as well as the glyph. `.tile[aria-checked]`
+                    paints the disc brand-green for whatever is selected, so
+                    recolouring only the mark left a dark cross sitting on a
+                    green circle — which reads worse than the bug it replaced. */}
+                <span className="tick" style={
+                  feedback && isCorrect ? { borderColor: 'var(--ok)', background: 'var(--ok)', color: '#fff' }
+                    : feedback && chosen ? { borderColor: 'var(--bad)', background: 'var(--bad)', color: '#fff' }
+                      : undefined}>
+                  {feedback
+                    ? (isCorrect ? Icon.check() : chosen ? Icon.x() : null)
+                    : (chosen ? Icon.check() : null)}
+                </span>
                 <span style={{ fontWeight: 500 }}>{(lang === 'hi' && opt.label_hi) ? opt.label_hi : opt.label}</span>
               </button>
             );
