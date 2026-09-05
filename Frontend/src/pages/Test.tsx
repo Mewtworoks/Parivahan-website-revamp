@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useLanguage, useT } from '../lib/language';
 import { scrollToTop } from '../lib/scrollToTop';
 import { useAction } from '../lib/useApi';
@@ -70,6 +71,9 @@ export function Test({ go, state, update }: PageProps) {
           stage: final.status === 'passed' ? 'issued' : state.stage,
           score: final.score,
           scoreTotal: final.total,
+          // Autopilot's job ends here — a pass reaches Issued on its own,
+          // and a fail should hand control back rather than keep driving.
+          autoDemo: final.status === 'passed' ? state.autoDemo : undefined,
         });
         if (final.status === 'passed') { go('issued'); return; }
       }
@@ -84,6 +88,33 @@ export function Test({ go, state, update }: PageProps) {
       scrollToTop();
     }
   };
+
+  // Demo autopilot — three steps, each waiting on what the previous one
+  // produced: pick an option once a question arrives, check it once picked,
+  // advance once marked. Every scenario's correct_option_id is "a" server-side
+  // (Backend/app/seed_scenarios.py); the on-screen order is shuffled per
+  // attempt, but each option keeps its id, so picking id "a" passes reliably
+  // regardless of where it landed on screen.
+  const autoPickedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const sc = question?.scenario;
+    if (state.autoDemo !== 'll' || !sc || pick !== null || feedback || autoPickedFor.current === sc.id) return;
+    autoPickedFor.current = sc.id;
+    void (async () => { await autoWait(); setPick((sc.options.find(o => o.id === 'a') || sc.options[0]).id); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, question, pick, feedback]);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || pick === null || feedback) return;
+    void (async () => { await autoWait(); await check(); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, pick]);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || !feedback) return;
+    // The explanation and the MV Act citation sit below the fold on most of
+    // the ten questions — worth scrolling to, not just the prompt at the top.
+    void (async () => { await autoWait(); await autoScrollToBottom(); await autoWait(AUTO_READ_DELAY); await advance(); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, feedback]);
 
   if (error) {
     return (

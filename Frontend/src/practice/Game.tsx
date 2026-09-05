@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { scrollToTop } from '../lib/scrollToTop';
 import { Icon } from '../ui/Icon';
 import type { GameLogEntry, PageProps } from '../types';
@@ -70,9 +71,25 @@ export function Game({ go, state, update }: PageProps) {
     // lives is the right shape for an arcade game and the wrong shape for a
     // practice test, and this is a practice test.
     const isLast = index >= queue.length - 1;
-    if (isLast) { update({ gameLog: log, focus: null }); go('report'); }
+    if (isLast) { update({ gameLog: log, focus: null, autoDemo: undefined }); go('report'); }
     else { setIndex(index + 1); setPick(null); setRevealed(false); locked.current = false; scrollToTop(); }
   }
+
+  // Demo autopilot — commits the scenario's own correct answer (`scenario.c`,
+  // known locally rather than hidden server-side the way the real theory
+  // test's is), then moves on once the explanation is revealed.
+  const autoAnsweredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (state.autoDemo !== 'game' || revealed || autoAnsweredFor.current === scenario.id) return;
+    autoAnsweredFor.current = scenario.id;
+    void (async () => { await autoWait(); commit(scenario.c); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, scenario.id, revealed]);
+  useEffect(() => {
+    if (state.autoDemo !== 'game' || !revealed) return;
+    void (async () => { await autoWait(); await autoScrollToBottom(); await autoWait(AUTO_READ_DELAY); goToNext(); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, revealed]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

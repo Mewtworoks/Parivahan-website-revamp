@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { PRE_BASE, preFor } from '../data/applicant';
 import { rtosFor } from '../data/rtoOffices';
 import { CLASSES } from '../data/vehicleClasses';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { formatDay } from '../lib/format';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
@@ -19,6 +21,14 @@ export function Slip({ go, state, update }: PageProps) {
   const prefill = preFor(form.state);
   const office = rtosFor(form.state || 'Maharashtra').find(r => r.id === form.rto) || rtosFor(form.state || 'Maharashtra')[0];
   const classCodes = classIds.map(id => CLASSES.find(c => c.id === id)!.code).join(', ') || '—';
+
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || ran.current) return;
+    ran.current = true;
+    void (async () => { await autoWait(); await autoScrollToBottom(); await autoWait(AUTO_READ_DELAY); update({ stage: 'esign' }); go('pay'); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   return (
     <div className="narrow fade" style={{ padding: '48px 24px 0' }}>

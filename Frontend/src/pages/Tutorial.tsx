@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
@@ -28,6 +29,22 @@ export function Tutorial({ go, state }: PageProps) {
   const isAadhaar = state.form?.route === 'aadhaar';
   const [read, setRead] = useState<Record<number, boolean>>({});
   const allRead = TUTORIAL_ITEMS.every((_, i) => read[i]);
+
+  // Demo autopilot — reads everything, then goes straight to the test.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      setRead(Object.fromEntries(TUTORIAL_ITEMS.map((_, i) => [i, true])));
+      await autoWait();
+      await autoScrollToBottom();
+      await autoWait(AUTO_READ_DELAY);
+      go('test');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>

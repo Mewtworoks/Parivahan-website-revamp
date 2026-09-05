@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DOCS } from '../data/documents';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useLanguage, useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
@@ -34,11 +35,27 @@ const DOC_NOTE: Record<string, { en: string; hi: string; mr: string }> = {
 };
 
 /** Before-you-start checklist: what six things the application needs, and what to do if you don't have one. */
-export function Checklist({ go }: PageProps) {
+export function Checklist({ go, state }: PageProps) {
   const t = useT();
   const { lang } = useLanguage();
   const [have, setHave] = useState<Record<string, 'yes' | 'no'>>({});
   const missingCount = DOCS.filter(d => have[d.id] === 'no').length;
+
+  // Demo autopilot — everybody has everything, then straight to the wizard.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      setHave(Object.fromEntries(DOCS.map(d => [d.id, 'yes'])));
+      await autoWait();
+      await autoScrollToBottom();
+      await autoWait(AUTO_READ_DELAY);
+      go('apply');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   const missingMessage = missingCount > 0
     ? lang === 'hi' ? `${missingCount} वस्तु${missingCount > 1 ? 'एं' : ''} गुम के रूप में चिह्नित। आप अभी भी शुरू कर सकते हैं — आवेदन आगे बढ़ने के साथ सेव होता रहता है।`

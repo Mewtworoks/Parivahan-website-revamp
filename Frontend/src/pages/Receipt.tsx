@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import * as api from '../api';
 import { feeRows, feeTotal, inWords, inWordsHi } from '../data/fees';
 import { rtosFor } from '../data/rtoOffices';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { formatDayTime } from '../lib/format';
 import { useLanguage, useT } from '../lib/language';
 import { useApi } from '../lib/useApi';
@@ -29,6 +31,19 @@ export function Receipt({ go, state, update }: PageProps) {
     [state.applicationId],
     Boolean(state.applicationId),
   );
+
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      await autoScrollToBottom();
+      await autoWait(AUTO_READ_DELAY);
+      if (isAadhaar) { update({ stage: 'booked' }); go('tutorial'); } else { go('slot'); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   return (
     <div className="narrow fade" style={{ padding: '56px 24px 0' }}>

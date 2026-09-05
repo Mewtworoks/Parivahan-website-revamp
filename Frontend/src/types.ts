@@ -290,6 +290,13 @@ export interface AppState {
   tokenId?: string;
   /** Current theory-test attempt on the server. */
   attemptId?: string;
+  /**
+   * Demo autopilot: each page checks this and, if it matches, fills and
+   * advances itself the way a person clicking through that page would — see
+   * lib/autoDemo.ts. Reached only through the header's cheat code, not a
+   * visible button. Cleared once its journey ends.
+   */
+  autoDemo?: 'll' | 'game' | 'gov';
 }
 
 /** Props every top-level page receives from the shell. */

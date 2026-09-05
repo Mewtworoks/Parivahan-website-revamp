@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { scenariosFor, spelledOut, vehicleFocusFrom } from './scenarios';
+import { AUTO_READ_DELAY, autoOpenAllDetails, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useT } from '../lib/language';
 import type { PageProps } from '../types';
 import { Icon } from '../ui/Icon';
@@ -145,6 +147,25 @@ export function Learn({ go, state }: PageProps) {
   const t = useT();
   const vehicleFocus = vehicleFocusFrom(state);
   const total = scenariosFor(vehicleFocus).length;
+
+  // Demo autopilot — opens every section (all but the first sit collapsed by
+  // default), scrolls through the whole primer, then starts the scored game.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'game' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      autoOpenAllDetails();
+      await autoWait();
+      // A whole road-rules primer, not one card — worth more than the
+      // standard reading pause before the scored game takes over.
+      await autoScrollToBottom(500);
+      await autoWait(AUTO_READ_DELAY * 2);
+      go('game');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>

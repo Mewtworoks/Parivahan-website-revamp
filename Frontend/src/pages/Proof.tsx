@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { clearConversation } from '../lib/conversation';
 import { clearJourney } from '../lib/journeyStore';
 import { useT } from '../lib/language';
@@ -88,7 +89,7 @@ function Chain({ rows }: { rows: api.LedgerRow[] }) {
   );
 }
 
-export function Proof({ go }: PageProps) {
+export function Proof({ go, state, update }: PageProps) {
   const t = useT();
   const [busy, setBusy] = useState<Which | 'reset' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +104,27 @@ export function Proof({ go }: PageProps) {
       setError(err instanceof Error ? err.message : 'That did not run.');
     } finally { setBusy(null); }
   };
+
+  // Demo autopilot — runs the four guarantees in the order the page reads
+  // top to bottom, scrolling to each one's result before moving to the next.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'gov' || autoRan.current) return;
+    autoRan.current = true;
+    void (async () => {
+      await autoWait();
+      await run('idem', api.proveIdempotentApply, setIdem);
+      await autoWait(); await autoScrollToBottom(500); await autoWait(AUTO_READ_DELAY);
+      await run('race', () => api.proveSlotRace(8), setRace);
+      await autoWait(); await autoScrollToBottom(500); await autoWait(AUTO_READ_DELAY);
+      await run('load', () => api.proveBookingLoad(120), setLoad);
+      await autoWait(); await autoScrollToBottom(500); await autoWait(AUTO_READ_DELAY);
+      await run('ledger', api.proveLedgerTamper, setLedger);
+      await autoWait(); await autoScrollToBottom(500); await autoWait(AUTO_READ_DELAY);
+      update({ autoDemo: undefined });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   const reset = () => run('reset', api.resetDemo, () => {
     setIdem(null); setRace(null); setLoad(null); setLedger(null);

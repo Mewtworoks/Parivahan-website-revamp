@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useLanguage, useT } from '../lib/language';
 import { TODAY_ISO } from '../lib/validate';
 import type { EligibilityAnswers, PageProps } from '../types';
@@ -79,6 +81,27 @@ export function Eligibility({ go, state, update }: PageProps) {
   const minimumAge = answers.want === 'gear' ? 18 : 16;
 
   const verdict = answeredAll && age !== null ? buildVerdict(lang, age, minimumAge, answers.want, answers.has) : null;
+
+  // Demo autopilot — fills an eligible applicant's answers, then moves on
+  // once the "you can apply" verdict appears. Guarded by refs rather than
+  // just the state values, since answering re-renders this effect's deps.
+  const filled = useRef(false);
+  const advanced = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || filled.current || answeredAll) return;
+    filled.current = true;
+    void (async () => {
+      await autoWait();
+      updateAnswers({ dob: '2000-06-15', want: 'gear', has: 'no' });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || advanced.current || verdict?.tone !== 'ok') return;
+    advanced.current = true;
+    void (async () => { await autoWait(); await autoScrollToBottom(); await autoWait(AUTO_READ_DELAY); go('checklist'); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, verdict?.tone]);
 
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>

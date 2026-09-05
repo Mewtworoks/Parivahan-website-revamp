@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PRE_BASE } from '../data/applicant';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { feeRows, feeTotal, inWords, inWordsHi } from '../data/fees';
 import { rtosFor } from '../data/rtoOffices';
 import { useLanguage, useT } from '../lib/language';
@@ -36,6 +37,23 @@ export function Pay({ go, state, update }: PageProps) {
   }, []);
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
   const seconds = String(secondsLeft % 60).padStart(2, '0');
+
+  // Demo autopilot — ticks the acknowledgement and presses Pay. Everything
+  // after that (paying → verify → receipt) is already the page's own timers.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      await autoScrollToBottom();
+      await autoWait(AUTO_READ_DELAY);
+      setTermsAccepted(true);
+      await autoWait();
+      setPhase('paying');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   const started = phase !== 'pick';
   useEffect(() => {

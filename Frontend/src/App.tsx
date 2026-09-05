@@ -23,7 +23,7 @@ import { GameIntro } from './practice/GameIntro';
 import { Learn } from './practice/Learn';
 import { Report } from './practice/Report';
 import { FOOTER_COLUMNS, type FooterTarget } from './data/siteContent';
-import { prettyPhone, useIdentity } from './lib/identity';
+import { prettyPhone, signIn, useIdentity } from './lib/identity';
 import { loadJourney, saveJourney } from './lib/journeyStore';
 import { useLanguage, useT, type Lang } from './lib/language';
 import { scrollToTop } from './lib/scrollToTop';
@@ -154,6 +154,9 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   // Saarthi closed itself to show the sign-in sheet, and wants to come back.
   const [resumeVoice, setResumeVoice] = useState(false);
+  // The demo picker — reached only by typing the cheat code below, never a
+  // visible button. See lib/autoDemo.ts for what each of the three runs.
+  const [demoMenuOpen, setDemoMenuOpen] = useState(false);
   const phone = useIdentity();
   const { lang, setLang } = useLanguage();
   const t = useT();
@@ -185,6 +188,45 @@ export default function App() {
   // Every change to the journey, not just the ones a step boundary notices —
   // the form's own "Saved a moment ago" pill claims this granularity.
   useEffect(() => { saveJourney(state); }, [state]);
+
+  // The cheat code. Type the four letters d-e-m-o in a row, anywhere on the
+  // site, and the demo picker opens — no button for it anywhere, on purpose:
+  // this is for showing the build, not a feature a citizen should stumble
+  // into. Ignored while a text field has focus, so typing "demo" into an
+  // actual form field (an address line, a search box) stays just typing.
+  useEffect(() => {
+    const code = 'demo';
+    let progress = 0;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+      if (typing) { progress = 0; return; }
+      const key = e.key.toLowerCase();
+      progress = key === code[progress] ? progress + 1 : (key === code[0] ? 1 : 0);
+      if (progress === code.length) { progress = 0; setDemoMenuOpen(true); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  /** Wires up and launches one of the three autopilots, then closes the picker. */
+  const startDemo = (which: 'll' | 'game' | 'gov') => {
+    setDemoMenuOpen(false);
+    if (which === 'll') {
+      // The wizard needs a signed-in number before it will even render — see
+      // the "needs a mobile number" gate below — so the autopilot supplies
+      // one the same way a real sign-in would, rather than stalling on it.
+      signIn('9820011021');
+      update({ module: 'll', autoDemo: 'll' });
+      go('elig');
+    } else if (which === 'game') {
+      update({ autoDemo: 'game' });
+      go('learn');
+    } else {
+      update({ autoDemo: 'gov' });
+      go('future');
+    }
+  };
 
   const ActivePage = PAGES[route] || Home;
   const needsSignIn = !phone && SIGN_IN_REQUIRED.includes(route);
@@ -359,6 +401,18 @@ export default function App() {
         />
       )}
       {infoPanelId && <InfoSheet id={infoPanelId} onClose={() => setInfoPanelId(null)} />}
+      {/* The cheat code's payload. Three buttons, one per autopilot — see
+          lib/autoDemo.ts for what each one actually drives. */}
+      {demoMenuOpen && (
+        <Sheet title="Run a demo" onClose={() => setDemoMenuOpen(false)}>
+          <div className="col g12">
+            <span className="sub">Each one fills and clicks through the real site on its own — nothing is faked, it just drives itself.</span>
+            <button className="btn btn-p btn-full" onClick={() => startDemo('ll')}>{Icon.play()} Learner's Licence — the full journey</button>
+            <button className="btn btn-p btn-full" onClick={() => startDemo('game')}>{Icon.play()} Practice module — road-rules primer, then the game</button>
+            <button className="btn btn-p btn-full" onClick={() => startDemo('gov')}>{Icon.play()} Government Brain — the pitch, then the live guarantees</button>
+          </div>
+        </Sheet>
+      )}
       {/* The only sign-in on the site. Saarthi points here rather than carrying
           a second copy of the form, so there is one shape to learn and one
           place it lives. Signed in, the same sheet is the profile. */}

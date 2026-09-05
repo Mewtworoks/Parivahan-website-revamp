@@ -1,4 +1,4 @@
-import { useRef, type ComponentType } from 'react';
+import { useEffect, useRef, type ComponentType } from 'react';
 import * as api from '../../api';
 import { PRE_BASE, preFor } from '../../data/applicant';
 import { demoForm } from '../../data/demoApplicant';
@@ -6,6 +6,7 @@ import { STEPS } from '../../data/applicationFlow';
 import { FORM1 } from '../../data/documents';
 import { feeTotal } from '../../data/fees';
 import { CLASSES } from '../../data/vehicleClasses';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../../lib/autoDemo';
 import { signedInPhone } from '../../lib/identity';
 import { scrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/language';
@@ -125,6 +126,29 @@ export function Apply({ go, state, update }: PageProps) {
     });
     go('slip');
   };
+
+  // Demo autopilot — presses "Fill for demo" itself on arrival, then
+  // "Submit application" once that fill has landed on the last stage and
+  // validates. Two effects rather than one chained sequence: the fill
+  // lands via `update()`, which only shows up here as `step`/`valid`
+  // changing on a later render, not as something this callback can await.
+  const autoFilled = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || autoFilled.current || step !== 0) return;
+    autoFilled.current = true;
+    void (async () => { await autoWait(); fillForDemo(); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, step]);
+  const autoSubmitted = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'll' || autoSubmitted.current || step !== STEPS.length - 1 || !valid) return;
+    autoSubmitted.current = true;
+    // The review stage is the one screen here worth actually reading — it
+    // lists everything the fill just did — so it gets the scroll, not the
+    // eight stages skipped to reach it.
+    void (async () => { await autoWait(); await autoScrollToBottom(); await autoWait(AUTO_READ_DELAY); await submit(); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo, step, valid]);
 
   const goNext = () => {
     if (step === 3 && !isAadhaar) { setStep(4); scrollToTop(); return; }

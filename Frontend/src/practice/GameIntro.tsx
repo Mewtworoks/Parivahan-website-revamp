@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import { useT } from '../lib/language';
 import { Icon } from '../ui/Icon';
 import { Note } from '../ui/SharedUI';
@@ -38,6 +40,22 @@ export function GameIntro({ go, state, update }: PageProps) {
   // English number words, and "उनतीस" reads as heavier than the digit does here.
   const count = spelledOut(total).replace(/^./, c => c.toUpperCase());
   const secs = DECISION_LIMIT_MS / 1000;
+
+  // Demo autopilot — presses its own "Start all" button.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'game' || ran.current) return;
+    ran.current = true;
+    void (async () => {
+      await autoWait();
+      await autoScrollToBottom();
+      await autoWait(AUTO_READ_DELAY);
+      update({ focus: null, gameLog: null });
+      go('lesson');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
+
   return (
     <div className="narrow fade" style={{ padding: '40px 24px 0' }}>
       <button className="btn btn-g btn-sm" style={{ marginLeft: -12, marginBottom: 14 }} onClick={() => go('home')}>{Icon.left()} {t('Home', 'होम', 'होम')}</button>

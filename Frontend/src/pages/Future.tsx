@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { AUTO_READ_DELAY, autoScrollToBottom, autoWait } from '../lib/autoDemo';
 import type { PageProps } from '../types';
 import { Console } from './future/Console';
 import { FocusList, type FocusItem } from './future/FocusList';
@@ -78,8 +79,18 @@ const KINDS: [string, string][] = [
   ['model.failed', 'A language-model call that failed, and how.'],
 ];
 
-export function Future({ go }: PageProps) {
+export function Future({ go, state }: PageProps) {
   const console_ = useRef<HTMLDivElement>(null);
+
+  // Demo autopilot — scrolls the whole pitch into view (the console included),
+  // then moves on to the guarantees actually running.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (state.autoDemo !== 'gov' || ran.current) return;
+    ran.current = true;
+    void (async () => { await autoWait(); await autoScrollToBottom(500); await autoWait(AUTO_READ_DELAY * 2); go('proof'); })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.autoDemo]);
 
   return (
     <div className="gb">
