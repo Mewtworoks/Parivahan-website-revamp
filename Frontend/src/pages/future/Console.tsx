@@ -148,6 +148,28 @@ export function Console() {
           <span className="gb-tag-mock">{'Mock data'}</span>
         </div>
 
+        {/* The four tiles below say how much. Not one of them says what anybody
+            should do, which is the only thing an early-warning screen is for —
+            a number nobody acts on is a report, and the section above has just
+            finished promising this is not a report. So the alert goes first and
+            the counts support it. The test for this card is whether a reader who
+            knows nothing about the build can look at it and say what somebody
+            does on Monday morning. */}
+        <div className="gb-alert">
+          <div className="gb-alert-top">
+            <span className="gb-alert-tag">{'Friction alert'}</span>
+            <span className="gb-alert-when">{'noticed 38 minutes ago'}</span>
+          </div>
+          <b className="gb-alert-what">{'Stage 4 — Address proof'}</b>
+          <p className="gb-alert-say">
+            {'Two in five people who reach this box now leave without finishing it. Last week it was one in ten.'}
+          </p>
+          <p className="gb-alert-do">
+            <span>{'What to do'}</span>
+            {'The hint asks for a “recent” utility bill without saying how recent. Most of the uploads being rejected are older than three months — say so in the hint.'}
+          </p>
+        </div>
+
         {/* Four numbers. A fifth is always the one that makes somebody stop
             reading the first four. */}
         <div className="gb-kpis">

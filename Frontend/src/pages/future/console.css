@@ -99,6 +99,68 @@
 
 /* ---- the KPI row -------------------------------------------------------- */
 
+/* ---- the friction alert ------------------------------------------------- */
+
+/* Borrows the card's own warm accent rather than introducing an alarm red. The
+   claim this screen makes is that a service noticed something early and calmly,
+   not that anything is on fire; a siren-coloured panel would argue against the
+   sentence above it. */
+.gb-alert {
+  border: 1px solid color-mix(in oklab, var(--gb-caught) 38%, var(--gb-card-line));
+  background: color-mix(in oklab, var(--gb-caught) 7%, var(--gb-card));
+  border-left: 3px solid var(--gb-caught);
+  border-radius: 7px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: grid;
+  gap: 7px;
+}
+
+.gb-alert-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.gb-alert-tag { color: var(--gb-caught); font-weight: 600; }
+.gb-alert-when { color: var(--gb-ink2); }
+
+.gb-alert-what { font-size: 1.02rem; }
+
+.gb-alert-say {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+/* The line that makes it an alert rather than a statistic. Set apart so it is
+   readable on its own if somebody photographs this one card. */
+.gb-alert-do {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--gb-caught) 22%, transparent);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--gb-ink2);
+  max-width: 62ch;
+}
+
+.gb-alert-do span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gb-caught);
+  margin-bottom: 3px;
+}
+
 .gb-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
@@ -408,9 +470,27 @@
   color: var(--gb-hot);
 }
 
+/* Five spans were being placed into three tracks, so grid pushed the count onto
+   a row of its own under the timestamp and squeezed "abandoned" into a 2.5em
+   column it could not fit — the label ran off the card. Two rows instead: where
+   it happened on the first, with the count beside it, and what happened
+   underneath. The old rule hid the field entirely, which removed the most useful
+   word in the line: "address proof" is the whole reason the row is worth
+   reading. */
 @media (max-width: 620px) {
-  .gb-feed li { grid-template-columns: 4.5em 1fr 2.5em; }
-  .gb-feed li > span:nth-child(3) { display: none; }
+  .gb-feed li {
+    grid-template-columns: 4.2em auto minmax(0, 1fr) auto;
+    gap: 2px 8px;
+    font-size: 0.68rem;
+    padding: 6px 0;
+  }
+  .gb-feed li > span:nth-child(1) { grid-area: 1 / 1; }
+  .gb-feed li > span:nth-child(2) { grid-area: 1 / 2; }
+  .gb-feed li > span:nth-child(3) { grid-area: 1 / 3; }
+  .gb-feed li > span:nth-child(5) { grid-area: 1 / 4; }
+  /* Spans the full width under the stage, so a long phrase wraps inside the
+     card rather than against the edge of the screen. */
+  .gb-feed li > span:nth-child(4) { grid-area: 2 / 2 / 3 / 5; color: var(--gb-ink2); }
 }
 
 @media (prefers-reduced-motion: reduce) {

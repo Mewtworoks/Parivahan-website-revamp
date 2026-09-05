@@ -164,7 +164,12 @@ export function Learning({ go }: PageProps) {
           />
 
           <Ranking
-            title={t('Where the form loses people', 'फ़ॉर्म लोगों को कहाँ खोता है')}
+            /* Not "where the form loses people". Every field that can appear
+               here is one Saarthi asks for — the web wizard records nothing at
+               all — so the old title named a source this ranking cannot draw
+               from. An unsupported claim is worth less than a narrower true
+               one, and least of all on this page. */
+            title={t('Where Saarthi loses people', 'सारथी लोगों को कहाँ खोता है')}
             note={t('The field they stall at, abandon at, or get asked for twice. A service designer reads this and knows which question is badly written.',
               'वह फ़ील्ड जहाँ वे अटकते हैं, छोड़ देते हैं, या जो दोबारा पूछी जाती है। सेवा डिज़ाइनर इसे पढ़कर जान सकता है कि कौन-सा सवाल ठीक से नहीं लिखा गया।')}
             rows={data.stalling_fields}
