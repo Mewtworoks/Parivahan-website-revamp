@@ -58,7 +58,14 @@ function Result({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** A ledger as rows, with the broken link called out rather than left to be spotted. */
+/**
+ * A ledger as rows, with the broken link called out rather than left to be spotted.
+ *
+ * The tint and the seal colour are both derived from `--warn` rather than from
+ * `--warn-soft`, which the warning pills share: this row needs to be legible in
+ * a screen recording, and a ten-percent wash was not. Mixing against the token
+ * keeps it correct in both themes without a second rule.
+ */
 function Chain({ rows }: { rows: api.LedgerRow[] }) {
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -73,13 +80,16 @@ function Chain({ rows }: { rows: api.LedgerRow[] }) {
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.seq} style={row.intact ? undefined : { background: 'var(--warn-soft, rgba(200,80,20,.10))' }}>
+            <tr key={row.seq} style={row.intact ? undefined : {
+              background: 'color-mix(in oklab, var(--warn) 20%, transparent)',
+              boxShadow: 'inset 3px 0 0 var(--warn)',
+            }}>
               <td className="mono">{row.seq}</td>
               <td>{row.note}</td>
               <td className="mono tiny">{row.hash}…</td>
               <td>{row.intact
                 ? <span className="tiny">intact</span>
-                : <b className="tiny">broken</b>}</td>
+                : <b className="tiny" style={{ color: 'var(--warn)' }}>broken</b>}</td>
             </tr>
           ))}
         </tbody>
@@ -259,8 +269,12 @@ export function Proof({ go }: PageProps) {
           <div className="col g4">
             <h3>{t('Rewrite a record', 'रिकॉर्ड बदलें')}</h3>
             <span className="sub">
-              {t('Something with database access changes a step after it was recorded. A record that can be edited afterwards is one nobody can rely on — the applicant, and equally the office that wrote it. Watch the change announce itself.',
-                'डेटाबेस तक पहुँच रखने वाली कोई चीज़ दर्ज हो चुके चरण को बाद में बदल देती है। जो रिकॉर्ड बाद में बदला जा सके, उस पर कोई भरोसा नहीं कर सकता — न आवेदक, न वह कार्यालय जिसने उसे लिखा। देखिए कि बदलाव खुद ही सामने आ जाता है।')}
+              {/* Not "something with database access". The demonstration alters a
+                  recorded event and shows the receipt refusing it; it does not
+                  issue an UPDATE, and a card that says otherwise is describing a
+                  stronger demonstration than the one the button runs. */}
+              {t('Something rewrites a step after it was already recorded. A record that can be edited afterwards is one nobody can rely on — the applicant, and equally the office that wrote it. Watch the change announce itself.',
+                'दर्ज हो चुके किसी चरण को कोई बाद में बदल देता है। जो रिकॉर्ड बाद में बदला जा सके, उस पर कोई भरोसा नहीं कर सकता — न आवेदक, न वह कार्यालय जिसने उसे लिखा। देखिए कि बदलाव खुद ही सामने आ जाता है।')}
             </span>
           </div>
           <button className="btn btn-p btn-sm" disabled={busy === 'ledger'}
