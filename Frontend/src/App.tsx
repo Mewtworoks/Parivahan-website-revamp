@@ -333,11 +333,11 @@ export default function App() {
           <hr className="hr" />
           <div className="row between g16 wrapf">
             <span className="tiny" style={{ maxWidth: 600 }}>
-              {t('An independent redesign concept for the Parivahan Sewa licence journey, built for a public-service design challenge. Not affiliated with, endorsed by, or connected to the Ministry of Road Transport & Highways or any government body. The name is used only to identify the service being redesigned. No official emblem or logo is used. All data shown is synthetic.',
+              {t('An independent redesign concept for the Parivahan Sewa licence journey, built for WHat Moves India challenge. Not affiliated with, endorsed by, or connected to the Ministry of Road Transport & Highways or any government body. The name is used only to identify the service being redesigned. No official emblem or logo is used. All data shown is synthetic.',
                 'परिवहन सेवा लाइसेंस यात्रा के लिए एक स्वतंत्र पुनर्डिज़ाइन अवधारणा, जो एक सार्वजनिक-सेवा डिज़ाइन चैलेंज के लिए बनाई गई है। यह सड़क परिवहन एवं राजमार्ग मंत्रालय या किसी भी सरकारी संस्था से संबद्ध, अनुमोदित या जुड़ी नहीं है। नाम का उपयोग केवल उस सेवा की पहचान के लिए किया गया है जिसे फिर से डिज़ाइन किया जा रहा है। कोई आधिकारिक प्रतीक या लोगो उपयोग नहीं किया गया है। दिखाया गया सभी डेटा बनावटी है।',
                 'परिवहन सेवा लायसन्स प्रवासासाठी एक स्वतंत्र पुनर्रचना संकल्पना, जी सार्वजनिक-सेवा डिझाइन चॅलेंजसाठी तयार केली आहे. हे रस्ते वाहतूक आणि महामार्ग मंत्रालय किंवा कोणत्याही सरकारी संस्थेशी संलग्न, मान्यताप्राप्त किंवा जोडलेले नाही. नावाचा वापर फक्त पुनर्रचना केल्या जाणाऱ्या सेवेची ओळख करण्यासाठी केला आहे. कोणतेही अधिकृत बोधचिन्ह किंवा लोगो वापरलेला नाही. दाखवलेला सर्व डेटा बनावट आहे.')}
             </span>
-            <span className="tiny">{t('Designed for the public-service rebuild challenge · Aug 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चैलेंज के लिए डिज़ाइन किया गया · अगस्त 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चॅलेंजसाठी डिझाइन केले · ऑगस्ट 2026')}</span>
+            <span className="tiny">{t('Designed for the Build What Moves India challenge · Aug 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चैलेंज के लिए डिज़ाइन किया गया · अगस्त 2026', 'सार्वजनिक-सेवा पुनर्निर्माण चॅलेंजसाठी डिझाइन केले · ऑगस्ट 2026')}</span>
           </div>
         </div>
       </footer>

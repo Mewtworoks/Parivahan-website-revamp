@@ -5,9 +5,9 @@ import { Icon } from '../ui/Icon';
 import { Note } from '../ui/SharedUI';
 
 const TUTORIAL_ITEMS: [heading: string, body: string, headingHi: string, bodyHi: string, headingMr: string, bodyMr: string][] = [
-  ['Signals and priority', 'Amber means stop unless stopping is unsafe. At an unmarked junction, traffic from your right goes first. A pedestrian already on a zebra crossing goes before you, whatever your light says.',
-    'संकेत और प्राथमिकता', 'एम्बर का मतलब है रुकें, जब तक रुकना असुरक्षित न हो। बिना चिह्नित चौराहे पर, आपके दाईं ओर से आने वाला ट्रैफिक पहले जाता है। ज़ेब्रा क्रॉसिंग पर पहले से मौजूद पैदल यात्री आपसे पहले जाता है, आपकी लाइट जो भी कहे।',
-    'सिग्नल आणि प्राधान्य', 'एम्बरचा अर्थ थांबा, जोपर्यंत थांबणे असुरक्षित नाही. चिन्हांकित नसलेल्या चौकात, तुमच्या उजवीकडून येणारी वाहतूक आधी जाते. झेब्रा क्रॉसिंगवर आधीच असलेला पादचारी तुमच्याआधी जातो, तुमचा सिग्नल काहीही सांगत असला तरी.'],
+  ['Signals and priority', 'Yellow means stop unless stopping is unsafe. At an unmarked junction, traffic from your right goes first. A pedestrian already on a zebra crossing goes before you, whatever your light says.',
+    'संकेत और प्राथमिकता', 'पीली बत्ती का मतलब है रुकें, जब तक रुकना असुरक्षित न हो। बिना चिह्नित चौराहे पर, आपके दाईं ओर से आने वाला ट्रैफिक पहले जाता है। ज़ेब्रा क्रॉसिंग पर पहले से मौजूद पैदल यात्री आपसे पहले जाता है, आपकी लाइट जो भी कहे।',
+    'सिग्नल आणि प्राधान्य', 'पिवळ्या दिव्याचा अर्थ थांबा, जोपर्यंत थांबणे असुरक्षित नाही. चिन्हांकित नसलेल्या चौकात, तुमच्या उजवीकडून येणारी वाहतूक आधी जाते. झेब्रा क्रॉसिंगवर आधीच असलेला पादचारी तुमच्याआधी जातो, तुमचा सिग्नल काहीही सांगत असला तरी.'],
   ['Hazards you cannot see yet', 'Slow down before a parked van, a stopped bus or a blind bend — not after something appears. Most learner failures are about reacting late, not about not knowing the rule.',
     'खतरे जो आप अभी नहीं देख सकते', 'खड़ी वैन, रुकी हुई बस या अंधे मोड़ से पहले धीमे हो जाएं — कुछ दिखने के बाद नहीं। ज़्यादातर लर्नर की असफलता देर से प्रतिक्रिया देने की वजह से होती है, नियम न जानने की वजह से नहीं।',
     'तुम्हाला अजून न दिसणारे धोके', 'उभी असलेली व्हॅन, थांबलेली बस किंवा आडवळणापूर्वी वेग कमी करा — काहीतरी दिसल्यानंतर नाही. बहुतेक लर्नरचे अपयश उशिरा प्रतिक्रिया देण्यामुळे असते, नियम माहीत नसल्यामुळे नाही.'],

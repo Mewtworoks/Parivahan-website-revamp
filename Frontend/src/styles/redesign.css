@@ -750,10 +750,15 @@ a {
 
 /* The game's chrome: heads-up bar and countdown bar. Both were the same
    hardcoded blue, and both are chrome around the scene rather than part of it,
-   so the brand green is right for them. */
+   so the brand green is right for them. Was a one-off oklch value close to
+   the brand hue but far too dark and desaturated to read as "the site's
+   green" — it just looked like an unrelated near-black. `--brand-hi` is the
+   same dark-green token the header's "Talk to Saarthi" button and the
+   footer wordmark already use, so this chrome now matches instead of
+   inventing its own colour. */
 .hud,
 .cdbar {
-   background: oklch(0.288 0.075 158)
+   background: var(--brand-hi)
 }
 
 /* The frame around the scene is the exception, and turning it green with the

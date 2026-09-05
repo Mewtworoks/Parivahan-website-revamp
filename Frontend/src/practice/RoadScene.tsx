@@ -456,10 +456,11 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
     ctx.fillRect(Math.round(lx + lw * 0.68), Math.round(sy - wr), Math.round(wr * 1.6), Math.round(wr));
 
     ctx.fillStyle = body;
-    ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), Math.round(lh * 0.62));
+    const lr = Math.min(4 * PX, Math.round(lh * 0.62) * 0.3);
+    ctx.beginPath(); ctx.roundRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), Math.round(lh * 0.62), lr); ctx.fill();
     // Cabin, set back from the nose so the silhouette has a direction.
     const cabX = nose < 0 ? lx + lw * 0.3 : lx + lw * 0.16;
-    ctx.fillRect(Math.round(cabX), ly, Math.round(lw * 0.52), Math.round(lh * 0.4));
+    ctx.beginPath(); ctx.roundRect(Math.round(cabX), ly, Math.round(lw * 0.52), Math.round(lh * 0.4), lr); ctx.fill();
     ctx.fillStyle = `rgba(255,255,255,${0.16 * (1 - f)})`;
     ctx.fillRect(lx, ly + Math.round(lh * 0.34), Math.round(lw), PX);
     // Glass along the cabin.
@@ -481,8 +482,10 @@ function drawActor(ctx: CanvasRenderingContext2D, a: RoadActor, travelled: numbe
   ctx.fillStyle = body;
   // Radius scales with the box and caps out small — a distant vehicle a few
   // pixels across gets an effectively sharp corner either way, so there is no
-  // radius large enough to clip into a shape that small.
-  const vr = Math.min(3 * PX, Math.round(w) * 0.22, Math.round(h) * 0.22);
+  // radius large enough to clip into a shape that small. The cap itself is
+  // generous (rather than a literal car's small chamfer) to match the rounder,
+  // toy-flat vehicles drawn elsewhere on the site.
+  const vr = Math.min(6 * PX, Math.round(w) * 0.3, Math.round(h) * 0.3);
   ctx.beginPath(); ctx.roundRect(left, top, Math.round(w), Math.round(h), Math.max(0, vr)); ctx.fill();
 
   // A lit top row: one line of sky landing on a horizontal surface, which is
@@ -552,11 +555,11 @@ function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) 
     // their head is covered — so the helmet has to be a visibly separate thing
     // that can be missing.
     ctx.fillStyle = '#1c1c1f';
-    ctx.fillRect(cx - 3, top + ch - 12, 6, 12);
+    ctx.beginPath(); ctx.roundRect(cx - 3, top + ch - 12, 6, 12, 2); ctx.fill();
     ctx.fillStyle = '#3d6f52';
-    ctx.fillRect(left + 6, top + 16, cw - 12, 10);
+    ctx.beginPath(); ctx.roundRect(left + 6, top + 16, cw - 12, 10, 4); ctx.fill();
     ctx.fillStyle = '#2b2f36';
-    ctx.fillRect(left + 3, top + 10, cw - 6, 8);
+    ctx.beginPath(); ctx.roundRect(left + 3, top + 10, cw - 6, 8, 3); ctx.fill();
 
     const riders = spec.pillion === 'three' ? 4 : spec.pillion ? 2 : 1;
     for (let i = 0; i < riders; i++) {
@@ -580,21 +583,20 @@ function drawPlayer(ctx: CanvasRenderingContext2D, spec: RoadSpec, bob: number) 
 
   const body = '#c8382a';
   ctx.fillStyle = '#1c1c1f';
-  ctx.fillRect(left - 2, top + ch - 9, 8, 9);
-  ctx.fillRect(left + cw - 6, top + ch - 9, 8, 9);
+  ctx.beginPath(); ctx.roundRect(left - 2, top + ch - 9, 8, 9, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(left + cw - 6, top + ch - 9, 8, 9, 3); ctx.fill();
 
-  // A true rounded rect, where this used to fake a corner with a one-pixel
-  // inset on the top and bottom row — the pixel-art way to round a corner
-  // without a blurred edge. The edge is allowed to be smooth now, so it just
-  // is one, same silhouette otherwise.
+  // Rounder than a real car's — this is the toy-flat style the rest of the
+  // site's illustrations use (see HeroScene's van and car), so the corner
+  // radius is generous rather than the small chamfer a literal car has.
   ctx.fillStyle = body;
-  ctx.beginPath(); ctx.roundRect(left, top + 10, cw, ch - 12, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(left, top + 10, cw, ch - 12, 9); ctx.fill();
   ctx.fillStyle = '#dd4c37';
   ctx.fillRect(left + 3, top + 11, cw - 6, 1);
   ctx.fillStyle = '#8f2418';
   ctx.fillRect(left + 1, top + ch - 4, cw - 2, 1);
   ctx.fillStyle = body;
-  ctx.beginPath(); ctx.roundRect(left + 7, top + 2, cw - 14, 10, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(left + 7, top + 2, cw - 14, 10, 6); ctx.fill();
 
   ctx.fillStyle = '#233038';
   ctx.fillRect(left + 10, top + 4, cw - 20, 7);
@@ -724,14 +726,17 @@ export function RoadScene({ spec, progress = 0, revealed = false }: { spec: Road
         const n = noise(i * 3);
         ctx.beginPath(); ctx.arc((i / 25) * (W + 40 * PX) - 20 * PX, HORIZON + 2 * PX, (12 + n * 26) * PX, Math.PI, Math.PI * 2); ctx.fill();
       }
+      // Round canopies, not rectangles — a strip of boxes on the horizon reads
+      // as a distant skyline, and the roadside trees a few rows below are
+      // already drawn as circles, so squared-off ones up here fought that.
       ctx.fillStyle = mix('#3f6b45', skyLow, night ? 0.5 : 0.34);
       for (let i = 0; i < 34; i++) {
         const n = noise(i * 7 + 5);
         const cx = Math.round((i / 33) * (W + 30 * PX) - 15 * PX + n * 6 * PX);
-        const h = (6 + n * 11) * PX;
-        const w = (4 + n * 5) * PX;
-        ctx.fillRect(Math.round(cx - w / 2), Math.round(HORIZON - h), Math.round(w), Math.round(h));
-        ctx.fillRect(cx - PX, HORIZON - 2 * PX, 2 * PX, 3 * PX);
+        const r = (5 + n * 8) * PX;
+        const cy = HORIZON - r * 0.7;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(Math.round(cx - PX / 2), Math.round(HORIZON - PX * 0.5), PX, PX * 1.5);
       }
 
       const wet = !!s.wet;
